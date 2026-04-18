@@ -4,9 +4,8 @@ import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { ordersApi } from '@/services/api';
 import { useToast } from '@/stores/toastStore';
+import { WILAYA_CHOICES } from '@/types';
 import type { CheckoutData } from '@/types';
-import AddressFields from '@/components/common/AddressFields';
-import { useAlgeria } from '@/hooks/useAlgeria';
 
 export default function Checkout() {
   const { cart, fetchCart, clearCart } = useCartStore();
@@ -14,7 +13,6 @@ export default function Checkout() {
   const toast = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { isValidPostalCode } = useAlgeria();
 
   const [form, setForm] = useState<CheckoutData>({
     full_name: '',
@@ -53,11 +51,6 @@ export default function Checkout() {
       toast.error('السلة فارغة');
       return;
     }
-    if (form.postal_code && form.wilaya && form.baladia &&
-        !isValidPostalCode(form.wilaya, form.baladia, form.postal_code)) {
-      toast.error('الرمز البريدي غير صحيح لهذه البلدية');
-      return;
-    }
     setLoading(true);
     try {
       const res = await ordersApi.create(form);
@@ -90,48 +83,60 @@ export default function Checkout() {
           {/* Form */}
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping info */}
-            <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-5">معلومات الشحن</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الاسم الكامل *</label>
                   <input name="full_name" value={form.full_name} onChange={handleChange} required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">رقم الهاتف *</label>
                   <input name="phone" value={form.phone} onChange={handleChange} required type="tel"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">البريد الإلكتروني *</label>
                   <input name="email" value={form.email} onChange={handleChange} required type="email"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
                 </div>
-                <AddressFields
-                  wilaya={form.wilaya}
-                  baladia={form.baladia}
-                  postal_code={form.postal_code}
-                  onChange={(field, value) => setForm((p) => ({ ...p, [field]: value }))}
-                  required
-                  className="sm:col-span-2"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الولاية *</label>
+                  <select name="wilaya" value={form.wilaya} onChange={handleChange} required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors">
+                    <option value="">اختر الولاية</option>
+                    {WILAYA_CHOICES.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">البلدية *</label>
+                  <input name="baladia" value={form.baladia} onChange={handleChange} required placeholder="اسم البلدية"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الرمز البريدي</label>
+                  <input name="postal_code" value={form.postal_code} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
+                </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">العنوان التفصيلي *</label>
                   <input name="address" value={form.address} onChange={handleChange} required placeholder="الشارع، الحي، رقم المبنى..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">ملاحظات إضافية</label>
                   <textarea name="notes" value={form.notes} onChange={handleChange} rows={3}
                     placeholder="أي تعليمات خاصة للتوصيل..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic resize-none" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic resize-none transition-colors" />
                 </div>
               </div>
             </div>
 
             {/* Payment */}
-            <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-5">طريقة الدفع</h3>
               <div className="space-y-3">
                 {[
@@ -140,9 +145,7 @@ export default function Checkout() {
                   { value: 'apple_pay', label: 'Apple Pay', icon: '' },
                 ].map((pm) => (
                   <label key={pm.value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    form.payment_method === pm.value
-                      ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/10'
-                      : 'border-gray-200 dark:border-[#2E2E2E] hover:border-gray-300 dark:hover:border-gray-600'
+                    form.payment_method === pm.value ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
                   }`}>
                     <input
                       type="radio"
@@ -162,29 +165,29 @@ export default function Checkout() {
 
           {/* Summary */}
           <div>
-            <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6 sticky top-20">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 sticky top-20">
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-5">ملخص الطلب</h3>
               <div className="space-y-3 mb-5 max-h-60 overflow-y-auto">
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm font-arabic">
-                    <span className="text-gray-500 dark:text-gray-400 line-clamp-1 flex-1 ml-2">{item.variant?.name} × {item.quantity}</span>
-                    <span className="font-mono shrink-0 text-gray-800 dark:text-gray-200">{Number(item.subtotal).toLocaleString('ar-DZ')} دج</span>
+                    <span className="text-gray-600 dark:text-gray-400 line-clamp-1 flex-1 ml-2">{item.variant?.name} × {item.quantity}</span>
+                    <span className="font-mono shrink-0">{Number(item.subtotal).toLocaleString('ar-DZ')} دج</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-gray-100 dark:border-[#2E2E2E] pt-4 space-y-2">
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-2">
                 <div className="flex justify-between text-sm font-arabic">
-                  <span className="text-gray-500 dark:text-gray-400">المجموع الفرعي</span>
-                  <span className="font-mono text-gray-800 dark:text-gray-200">{Number(subtotal).toLocaleString('ar-DZ')} دج</span>
+                  <span className="text-gray-600 dark:text-gray-400">المجموع الفرعي</span>
+                  <span className="font-mono">{Number(subtotal).toLocaleString('ar-DZ')} دج</span>
                 </div>
                 <div className="flex justify-between text-sm font-arabic">
-                  <span className="text-gray-500 dark:text-gray-400">الشحن</span>
-                  <span className={`font-mono ${shipping === 0 ? 'text-green-600 dark:text-green-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                  <span className="text-gray-600 dark:text-gray-400">الشحن</span>
+                  <span className={`font-mono ${shipping === 0 ? 'text-green-600' : ''}`}>
                     {shipping === 0 ? 'مجاني' : `${shipping} دج`}
                   </span>
                 </div>
-                <div className="border-t border-gray-100 dark:border-[#2E2E2E] pt-2 flex justify-between font-bold font-arabic">
-                  <span className="text-gray-900 dark:text-gray-100">الإجمالي</span>
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-2 flex justify-between font-bold font-arabic">
+                  <span>الإجمالي</span>
                   <span className="text-primary-600 font-mono text-lg">{Number(total).toLocaleString('ar-DZ')} دج</span>
                 </div>
               </div>

@@ -42,6 +42,7 @@ export default function FloatingHelpButton() {
 
     setIsSending(true);
     try {
+      // إرسال البريد عبر EmailJS أو mock
       const mailData = {
         service_id: 'default_service',
         template_id: 'support_template',
@@ -55,6 +56,7 @@ export default function FloatingHelpButton() {
         },
       };
 
+      // محاولة إرسال عبر EmailJS إذا كان متوفراً
       if (typeof (window as any).emailjs !== 'undefined') {
         await (window as any).emailjs.send(
           mailData.service_id,
@@ -63,6 +65,7 @@ export default function FloatingHelpButton() {
           mailData.user_id
         );
       } else {
+        // Mock: log to console and simulate success
         console.log('📧 Support request (EmailJS not configured):', mailData.template_params);
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -90,11 +93,16 @@ export default function FloatingHelpButton() {
         className="fixed bottom-6 left-6 z-[100] group"
         aria-label="طلب المساعدة"
       >
+        {/* الحلقة الخارجية المتحركة */}
         <span className="absolute inset-0 rounded-full animate-ping bg-primary-400/30 opacity-75" />
+        {/* الظل ثلاثي الأبعاد */}
         <span
           className="absolute inset-0 rounded-full blur-md transition-all duration-300 group-hover:blur-lg"
-          style={{ background: 'linear-gradient(135deg, #5C8A6E, #3d6b52)' }}
+          style={{
+            background: 'linear-gradient(135deg, #5C8A6E, #3d6b52)',
+          }}
         />
+        {/* الزر الرئيسي */}
         <span
           className="relative flex items-center justify-center w-14 h-14 rounded-full text-white transition-all duration-300 group-hover:scale-110 group-active:scale-95"
           style={{
@@ -108,9 +116,10 @@ export default function FloatingHelpButton() {
             <MessageCircle className="w-6 h-6" />
           )}
         </span>
+        {/* نص توضيحي */}
         <span
-          className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#1A1A1A] text-white text-xs font-arabic rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none border border-white/10"
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+          className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-arabic rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
         >
           طلب المساعدة
         </span>
@@ -120,21 +129,26 @@ export default function FloatingHelpButton() {
       {isOpen && (
         <div
           ref={formRef}
-          className="fixed bottom-24 left-6 z-[100] w-80 sm:w-96 rounded-2xl overflow-hidden transition-all duration-300"
+          className="fixed bottom-24 left-6 z-[100] w-80 sm:w-96 rounded-2xl overflow-hidden transition-all duration-300 animate-slide-up"
           style={{
-            background: '#1A1A1A',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06)',
+            background: 'linear-gradient(145deg, #ffffff, #f8f9fa)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.1)',
           }}
         >
           {/* رأس النموذج */}
           <div
             className="p-4 text-white"
-            style={{ background: 'linear-gradient(135deg, #5C8A6E, #3d6b52)' }}
+            style={{
+              background: 'linear-gradient(135deg, #5C8A6E, #3d6b52)',
+            }}
           >
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.2)', boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)' }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.3)',
+                }}
               >
                 <AlertTriangle className="w-5 h-5" />
               </div>
@@ -146,38 +160,42 @@ export default function FloatingHelpButton() {
           </div>
 
           {/* محتوى النموذج */}
-          <div className="p-4">
+          <div className="p-4 dark:bg-gray-900 dark:text-gray-100 transition-colors">
             {isSent ? (
               <div className="text-center py-6">
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center bg-green-900/30">
-                  <CheckCircle className="w-8 h-8 text-green-400" />
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
-                <p className="font-bold font-arabic text-green-400">تم الإرسال بنجاح!</p>
-                <p className="text-sm text-gray-500 font-arabic mt-1">
+                <p className="font-bold font-arabic text-green-700 dark:text-green-400">تم الإرسال بنجاح!</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-arabic mt-1">
                   شكراً لتواصلك معنا، سنرد عليك قريباً
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
+                {/* نوع الخطأ */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 font-arabic mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 font-arabic mb-1.5">
                     نوع المشكلة
                   </label>
                   <select
                     value={errorType}
                     onChange={(e) => setErrorType(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-[#252525] text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all text-gray-200"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all dark:text-gray-100"
                   >
                     <option value="">اختر نوع المشكلة...</option>
                     {ERROR_TYPES.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </div>
 
+                {/* رسالة الخطأ */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 font-arabic mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 font-arabic mb-1.5">
                     تفاصيل المشكلة
                   </label>
                   <textarea
@@ -186,15 +204,18 @@ export default function FloatingHelpButton() {
                     required
                     rows={3}
                     placeholder="اشرح المشكلة التي واجهتها بالتفصيل..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-[#252525] text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 resize-none transition-all text-gray-200 placeholder-gray-600"
+                    className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 resize-none transition-all dark:text-gray-100 dark:placeholder-gray-500"
                   />
                 </div>
 
+                {/* زر الإرسال */}
                 <button
                   type="submit"
                   disabled={isSending || !errorType || !message.trim()}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-400 hover:bg-primary-500 disabled:bg-gray-700 text-white font-bold font-arabic text-sm rounded-xl transition-all active:scale-95 disabled:cursor-not-allowed"
-                  style={{ boxShadow: '0 4px 12px rgba(92,138,110,0.3)' }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-400 hover:bg-primary-500 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-bold font-arabic text-sm rounded-xl transition-all active:scale-95 disabled:cursor-not-allowed"
+                  style={{
+                    boxShadow: '0 4px 12px rgba(92,138,110,0.3)',
+                  }}
                 >
                   {isSending ? (
                     <>

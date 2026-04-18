@@ -9,7 +9,7 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set) => ({
-      isDark: true, // الوضع الداكن افتراضياً
+      isDark: false,
       toggleTheme: () =>
         set((state) => {
           const newDark = !state.isDark;
@@ -24,7 +24,7 @@ export const useThemeStore = create<ThemeStore>()(
     {
       name: 'theme-storage',
       onRehydrateStorage: () => (state) => {
-        if (state?.isDark ?? true) {
+        if (state?.isDark) {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');

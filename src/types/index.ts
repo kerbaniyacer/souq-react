@@ -115,7 +115,6 @@ export interface ProductVariant {
   created_at: string;
   is_main: boolean;
   is_in_stock: boolean;
-  image?: string | null;
   images?: VariantImage[];
 }
 

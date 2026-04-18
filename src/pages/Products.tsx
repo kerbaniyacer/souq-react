@@ -93,7 +93,7 @@ export default function Products() {
             <select
               value={ordering}
               onChange={(e) => updateFilter('ordering', e.target.value)}
-              className="appearance-none pl-8 pr-4 py-2.5 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-xl text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 cursor-pointer"
+              className="appearance-none pl-8 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30 cursor-pointer transition-colors"
             >
               <option value="">الأحدث</option>
               <option value="price">السعر: الأقل أولاً</option>
@@ -101,13 +101,13 @@ export default function Products() {
               <option value="-rating">التقييم الأعلى</option>
               <option value="-sold_count">الأكثر مبيعاً</option>
             </select>
-            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
           </div>
 
           {/* Filter toggle mobile */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-700 dark:text-gray-300 rounded-xl text-sm font-arabic"
+            className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-arabic"
           >
             <SlidersHorizontal className="w-4 h-4" />
             فلترة
@@ -119,7 +119,7 @@ export default function Products() {
       <div className="flex gap-8">
         {/* Filters sidebar */}
         <aside className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-64 shrink-0`}>
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 sticky top-20">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 sticky top-20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic">تصفية النتائج</h3>
               {hasFilters && (
@@ -205,7 +205,7 @@ export default function Products() {
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-5">
               {[...Array(12)].map((_, i) => (
-                <div key={i} className="bg-gray-100 dark:bg-[#1A1A1A] rounded-2xl aspect-square animate-pulse" />
+                <div key={i} className="bg-gray-100 dark:bg-gray-800 rounded-2xl aspect-square animate-pulse" />
               ))}
             </div>
           ) : products.length === 0 ? (
@@ -228,7 +228,7 @@ export default function Products() {
                   {page > 1 && (
                     <button
                       onClick={() => updateFilter('page', String(page - 1))}
-                      className="px-4 py-2 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-700 dark:text-gray-300 rounded-xl text-sm font-arabic hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+                      className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-arabic hover:border-primary-300 transition-colors"
                     >
                       السابق
                     </button>
@@ -243,7 +243,7 @@ export default function Products() {
                         className={`w-10 h-10 rounded-xl text-sm font-bold transition-colors ${
                           p === page
                             ? 'bg-primary-400 text-white'
-                            : 'bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-700 dark:text-gray-300 hover:border-primary-300 dark:hover:border-primary-600'
+                            : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-300'
                         }`}
                       >
                         {p}
@@ -253,7 +253,7 @@ export default function Products() {
                   {page < totalPages && (
                     <button
                       onClick={() => updateFilter('page', String(page + 1))}
-                      className="px-4 py-2 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-700 dark:text-gray-300 rounded-xl text-sm font-arabic hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
+                      className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-arabic hover:border-primary-300 transition-colors"
                     >
                       التالي
                     </button>

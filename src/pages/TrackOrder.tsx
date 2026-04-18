@@ -40,8 +40,8 @@ export default function TrackOrder() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16">
       <div className="text-center mb-10">
-        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Truck className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+        <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Truck className="w-8 h-8 text-primary-600" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-2">تتبع طلبك</h1>
         <p className="text-gray-500 dark:text-gray-400 font-arabic">أدخل رقم الطلب لمتابعة حالته</p>
@@ -54,7 +54,7 @@ export default function TrackOrder() {
           value={orderNumber}
           onChange={(e) => setOrderNumber(e.target.value)}
           placeholder="SOQ-2024-XXXXX"
-          className="flex-1 px-5 py-3.5 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 font-arabic text-center text-lg tracking-widest"
+          className="flex-1 px-5 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 font-arabic text-center text-lg tracking-widest transition-colors"
           dir="ltr"
         />
         <button
@@ -69,21 +69,21 @@ export default function TrackOrder() {
 
       {/* Not found */}
       {notFound && (
-        <div className="text-center py-8 bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E]">
+        <div className="text-center py-8 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
           <p className="text-4xl mb-3">🔍</p>
-          <p className="text-gray-600 dark:text-gray-300 font-arabic font-medium">لم يتم العثور على الطلب</p>
+          <p className="text-gray-600 dark:text-gray-400 font-arabic font-medium">لم يتم العثور على الطلب</p>
           <p className="text-gray-400 dark:text-gray-500 font-arabic text-sm mt-1">تأكد من رقم الطلب وحاول مرة أخرى</p>
         </div>
       )}
 
       {/* Order found */}
       {order && (
-        <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           {/* Header */}
-          <div className="bg-primary-50 dark:bg-primary-900/10 px-6 py-5 border-b border-primary-100 dark:border-primary-900/20">
+          <div className="bg-primary-50 px-6 py-5 border-b border-primary-100">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-primary-600 dark:text-primary-400 font-arabic mb-1">رقم الطلب</p>
+                <p className="text-sm text-primary-600 font-arabic mb-1">رقم الطلب</p>
                 <p className="font-bold text-gray-900 dark:text-gray-100 text-lg font-mono">{order.order_number}</p>
               </div>
               <div className="text-left">
@@ -99,7 +99,7 @@ export default function TrackOrder() {
               <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic mb-6">مسار الطلب</h3>
               <div className="relative">
                 {/* Progress line */}
-                <div className="absolute top-5 right-5 left-5 h-0.5 bg-gray-200 dark:bg-[#2E2E2E] -z-0" />
+                <div className="absolute top-5 right-5 left-5 h-0.5 bg-gray-200 -z-0" />
                 <div
                   className="absolute top-5 right-5 h-0.5 bg-primary-400 transition-all duration-500 -z-0"
                   style={{ width: currentStepIndex >= 0 ? `${(currentStepIndex / (steps.length - 1)) * 100}%` : '0%' }}
@@ -112,12 +112,12 @@ export default function TrackOrder() {
                       <div key={step.status} className="flex flex-col items-center gap-2">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
                           done ? 'bg-primary-400 border-primary-400 text-white' :
-                          active ? 'bg-white dark:bg-[#1A1A1A] border-primary-400 text-primary-400' :
-                          'bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-[#2E2E2E] text-gray-300 dark:text-gray-600'
+                          active ? 'bg-white border-primary-400 text-primary-400' :
+                          'bg-white border-gray-200 text-gray-300'
                         }`}>
                           {step.icon}
                         </div>
-                        <span className={`text-xs font-arabic text-center max-w-14 leading-tight ${done ? 'text-primary-600 dark:text-primary-400 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+                        <span className={`text-xs font-arabic text-center max-w-14 leading-tight ${done ? 'text-primary-600 font-medium' : 'text-gray-400'}`}>
                           {step.label}
                         </span>
                       </div>
@@ -128,14 +128,14 @@ export default function TrackOrder() {
             </div>
           ) : (
             <div className="p-6 text-center">
-              <p className={`text-lg font-bold font-arabic ${order.status === 'cancelled' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+              <p className={`text-lg font-bold font-arabic ${order.status === 'cancelled' ? 'text-red-600' : 'text-gray-600'}`}>
                 {order.status === 'cancelled' ? '❌ تم إلغاء هذا الطلب' : '↩️ تم إرجاع هذا الطلب'}
               </p>
             </div>
           )}
 
           {/* Shipping info */}
-          <div className="px-6 pb-6 border-t border-gray-100 dark:border-[#2E2E2E] pt-5">
+          <div className="px-6 pb-6 border-t border-gray-100 dark:border-gray-800 pt-5">
             <h4 className="font-semibold text-gray-700 dark:text-gray-300 font-arabic mb-3">معلومات التوصيل</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>

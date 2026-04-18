@@ -25,39 +25,37 @@ export default function Footer() {
   };
 
   return (
-    <footer className="mt-0 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-[#1E1E1E]">
+    <footer className="bg-gray-900 text-gray-300 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-
           {/* Brand */}
           <div>
-            <Link to="/" className="flex items-center gap-2.5 mb-5 group w-fit">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shadow-primary-400/20 transition-all group-hover:shadow-primary-400/35"
-                style={{ background: 'linear-gradient(135deg, #5C8A6E, #7AA88C)' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-9 h-9 bg-primary-400 rounded-xl flex items-center justify-center">
                 <Store className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold font-arabic bg-gradient-to-l from-primary-300 to-primary-400 bg-clip-text text-transparent">
-                سوق
-              </span>
-            </Link>
-            <p className="text-sm text-gray-600 dark:text-gray-500 leading-relaxed font-arabic mb-5">
+              <span className="text-xl font-bold text-white font-arabic">سوق</span>
+            </div>
+            <p className="text-sm leading-relaxed font-arabic">
               متجر إلكتروني يضم أفضل المنتجات من مختلف التجار. نضمن لك تجربة تسوق آمنة وسهلة.
             </p>
-            <div className="flex gap-2.5">
-              {[Facebook, Instagram, Twitter].map((Icon, i) => (
-                <a key={i} href="#"
-                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-[#2E2E2E] text-gray-600 dark:text-gray-500 hover:text-primary-300 hover:border-primary-400/30 hover:bg-primary-400/8 transition-all duration-200"
-                  style={{ background: 'rgba(0,0,0,0.02)' }}>
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
+            <div className="flex gap-3 mt-4">
+              <a href="#" className="p-2 bg-white/10 rounded-lg hover:bg-primary-400 transition-colors">
+                <Facebook className="w-4 h-4" />
+              </a>
+              <a href="#" className="p-2 bg-white/10 rounded-lg hover:bg-primary-400 transition-colors">
+                <Instagram className="w-4 h-4" />
+              </a>
+              <a href="#" className="p-2 bg-white/10 rounded-lg hover:bg-primary-400 transition-colors">
+                <Twitter className="w-4 h-4" />
+              </a>
             </div>
           </div>
 
-          {/* Quick links */}
+          {/* Links */}
           <div>
-            <h4 className="text-gray-800 dark:text-gray-200 font-semibold mb-5 font-arabic text-sm tracking-wide">روابط سريعة</h4>
-            <ul className="space-y-3">
+            <h4 className="text-white font-semibold mb-4 font-arabic">روابط سريعة</h4>
+            <ul className="space-y-2">
               {[
                 { to: '/products', label: 'المنتجات' },
                 { to: '/cart', label: 'السلة' },
@@ -66,9 +64,10 @@ export default function Footer() {
                 { to: '/track-order', label: 'تتبع الطلب' },
               ].map((link) => (
                 <li key={link.to}>
-                  <Link to={link.to}
-                    className="text-sm text-gray-500 dark:text-gray-600 hover:text-primary-300 font-arabic transition-colors flex items-center gap-1.5 group">
-                    <span className="w-1 h-1 rounded-full bg-primary-400/30 group-hover:bg-primary-400 transition-colors" />
+                  <Link
+                    to={link.to}
+                    className="text-sm hover:text-primary-400 transition-colors font-arabic"
+                  >
                     {link.label}
                   </Link>
                 </li>
@@ -78,51 +77,48 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="text-gray-800 dark:text-gray-200 font-semibold mb-5 font-arabic text-sm tracking-wide">تواصل معنا</h4>
-            <ul className="space-y-3.5">
-              {[
-                { icon: <Mail className="w-4 h-4" />, text: 'contact@souq.dz' },
-                { icon: <Phone className="w-4 h-4" />, text: '+213 555 000 000' },
-                { icon: <MapPin className="w-4 h-4" />, text: 'الجزائر العاصمة، الجزائر' },
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-500 font-arabic">
-                  <span className="text-primary-400 shrink-0">{item.icon}</span>
-                  {item.text}
-                </li>
-              ))}
+            <h4 className="text-white font-semibold mb-4 font-arabic">تواصل معنا</h4>
+            <ul className="space-y-3">
+              <li className="flex items-center gap-2 text-sm font-arabic">
+                <Mail className="w-4 h-4 text-primary-400 shrink-0" />
+                <span>contact@souq.dz</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm font-arabic">
+                <Phone className="w-4 h-4 text-primary-400 shrink-0" />
+                <span>+213 555 000 000</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm font-arabic">
+                <MapPin className="w-4 h-4 text-primary-400 shrink-0" />
+                <span>الجزائر العاصمة، الجزائر</span>
+              </li>
             </ul>
           </div>
 
           {/* Newsletter */}
           <div>
-            <h4 className="text-gray-800 dark:text-gray-200 font-semibold mb-2 font-arabic text-sm tracking-wide">النشرة البريدية</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-600 mb-4 font-arabic leading-relaxed">اشترك للحصول على آخر العروض والمنتجات الجديدة</p>
-            <form onSubmit={handleSubscribe} className="space-y-2">
+            <h4 className="text-white font-semibold mb-4 font-arabic">النشرة البريدية</h4>
+            <p className="text-sm mb-4 font-arabic">اشترك للحصول على آخر العروض والمنتجات الجديدة</p>
+            <form onSubmit={handleSubscribe} className="flex gap-2">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="بريدك الإلكتروني"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-gray-300 text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-400/25 focus:border-primary-400/50 font-arabic transition-all"
+                className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic placeholder-gray-500"
               />
-              <button type="submit" disabled={subscribing}
-                className="w-full py-2.5 rounded-xl text-white text-sm font-bold font-arabic transition-all hover:-translate-y-0.5 disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #5C8A6E, #7AA88C)' }}>
-                {subscribing ? 'جاري الاشتراك...' : 'اشتراك'}
+              <button
+                type="submit"
+                disabled={subscribing}
+                className="px-4 py-2 bg-primary-400 text-white rounded-xl text-sm hover:bg-primary-500 transition-colors disabled:opacity-50 font-arabic"
+              >
+                {subscribing ? '...' : 'اشتراك'}
               </button>
             </form>
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-12 pt-6 border-t border-gray-200 dark:border-[#1E1E1E] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-gray-500 dark:text-gray-600 font-arabic">
-            © {new Date().getFullYear()} سوق — جميع الحقوق محفوظة
-          </p>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-primary-400 animate-pulse" />
-            <span className="text-xs text-gray-500 dark:text-gray-600 font-arabic">متصل الآن</span>
-          </div>
+        <div className="border-t border-white/10 mt-12 pt-6 text-center text-sm font-arabic">
+          <p>© {new Date().getFullYear()} سوق - جميع الحقوق محفوظة</p>
         </div>
       </div>
     </footer>

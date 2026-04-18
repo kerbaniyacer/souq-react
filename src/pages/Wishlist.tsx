@@ -16,11 +16,9 @@ export default function Wishlist() {
 
   const handleAddToCart = async (productId: number) => {
     try {
-      const wishlistEntry = items.find((w) => String(w.product?.id) === String(productId));
-      const product = wishlistEntry?.product;
-      const mainVariant =
-        product?.variants?.find((v) => v.is_main) ?? product?.variants?.[0];
-      const variantId = mainVariant?.id;
+      // Get the first variant id from wishlist items
+      const wishlistEntry = items.find((w) => w.product?.id === productId);
+      const variantId = wishlistEntry?.items?.[0]?.variant?.id;
       if (!variantId) {
         toast.error('لا يوجد نسخة متاحة');
         return;
@@ -45,7 +43,7 @@ export default function Wishlist() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-10">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-          {[...Array(4)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 dark:bg-[#1A1A1A] rounded-2xl animate-pulse" />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl animate-pulse" />)}
         </div>
       </div>
     );
@@ -54,8 +52,8 @@ export default function Wishlist() {
   if (!items.length) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
-        <div className="w-24 h-24 bg-gray-100 dark:bg-[#252525] rounded-3xl flex items-center justify-center mx-auto mb-6">
-          <Heart className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+        <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <Heart className="w-12 h-12 text-gray-300" />
         </div>
         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 font-arabic mb-2">المفضلة فارغة</h2>
         <p className="text-gray-500 dark:text-gray-400 font-arabic mb-8">لم تضف أي منتجات إلى المفضلة بعد</p>
@@ -79,14 +77,14 @@ export default function Wishlist() {
           const mainImage = product.main_image ?? product.images?.[0]?.image;
 
           return (
-            <div key={entry.id} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden hover:shadow-lg transition-all group">
+            <div key={entry.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-lg transition-all group">
               <Link to={`/products/${product.slug}`} className="block">
-                <div className="aspect-square bg-gray-50 dark:bg-[#1E1E1E] overflow-hidden relative">
+                <div className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden relative">
                   {mainImage ? (
-                    <img src={mainImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={mainImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 transition-colors" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingCart className="w-10 h-10 text-gray-200 dark:text-gray-700" />
+                      <ShoppingCart className="w-10 h-10 text-gray-200" />
                     </div>
                   )}
                 </div>
@@ -112,7 +110,7 @@ export default function Wishlist() {
                   </button>
                   <button
                     onClick={() => handleRemove(product.id)}
-                    className="p-2 border border-gray-200 dark:border-[#2E2E2E] text-gray-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 rounded-lg transition-colors"
+                    className="p-2 border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:border-red-200 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
