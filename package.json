@@ -1,0 +1,50 @@
+{
+  "name": "souq-react",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "db:server": "node server.mjs",
+    "email:server": "node email-server.cjs",
+    "email:kill": "cmd /c \"FOR /F tokens^=5 %a IN ('netstat -aon ^| findstr :3002') DO taskkill /F /PID %a\"",
+    "servers": "concurrently \"npm run db:server\" \"npm run email:server\""
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.13.5",
+    "@tanstack/react-query": "^5.51.1",
+    "axios": "^1.7.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.441.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.1",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@types/node": "^22.5.5",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.9",
+    "express": "^5.2.1",
+    "globals": "^15.9.0",
+    "json-server": "^1.0.0-beta.3",
+    "nodemailer": "^8.0.5",
+    "postcss": "^8.4.45",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.0.1",
+    "vite": "^5.4.1"
+  }
+}

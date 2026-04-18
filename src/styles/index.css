@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --page-bg: #0F0F0F;
+    --surface: #1A1A1A;
+    --card: #1E1E1E;
+    --card-hover: #252525;
+    --dark-border: #2E2E2E;
+    --primary: #5C8A6E;
+    --sage-light: #7AA88C;
+    --taupe: #C9897A;
+    --gold: #D4A853;
+    --rose: #E94B5C;
+    --text-primary: #F0F0F0;
+    --text-secondary: #A0A0A0;
+    --text-muted: #666666;
+    --shadow-glow: 0 0 30px rgba(92,138,110,0.12);
+  }
+
+  html {
+    font-family: 'Inter', 'Cairo', 'Tajawal', sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--page-bg);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0F0F0F; }
+  ::-webkit-scrollbar-thumb { background: #5C8A6E; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #7AA88C; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-l from-primary-400 to-primary-300 text-white font-bold rounded-2xl
+           hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary-400/30
+           active:scale-95 transition-all duration-300 font-arabic;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 bg-transparent border border-dark-border text-gray-200 font-bold rounded-2xl
+           hover:border-primary-400
+           transition-all duration-300 font-arabic;
+  }
+
+  .card {
+    @apply bg-[#1E1E1E] rounded-2xl border border-[#2E2E2E];
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-[#2E2E2E] bg-[#1E1E1E] text-gray-200
+           placeholder-gray-600
+           focus:outline-none focus:ring-2 focus:ring-primary-400/25 focus:border-primary-400
+           font-arabic transition-all;
+  }
+
+  .badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium font-arabic;
+  }
+
+  .font-arabic {
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+  }
+
+  .field-input {
+    @apply w-full px-4 py-3 rounded-xl border border-[#2E2E2E] bg-[#1E1E1E] text-gray-200
+           placeholder-gray-600 text-sm
+           focus:outline-none focus:ring-2 focus:ring-primary-400/25 focus:border-primary-400
+           font-arabic transition-all;
+  }
+
+  .field-label {
+    @apply block text-sm font-medium text-gray-400 font-arabic mb-2;
+  }
+
+  /* Section tag pill */
+  .section-tag {
+    @apply inline-block px-4 py-1.5 bg-primary-400/10 border border-primary-400/20
+           text-primary-300 text-xs rounded-full tracking-wide font-arabic;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #F0F0F0 0%, #7AA88C 50%, #D9A99D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow card */
+  .card-glow {
+    @apply bg-[#1E1E1E] border border-[#2E2E2E] rounded-2xl transition-all duration-300;
+  }
+  .card-glow:hover {
+    border-color: rgba(92,138,110,0.35);
+    box-shadow: 0 0 30px rgba(92,138,110,0.1), 0 8px 40px rgba(0,0,0,0.4);
+    transform: translateY(-4px);
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+  .animate-float-slow {
+    animation: float 7s ease-in-out infinite;
+  }
+  .animate-glow {
+    animation: borderGlow 3s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  .animate-fade-up {
+    animation: fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) both;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(92,138,110,0.3); box-shadow: 0 0 15px rgba(92,138,110,0.1); }
+  50% { border-color: rgba(201,137,122,0.4); box-shadow: 0 0 25px rgba(201,137,122,0.15); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slide-down { animation: slideDown 0.25s ease both; }
+.animate-fade-in { animation: fadeIn 0.4s ease both; }
+
+/* No scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
