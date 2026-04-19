@@ -58,12 +58,19 @@ def order_create(request):
         shipping_cost = 0 if subtotal >= 5000 else 500
         total_amount = subtotal + shipping_cost
 
+        d = serializer.validated_data
         order = Order.objects.create(
             user=request.user,
             subtotal=subtotal,
             shipping_cost=shipping_cost,
             total_amount=total_amount,
-            **serializer.validated_data,
+            payment_method=d['payment_method'],
+            shipping_full_name=d['full_name'],
+            shipping_phone=d['phone'],
+            shipping_wilaya=d['wilaya'],
+            shipping_baladia=d['baladia'],
+            shipping_address=d['address'],
+            notes=d.get('notes', ''),
         )
 
         for ci in cart_items:

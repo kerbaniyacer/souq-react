@@ -146,7 +146,18 @@ export default function MerchantProductForm() {
 
   // ─── Load categories & product (edit) ──────────────────────────
   useEffect(() => {
-    categoriesApi.list().then((r) => setCategories(r.data as Category[]));
+    categoriesApi.list().then((r) => {
+      // Flatten tree: root + all children into a single list
+      const flat: Category[] = [];
+      const addFlat = (cats: any[]) => {
+        for (const c of cats) {
+          flat.push(c);
+          if (c.children?.length) addFlat(c.children);
+        }
+      };
+      addFlat(Array.isArray(r.data) ? r.data : []);
+      setCategories(flat);
+    });
     if (isEdit && id) {
       setLoading(true);
       productsApi.merchantDetail(id).then((r) => {
@@ -182,7 +193,7 @@ export default function MerchantProductForm() {
         toast.error('تعذّر تحميل بيانات المنتج');
       }).finally(() => setLoading(false));
     }
-  }, [id, isEdit, toast]);
+  }, [id, isEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Option type management ─────────────────────────────────────
   const addOptionType = () => {

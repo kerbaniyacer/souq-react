@@ -142,7 +142,7 @@ export default function OrderDetail() {
           {[
             { label: 'المستلم', value: order.full_name },
             { label: 'الهاتف', value: order.phone, mono: true },
-            { label: 'البريد الإلكتروني', value: order.email },
+            { label: 'طريقة الدفع', value: order.payment_method },
             { label: 'الولاية', value: order.wilaya },
             { label: 'البلدية', value: order.baladia },
             { label: 'العنوان', value: order.address },

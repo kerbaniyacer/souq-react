@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import type { Toast } from '@souq/types';
 
@@ -28,13 +29,13 @@ export const useToastStore = create<ToastStore>((set) => ({
     })),
 }));
 
-// Helper hook
+// Helper hook — returns a STABLE reference (memoized) so it's safe in useEffect deps
 export const useToast = () => {
   const addToast = useToastStore((s) => s.addToast);
-  return {
+  return useMemo(() => ({
     success: (message: string) => addToast({ type: 'success', message }),
-    error: (message: string) => addToast({ type: 'error', message }),
+    error:   (message: string) => addToast({ type: 'error',   message }),
     warning: (message: string) => addToast({ type: 'warning', message }),
-    info: (message: string) => addToast({ type: 'info', message }),
-  };
+    info:    (message: string) => addToast({ type: 'info',    message }),
+  }), [addToast]);
 };

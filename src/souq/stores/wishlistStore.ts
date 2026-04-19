@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { Wishlist } from '@souq/types';
+import type { WishlistItem } from '@souq/types';
 import { wishlistApi } from '@souq/services/api';
 
 interface WishlistStore {
-  items: Wishlist[];
+  items: WishlistItem[];
   isLoading: boolean;
 
   fetchWishlist: () => Promise<void>;
@@ -21,7 +21,7 @@ export const useWishlistStore = create<WishlistStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await wishlistApi.get();
-      set({ items: res.data, isLoading: false });
+      set({ items: res.data as WishlistItem[], isLoading: false });
     } catch {
       set({ isLoading: false });
     }

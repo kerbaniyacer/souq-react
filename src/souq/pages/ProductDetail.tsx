@@ -487,10 +487,12 @@ export default function ProductDetail() {
                   <div key={r.id} className="p-4 border border-gray-100 dark:border-[#2E2E2E] rounded-xl">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center text-primary-600 font-bold text-sm">
-                          {r.user?.username?.[0]?.toUpperCase() ?? '؟'}
+                        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/20 rounded-full overflow-hidden flex items-center justify-center text-primary-600 font-bold text-sm">
+                          {r.user_photo
+                            ? <img src={r.user_photo} alt="" className="w-full h-full object-cover" />
+                            : (r.user_name?.[0]?.toUpperCase() ?? '؟')}
                         </div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 font-arabic">{r.user?.username}</span>
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 font-arabic">{r.user_name}</span>
                         {r.verified && (
                           <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded-full font-arabic">مشتري موثّق</span>
                         )}

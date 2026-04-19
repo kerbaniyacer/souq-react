@@ -346,7 +346,7 @@
   "products": [
     {
       "id": "1",
-      "name": "سماعات لاسلكية بلوتوث 5.0",
+      "name": "Updated Product Name",
       "slug": "bluetooth-headphones",
       "description": "سماعات لاسلكية عالية الجودة تدعم بلوتوث 5.0 مع خاصية إلغاء الضوضاء النشطة. بطارية تدوم حتى 30 ساعة، صوت نقي وجهير قوي.",
       "sku": "SAM-HP-001",
@@ -376,36 +376,8 @@
       "images": [],
       "variants": [
         {
-          "id": "1",
-          "name": "أسود",
-          "sku": "SAM-HP-001-BLK",
-          "price": 4200,
-          "old_price": 5000,
-          "discount": 16,
-          "stock": 50,
-          "image": "data:image/avif;base64,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",
-          "is_main": true,
-          "is_active": true,
-          "is_in_stock": true,
-          "attributes": {
-            "اللون": "أسود"
-          }
-        },
-        {
-          "id": "101",
-          "name": "أبيض",
-          "sku": "SAM-HP-001-WHT",
-          "price": 4200,
-          "old_price": 5000,
-          "discount": 16,
-          "stock": 30,
-          "image": "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAroAAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAANwAAADcAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQAMAAAAABNjb2xybmNseAACAAIAAgAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAAsJtZGF0EgAKBxgd9vbCAIAyrAUSEALLLLFBJAC1G7ZjSfY949r5nSTjW2YdTd6doJump6jyrrqOTFYU35n17u2I5xjtuKGb1E0bFYsWCT/7mCkzc7jyiIWdSgj9Z80TVGu+aAUjlEtzYXyVsJkGUsMGmhPd24k246PLD3eu6MgbSDvCaQaJCw8DkK2Be+IcpbL/CkYAm9meWfRh8iH0e2gj73uq6Ysumcf6oWhLlNBgNajyN4yX/S+InWLp9TIX/WfJX7SBGCs9zLGKqb3mo04XuhkMEsPjZgLxci0NYRBJYsxS0hYgCwBJxbz2qczJ8DBXuxTEIZJKkp7+zCf4iRCrBz1gUaLI9O1lafORumZAE49ZzzJmbkDLgsY1RB9LVqQbIKNZieYR3LhUaax3jfUWMtYp+6C4sh1etPE3J51kxppNLh54mMjJ1RVw8R/WSesv/HN+eHy2kbdIeo10gZCS26ggw3ReG3z7Wf8fPl/SC3elWWUWGxOVGn9n6+c7mgoGg0Uq3BPIdjWgaD+WzIEnspsngdtd566jFFtnGfDBbQbJaB6OploGnq+zSzUXQcfvzJ3MRc3CGiSnG6P4uGb798NCk8U42OvFSSKc38U4+trYxn5NGiR2PDiFUBpZsUXNjhx62aPUx3of2+VrdbSO29odMnFTeD4Z+6+Fxbk6NNo9MfK1zOP4CQE6oO2UzEY6A7UcEEnHBuRBVmzUICMyzVZhwNmNkYgBVBLoldfZnGLtN+2IARG6D11KM4KUi1qC6vtG6iImYuTvJprF/CptHaR2G1XgM1i17QId7IaLRMWRUuW60e4/BjOl6U9q81Qd/9W2chsG/C23oHONVL1fCgd+UlJWq091vy03sgv30opHV/aHAGIz1W/aC7/JKOZB/rARXcNQjaE2zumVX1lKIyWsRGMlDWORjIReYEA=",
-          "is_main": false,
-          "is_active": true,
-          "is_in_stock": true,
-          "attributes": {
-            "اللون": "أبيض"
-          }
+          "id": "999",
+          "price": 100
         }
       ],
       "attributes": [

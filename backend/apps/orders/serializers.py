@@ -14,12 +14,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
 
+    # Expose shipping fields with the frontend-friendly names
+    full_name = serializers.CharField(source='shipping_full_name', read_only=True)
+    phone     = serializers.CharField(source='shipping_phone',     read_only=True)
+    wilaya    = serializers.CharField(source='shipping_wilaya',    read_only=True)
+    baladia   = serializers.CharField(source='shipping_baladia',   read_only=True)
+    address   = serializers.CharField(source='shipping_address',   read_only=True)
+
     class Meta:
         model = Order
         fields = [
             'id', 'order_number', 'status', 'payment_method', 'payment_status',
-            'shipping_full_name', 'shipping_phone', 'shipping_wilaya',
-            'shipping_baladia', 'shipping_address',
+            # frontend-friendly aliases
+            'full_name', 'phone', 'wilaya', 'baladia', 'address',
             'subtotal', 'shipping_cost', 'discount', 'total_amount',
             'tracking_number', 'notes', 'items', 'created_at', 'updated_at',
         ]
@@ -31,10 +38,14 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderCreateSerializer(serializers.Serializer):
+    """Accepts the flat names that Checkout.tsx sends."""
     payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
-    shipping_full_name = serializers.CharField(max_length=200)
-    shipping_phone = serializers.CharField(max_length=20)
-    shipping_wilaya = serializers.CharField(max_length=100)
-    shipping_baladia = serializers.CharField(max_length=100)
-    shipping_address = serializers.CharField()
-    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    full_name      = serializers.CharField(max_length=200)
+    phone          = serializers.CharField(max_length=20)
+    wilaya         = serializers.CharField(max_length=100)
+    baladia        = serializers.CharField(max_length=100)
+    address        = serializers.CharField()
+    notes          = serializers.CharField(required=False, allow_blank=True, default='')
+    # optional — ignored by the backend but accepted so Checkout.tsx does not throw
+    email          = serializers.EmailField(required=False, allow_blank=True, default='')
+    postal_code    = serializers.CharField(required=False, allow_blank=True, default='')

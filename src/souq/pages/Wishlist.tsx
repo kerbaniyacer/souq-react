@@ -16,9 +16,10 @@ export default function Wishlist() {
 
   const handleAddToCart = async (productId: number) => {
     try {
-      // Get the first variant id from wishlist items
+      // Get the main variant from the product inside the wishlist entry
       const wishlistEntry = items.find((w) => w.product?.id === productId);
-      const variantId = wishlistEntry?.items?.[0]?.variant?.id;
+      const product = wishlistEntry?.product;
+      const variantId = (product?.variants?.find((v) => v.is_main) ?? product?.variants?.[0])?.id;
       if (!variantId) {
         toast.error('لا يوجد نسخة متاحة');
         return;

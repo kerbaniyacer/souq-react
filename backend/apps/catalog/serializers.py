@@ -165,11 +165,22 @@ class ProductWriteSerializer(serializers.ModelSerializer):
     def _resolve_brand(self, brand_name):
         if not brand_name:
             return None
-        brand, _ = Brand.objects.get_or_create(
-            name=brand_name,
-            defaults={'slug': brand_name.lower().replace(' ', '-')},
-        )
-        return brand
+        # 1. Exact name match (case-insensitive)
+        brand = Brand.objects.filter(name__iexact=brand_name).first()
+        if brand:
+            return brand
+        # 2. Build slug and look up by slug (handles duplicates from concurrent creates)
+        slug = brand_name.lower().replace(' ', '-')
+        brand = Brand.objects.filter(slug=slug).first()
+        if brand:
+            return brand
+        # 3. Create with a unique slug
+        base_slug = slug
+        counter = 1
+        while Brand.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        return Brand.objects.create(name=brand_name, slug=slug)
 
     def create(self, validated_data):
         variants_data = validated_data.pop('variants', [])

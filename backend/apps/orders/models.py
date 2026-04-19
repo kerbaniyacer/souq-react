@@ -61,9 +61,22 @@ class Order(models.Model):
         return f'Order #{self.order_number}'
 
     def save(self, *args, **kwargs):
+        import random
+        import string
         if not self.order_number:
-            import time
-            self.order_number = f'ORD-{int(time.time() * 1000) % 100000000:08d}'
+            digits = ''.join(random.choices(string.digits, k=8))
+            candidate = f'ORD{digits}'
+            while Order.objects.filter(order_number=candidate).exists():
+                digits = ''.join(random.choices(string.digits, k=8))
+                candidate = f'ORD{digits}'
+            self.order_number = candidate
+        if not self.tracking_number:
+            digits = ''.join(random.choices(string.digits, k=8))
+            candidate = f'TRK{digits}'
+            while Order.objects.filter(tracking_number=candidate).exists():
+                digits = ''.join(random.choices(string.digits, k=8))
+                candidate = f'TRK{digits}'
+            self.tracking_number = candidate
         super().save(*args, **kwargs)
 
 

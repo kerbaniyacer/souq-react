@@ -142,19 +142,20 @@ export const wishlistApi = {
   },
 };
 
-// ---- Reviews (JSON Server — مؤقت حتى اكتمال backend) ----
+// ---- Reviews (Django backend) ----
 export const reviewsApi = {
   list: async (productId: number | string) => {
     if (!productId) return { data: [] };
-    const res = await db.get('/reviews');
-    const reviews = (res.data as any[]).filter(
-      (r) => String(r.product) === String(productId) || String(r.product_id) === String(productId)
-    );
-    return { data: reviews };
+    const res = await api.get('/reviews/', { params: { product: productId } });
+    return { data: res.data };
   },
   create: async (productId: number | string, data: object) => {
-    const res = await db.post('/reviews', { ...data, product: String(productId), created_at: new Date().toISOString() });
+    const res = await api.post('/reviews/create/', { ...data, product: Number(productId) });
     return { data: res.data };
+  },
+  delete: async (reviewId: number) => {
+    await api.delete(`/reviews/${reviewId}/delete/`);
+    return { data: null };
   },
 };
 

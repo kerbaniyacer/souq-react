@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.db import models
+from django.db.models import Q, Sum
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -88,7 +89,11 @@ def product_list(request):
 
     category = request.query_params.get('category')
     if category:
-        qs = qs.filter(category__slug=category)
+        # Include products in the category OR any of its children
+        qs = qs.filter(
+            models.Q(category__slug=category) |
+            models.Q(category__parent__slug=category)
+        )
 
     brand = request.query_params.get('brand')
     if brand:
@@ -171,3 +176,42 @@ def merchant_product_detail(request, pk):
 
     product.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Merchant Dashboard ───────────────────────────────────────────────────────
+
+@extend_schema(tags=['merchant'], summary='لوحة تحكم التاجر')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def merchant_dashboard(request):
+    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+        return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
+
+    from apps.orders.models import Order
+
+    products = Product.objects.filter(seller=request.user)
+    # Orders that contain at least one product by this seller
+    orders = Order.objects.filter(
+        items__variant__product__seller=request.user
+    ).distinct()
+
+    # Revenue: sum of items sold by this seller in delivered orders
+    delivered_items = []
+    for order in orders.filter(status=Order.Status.DELIVERED):
+        for item in order.items.filter(variant__product__seller=request.user):
+            delivered_items.append(item.subtotal)
+    total_revenue = sum(delivered_items)
+
+    return Response({
+        'products_count':   products.count(),
+        'active_products':  products.filter(is_active=True).count(),
+        'total_orders':     orders.count(),
+        'pending_orders':   orders.filter(status=Order.Status.PENDING).count(),
+        'processing_orders': orders.filter(status__in=[
+            Order.Status.CONFIRMED, Order.Status.PROCESSING
+        ]).count(),
+        'delivered_orders': orders.filter(status=Order.Status.DELIVERED).count(),
+        'total_revenue':    float(total_revenue),
+        'low_stock_count':  products.filter(variants__stock__lte=5, variants__stock__gt=0).distinct().count(),
+        'out_of_stock_count': products.filter(variants__stock=0).distinct().count(),
+    })

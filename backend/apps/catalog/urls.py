@@ -11,6 +11,7 @@ urlpatterns = [
     path('products/<slug:slug>/', views.product_detail, name='product-detail'),
 
     # Merchant
+    path('merchant/dashboard/', views.merchant_dashboard, name='merchant-dashboard'),
     path('merchant/products/', views.merchant_product_list, name='merchant-product-list'),
     path('merchant/products/<int:pk>/', views.merchant_product_detail, name='merchant-product-detail'),
 ]

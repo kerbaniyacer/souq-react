@@ -143,11 +143,12 @@ export interface Product {
 export interface Review {
   id: number;
   product: number;
-  user: User;
+  user: number;
+  user_name: string;
+  user_photo: string | null;
   rating: 1 | 2 | 3 | 4 | 5;
   comment: string;
   verified: boolean;
-  helpful_count: number;
   created_at: string;
 }
 
@@ -180,10 +181,9 @@ export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancel
 
 export interface OrderItem {
   id: number;
-  order: number;
-  product: number | null;
-  variant: number | null;
   product_name: string;
+  variant_name: string;
+  variant_attributes: Record<string, string>;
   product_price: number;
   quantity: number;
   subtotal: number;
@@ -191,26 +191,22 @@ export interface OrderItem {
 
 export interface Order {
   id: number;
-  user: number | null;
   order_number: string;
-  username: string;
+  status: OrderStatus;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  // Shipping info — matches OrderSerializer aliases
   full_name: string;
   phone: string;
-  email: string;
   address: string;
   wilaya: string;
   baladia: string;
-  postal_code: string;
   notes: string;
   subtotal: number;
   shipping_cost: number;
   discount: number;
   total_amount: number;
   tracking_number: string;
-  status: OrderStatus;
-  payment_method: PaymentMethod;
-  payment_status: PaymentStatus;
-  stock_deducted: boolean;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -229,22 +225,11 @@ export interface CheckoutData {
 }
 
 // ===== WISHLIST TYPES =====
+/** Matches WishlistItemSerializer: { id, product, created_at } */
 export interface WishlistItem {
   id: number;
-  wishlist: number;
-  quantity: number;
-  variant: ProductVariant | null;
-  created_at: string;
-  updated_at: string;
-  subtotal: number;
-}
-
-export interface Wishlist {
-  id: number;
-  user: number;
   product: Product;
   created_at: string;
-  items: WishlistItem[];
 }
 
 // ===== MISC TYPES =====

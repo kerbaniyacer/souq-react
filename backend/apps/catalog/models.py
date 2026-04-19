@@ -25,8 +25,18 @@ class Category(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name, allow_unicode=True)
+            base = slugify(self.name, allow_unicode=True) or 'category'
+            slug = base
+            counter = 1
+            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
+
+    @property
+    def products_count(self):
+        return self.products.filter(is_active=True).count()
 
 
 class Brand(models.Model):
@@ -46,7 +56,13 @@ class Brand(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name, allow_unicode=True)
+            base = slugify(self.name, allow_unicode=True) or 'brand'
+            slug = base
+            counter = 1
+            while Brand.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
 
@@ -88,8 +104,23 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name, allow_unicode=True)
+            base = slugify(self.name, allow_unicode=True) or 'product'
+            slug = base
+            counter = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
+
+    @property
+    def is_in_stock(self):
+        return self.variants.filter(is_active=True, stock__gt=0).exists()
+
+    @property
+    def total_stock(self):
+        from django.db.models import Sum
+        return self.variants.filter(is_active=True).aggregate(total=Sum('stock'))['total'] or 0
 
 
 class ProductAttribute(models.Model):
@@ -122,6 +153,20 @@ class ProductVariant(models.Model):
 
     def __str__(self):
         return f'{self.product.name} — {self.name}'
+
+    def save(self, *args, **kwargs):
+        if self.is_main:
+            # Demote any other main variant of the same product
+            ProductVariant.objects.filter(
+                product=self.product, is_main=True
+            ).exclude(pk=self.pk).update(is_main=False)
+        else:
+            # If no other main variant exists, auto-promote this one
+            if not ProductVariant.objects.filter(
+                product=self.product, is_main=True
+            ).exclude(pk=self.pk).exists():
+                self.is_main = True
+        super().save(*args, **kwargs)
 
     @property
     def is_in_stock(self):
