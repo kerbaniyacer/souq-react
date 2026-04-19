@@ -4,9 +4,6 @@ import { Users, ShoppingBag, Package, TrendingUp, Trash2, Shield, Search, Chevro
 import axios from 'axios';
 import { useToast } from '@souq/stores/toastStore';
 import type { Order } from '@souq/types';
-
-const DB = '/db';
-
 interface AdminUser {
   id: string;
   username: string;
@@ -23,6 +20,7 @@ interface AdminProduct {
   is_active: boolean;
   is_featured: boolean;
   seller_id: string;
+  seller?: { id: string; username: string; first_name?: string };
   category?: { name: string };
   variants?: { price: number }[];
 }
@@ -39,13 +37,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     Promise.all([
-      axios.get(`${DB}/users`),
-      axios.get(`${DB}/products`),
-      axios.get(`${DB}/orders`),
+      axios.get('/api/auth/profiles/'), // Need to ensure this exists in Django
+      axios.get('/api/products/'),      // Public list for now
+      axios.get('/api/orders/'),        // Need to ensure this exists for staff
     ]).then(([u, p, o]) => {
-      setUsers(u.data);
-      setProducts(p.data);
-      setOrders(o.data);
+      setUsers(u.data.results ?? u.data);
+      setProducts(p.data.results ?? p.data);
+      setOrders(o.data.results ?? o.data);
+    }).catch(() => {
+      // toast.error('فشل جلب البيانات من Django');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -53,11 +53,7 @@ export default function AdminDashboard() {
     if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
     setDeleting(id);
     try {
-      await axios.delete(`${DB}/users/${id}`);
-      // JSON Server doesn't support query-based deletes — fetch then delete by ID
-      const profRes = await axios.get(`${DB}/profiles`);
-      const userProfiles = (profRes.data as any[]).filter((p) => String(p.user_id) === String(id));
-      await Promise.all(userProfiles.map((p: any) => axios.delete(`${DB}/profiles/${p.id}`)));
+      await axios.delete(`/api/auth/users/${id}/`);
       setUsers((p) => p.filter((u) => u.id !== id));
       toast.success('تم حذف المستخدم');
     } catch { toast.error('تعذّر الحذف'); }
@@ -68,7 +64,7 @@ export default function AdminDashboard() {
     if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
     setDeleting(id);
     try {
-      await axios.delete(`${DB}/products/${id}`);
+      await axios.delete(`/api/merchant/products/${id}/`);
       setProducts((p) => p.filter((x) => x.id !== id));
       toast.success('تم حذف المنتج');
     } catch { toast.error('تعذّر الحذف'); }
@@ -76,10 +72,11 @@ export default function AdminDashboard() {
   };
 
   const handleToggleProductStatus = async (product: AdminProduct) => {
-    await axios.patch(`${DB}/products/${product.id}`, { is_active: !product.is_active });
+    await axios.patch(`/api/merchant/products/${product.id}/`, { is_active: !product.is_active });
     setProducts((p) => p.map((x) => x.id === product.id ? { ...x, is_active: !x.is_active } : x));
     toast.success(product.is_active ? 'تم إخفاء المنتج' : 'تم تفعيل المنتج');
   };
+
 
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + Number(o.total_amount), 0);
 

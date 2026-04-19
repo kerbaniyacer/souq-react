@@ -7,17 +7,16 @@ export { djangoApi };
 const api = djangoApi;
 export default api;
 
-// ---- JSON Server (mock backend) ----
-const db = axios.create({ baseURL: '/db' });
-
 // ---- Products (Django backend) ----
 export const productsApi = {
   list: async (params?: Record<string, string | number>) => {
     const res = await api.get('/products/', { params });
-    return { data: res.data };
+    // Django might return { results: [...] } or just [...]
+    return { data: res.data.results ?? res.data };
   },
 
   detail: async (slug: string) => {
+    // Django uses slugs for public detail
     const res = await api.get(`/products/${slug}/`);
     return { data: res.data };
   },
@@ -56,7 +55,7 @@ export const productsApi = {
 export const categoriesApi = {
   list: async () => {
     const res = await api.get('/categories/');
-    return { data: res.data };
+    return { data: res.data.results ?? res.data };
   },
   detail: async (slug: string) => {
     const res = await api.get(`/categories/${slug}/`);
@@ -68,7 +67,7 @@ export const categoriesApi = {
 export const brandsApi = {
   list: async () => {
     const res = await api.get('/brands/');
-    return { data: res.data };
+    return { data: res.data.results ?? res.data };
   },
   detail: async (slug: string) => {
     const res = await api.get(`/brands/${slug}/`);
@@ -78,7 +77,10 @@ export const brandsApi = {
 
 // ---- Cart ---- (Django backend) ----
 export const cartApi = {
-  get: async () => { const res = await api.get('/cart/'); return { data: res.data }; },
+  get: async () => { 
+    const res = await api.get('/cart/'); 
+    return { data: res.data.results ?? res.data }; 
+  },
   add: async (variantId: number, quantity: number) => {
     const res = await api.post('/cart/items/', { variant_id: variantId, quantity });
     return { data: res.data };
@@ -99,12 +101,18 @@ export const cartApi = {
 
 // ---- Orders (Django backend) ----
 export const ordersApi = {
-  list: async () => { const res = await api.get('/orders/'); return { data: res.data }; },
+  list: async () => { 
+    const res = await api.get('/orders/'); 
+    return { data: res.data.results ?? res.data }; 
+  },
   detail: async (id: number | string) => { const res = await api.get(`/orders/${id}/`); return { data: res.data }; },
   create: async (data: object) => { const res = await api.post('/orders/create/', data); return { data: res.data }; },
   cancel: async (id: number | string) => { const res = await api.post(`/orders/${id}/cancel/`); return { data: res.data }; },
   track: async (orderNumber: string) => { const res = await api.get(`/orders/track/${orderNumber}/`); return { data: res.data }; },
-  merchantList: async () => { const res = await api.get('/merchant/orders/'); return { data: res.data }; },
+  merchantList: async () => { 
+    const res = await api.get('/merchant/orders/'); 
+    return { data: res.data.results ?? res.data }; 
+  },
   merchantDetail: async (id: number | string) => { const res = await api.get(`/orders/${id}/`); return { data: res.data }; },
   updateStatus: async (id: number | string, status: string) => {
     const res = await api.patch(`/merchant/orders/${id}/status/`, { status });
@@ -118,7 +126,7 @@ export const wishlistApi = {
     const token = localStorage.getItem('access_token');
     if (!token) return { data: [] };
     const res = await api.get('/wishlist/');
-    return { data: res.data };
+    return { data: res.data.results ?? res.data };
   },
   add: async (productId: number) => {
     const res = await api.post('/wishlist/items/', { product_id: productId });
@@ -135,7 +143,7 @@ export const reviewsApi = {
   list: async (productId: number | string) => {
     if (!productId) return { data: [] };
     const res = await api.get('/reviews/', { params: { product: productId } });
-    return { data: res.data };
+    return { data: res.data.results ?? res.data };
   },
   create: async (productId: number | string, data: object) => {
     const res = await api.post('/reviews/create/', { ...data, product: Number(productId) });
@@ -147,11 +155,12 @@ export const reviewsApi = {
   },
 };
 
-// ---- Newsletter (JSON Server — مؤقت) ----
+// ---- Newsletter (Migrated to Django) ----
 export const newsletterApi = {
   subscribe: async (email: string) => {
-    const res = await db.post('/subscript_emails', { email, subscribed_at: new Date().toISOString() });
-    sendNewsletterConfirmationEmail(email).catch(() => {});
+    // Use health check as a temporary endpoint or point to a dedicated common/newsletter if it exists
+    const res = await api.post('/newsletter/subscribe/', { email });
     return { data: res.data };
   },
 };
+

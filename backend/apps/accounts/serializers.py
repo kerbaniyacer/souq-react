@@ -88,6 +88,10 @@ from django.core.mail import send_mail
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Custom JWT serializer that hooks into successful login to track LoginHistory."""
+    # Override fields to allow plain usernames in the 'email' field
+    email = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
     @classmethod
     def get_token(cls, user):
         return super().get_token(user)

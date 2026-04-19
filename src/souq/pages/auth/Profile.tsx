@@ -182,7 +182,7 @@ export default function Profile() {
           { key: 'personal', label: 'البيانات الشخصية', icon: <User className="w-4 h-4" /> },
           ...(profile?.is_seller ? [{ key: 'store', label: 'المتجر', icon: <Store className="w-4 h-4" /> }] : []),
           { key: 'password', label: 'كلمة المرور', icon: <Lock className="w-4 h-4" /> },
-          { key: 'security', label: 'سجل الدخول', icon: <ShieldCheck className="w-4 h-4" /> },
+          ...(user?.is_staff ? [{ key: 'security', label: 'سجل الدخول', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         ].map((tab) => (
           <button
             key={tab.key}

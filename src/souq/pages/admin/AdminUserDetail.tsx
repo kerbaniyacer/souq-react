@@ -4,8 +4,6 @@ import { ArrowRight, Trash2, Package, ShoppingBag, TrendingUp } from 'lucide-rea
 import axios from 'axios';
 import { useToast } from '@souq/stores/toastStore';
 
-const DB = '/db';
-
 export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -21,22 +19,21 @@ export default function AdminUserDetail() {
   useEffect(() => {
     if (!id) return;
     Promise.all([
-      axios.get(`${DB}/users/${id}`),
-      axios.get(`${DB}/profiles`),
-      axios.get(`${DB}/products`),
-      axios.get(`${DB}/orders`),
+      axios.get(`/api/auth/users/${id}/`),
+      axios.get('/api/auth/profiles/'),
+      axios.get('/api/products/'),
+      axios.get('/api/orders/'),
     ]).then(([uRes, pRes, prRes, oRes]) => {
-      const u = uRes.data;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password: _pw, ...safeUser } = u;
-      setUser(safeUser);
-      const profiles: any[] = pRes.data;
+      setUser(uRes.data);
+      const profiles: any[] = pRes.data.results ?? pRes.data;
       const prof = profiles.find((p) => String(p.user_id) === String(id));
       setProfile(prof ?? null);
-      const allProducts: any[] = prRes.data;
+      const allProducts: any[] = prRes.data.results ?? prRes.data;
       setProducts(allProducts.filter((p) => String(p.seller_id) === String(id)));
-      const allOrders: any[] = oRes.data;
+      const allOrders: any[] = oRes.data.results ?? oRes.data;
       setOrders(allOrders.filter((o) => String(o.user_id) === String(id)));
+    }).catch(() => {
+      // toast.error('فشل جلب بيانات المستخدم');
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -44,14 +41,7 @@ export default function AdminUserDetail() {
     if (!confirm('تحذير: هل أنت متأكد من حذف هذا الحساب وجميع بياناته نهائياً؟ لا يمكن التراجع.')) return;
     setDeleting(true);
     try {
-      // Delete profiles
-      const pRes = await axios.get(`${DB}/profiles`);
-      const userProfiles = (pRes.data as any[]).filter((p) => String(p.user_id) === String(id));
-      await Promise.all(userProfiles.map((p) => axios.delete(`${DB}/profiles/${p.id}`)));
-      // Delete products
-      await Promise.all(products.map((p) => axios.delete(`${DB}/products/${p.id}`)));
-      // Delete user
-      await axios.delete(`${DB}/users/${id}`);
+      await axios.delete(`/api/auth/users/${id}/`);
       toast.success('تم حذف الحساب بنجاح');
       navigate('/admin-panel');
     } catch {
@@ -64,13 +54,14 @@ export default function AdminUserDetail() {
   const handleDeleteProduct = async (productId: string | number) => {
     if (!confirm('هل تريد حذف هذا المنتج نهائياً؟')) return;
     try {
-      await axios.delete(`${DB}/products/${productId}`);
+      await axios.delete(`/api/merchant/products/${productId}/`);
       setProducts((prev) => prev.filter((p) => String(p.id) !== String(productId)));
       toast.success('تم حذف المنتج');
     } catch {
       toast.error('تعذّر حذف المنتج');
     }
   };
+
 
   const sellerRevenue = orders
     .filter((o) => o.status === 'delivered')

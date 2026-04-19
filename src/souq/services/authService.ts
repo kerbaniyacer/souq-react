@@ -77,13 +77,31 @@ export async function loginDjango(email: string, password: string): Promise<Auth
     const res = await axios.post('/api/auth/login/', { email, password });
     return res.data;
   } catch (err: any) {
+    const status = err.response?.status;
     const data = err.response?.data;
-    const detail = Array.isArray(data?.detail) ? data.detail[0] : data?.detail;
-    const userEmail = Array.isArray(data?.email) ? data.email[0] : data?.email;
+    
+    console.group('Django Login Error Details');
+    console.log('Status Code:', status);
+    console.log('Response Body:', data);
+    console.groupEnd();
 
-    if (err.response?.status === 400 && detail === 'verification_required') {
+    // 1. Check for verification required (OTP)
+    const detail = Array.isArray(data?.detail) ? data.detail[0] : (data?.detail || '');
+    if (status === 400 && String(detail).toLowerCase().includes('verification_required')) {
+      const userEmail = Array.isArray(data?.email) ? data.email[0] : (data?.email || email);
       throw { type: 'VERIFICATION_REQUIRED', email: userEmail };
     }
+
+    // 2. Aggregate field errors if no global detail exists
+    if (status === 400 && !data?.detail) {
+      const messages = Object.entries(data || {})
+        .map(([key, val]) => `${key}: ${Array.isArray(val) ? val[0] : val}`)
+        .join(' | ');
+      if (messages) {
+        err.message = messages;
+      }
+    }
+
     throw err;
   }
 }
@@ -100,13 +118,29 @@ export async function loginSocialDjango(data: {
     const res = await axios.post('/api/auth/social/', data);
     return res.data;
   } catch (err: any) {
+    const status = err.response?.status;
     const resData = err.response?.data;
-    const detail = Array.isArray(resData?.detail) ? resData.detail[0] : resData?.detail;
-    const userEmail = Array.isArray(resData?.email) ? resData.email[0] : resData?.email;
+    
+    console.group('Social Login Error Details');
+    console.log('Status Code:', status);
+    console.log('Response Body:', resData);
+    console.groupEnd();
 
-    if (err.response?.status === 400 && detail === 'verification_required') {
+    const detail = Array.isArray(resData?.detail) ? resData.detail[0] : (resData?.detail || '');
+    if (status === 400 && String(detail).toLowerCase().includes('verification_required')) {
+      const userEmail = Array.isArray(resData?.email) ? resData.email[0] : (resData?.email || data.email);
       throw { type: 'VERIFICATION_REQUIRED', email: userEmail };
     }
+
+    if (status === 400 && !resData?.detail) {
+      const messages = Object.entries(resData || {})
+        .map(([key, val]) => `${key}: ${Array.isArray(val) ? val[0] : val}`)
+        .join(' | ');
+      if (messages) {
+        err.message = messages;
+      }
+    }
+
     throw err;
   }
 }

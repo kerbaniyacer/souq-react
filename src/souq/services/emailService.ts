@@ -4,11 +4,10 @@
  * - تسجّل أيضاً في JSON Server /sent_emails للمراجعة
  */
 
-const EMAIL_API = '/email-api/send-email?XTransformPort=3002';  // Vite proxy → localhost:3002
-const DB        = '/db';
+const EMAIL_API = '/email-api/send-email?XTransformPort=3002';
 
 async function sendEmail(type: string, to: string, data: Record<string, unknown> = {}) {
-  // 1. إرسال فعلي عبر Gmail
+  // إرسال فعلي عبر email-server (Node.js)
   try {
     const res = await fetch(EMAIL_API, {
       method: 'POST',
@@ -22,16 +21,8 @@ async function sendEmail(type: string, to: string, data: Record<string, unknown>
   } catch (e) {
     console.warn('[emailService] سيرفر البريد غير متاح، تأكد من تشغيله:', e);
   }
-
-  // 2. تسجيل في JSON Server للسجلات
-  try {
-    await fetch(`${DB}/sent_emails`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, to, data, sent_at: new Date().toISOString() }),
-    });
-  } catch { /* تجاهل */ }
 }
+
 
 export async function sendWelcomeEmail(to: string, username: string) {
   await sendEmail('welcome', to, { username });

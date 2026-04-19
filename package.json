@@ -10,11 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "db:server": "node server.mjs",
-    "email:server": "node email-server.cjs",
-    "email:kill": "cmd /c \"FOR /F tokens^=5 %a IN ('netstat -aon ^| findstr :3002') DO taskkill /F /PID %a\"",
-    "servers": "concurrently \"npm run db:server\" \"npm run email:server\""
+    "test:coverage": "vitest run --coverage"
+
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

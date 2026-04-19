@@ -1,5 +1,4 @@
-from django.db import models
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Min, Max
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -79,7 +78,10 @@ def brand_detail(request, slug):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def product_list(request):
-    qs = Product.objects.filter(is_active=True).select_related(
+    qs = Product.objects.filter(is_active=True).annotate(
+        min_price=Min('variants__price'),
+        max_price=Max('variants__price')
+    ).select_related(
         'category', 'brand', 'seller__profile'
     ).prefetch_related('variants', 'variant_images__variants')
 
@@ -139,7 +141,10 @@ def merchant_product_list(request):
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
-        qs = Product.objects.filter(seller=request.user).select_related(
+        qs = Product.objects.filter(seller=request.user).annotate(
+            min_price=Min('variants__price'),
+            max_price=Max('variants__price')
+        ).select_related(
             'category', 'brand'
         ).prefetch_related('variants')
         return Response(ProductListSerializer(qs, many=True, context={'request': request}).data)
@@ -197,12 +202,11 @@ def merchant_dashboard(request):
         items__variant__product__seller=request.user
     ).distinct()
 
-    # Revenue: sum of items sold by this seller in delivered orders
-    delivered_items = []
-    for order in orders.filter(status=Order.Status.DELIVERED):
-        for item in order.items.filter(variant__product__seller=request.user):
-            delivered_items.append(item.subtotal)
-    total_revenue = sum(delivered_items)
+    # Revenue: optimized calculation via aggregation
+    total_revenue = Order.objects.filter(
+        status=Order.Status.DELIVERED,
+        items__variant__product__seller=request.user
+    ).aggregate(total=Sum('items__subtotal'))['total'] or 0
 
     return Response({
         'products_count':   products.count(),

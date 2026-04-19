@@ -6,16 +6,12 @@ import { useToast } from '@souq/stores/toastStore';
 import AddressFields from '@souq/components/common/AddressFields';
 import axios from 'axios';
 
-const DB = '/db';
-
-type Step = 'type' | 'details';
-
 export default function CompleteProfile() {
   const { profile, user, fetchProfile } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<Step>('type');
+  const [step, setStep] = useState<'type' | 'details'>('type');
   const [isSeller, setIsSeller] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -46,20 +42,20 @@ export default function CompleteProfile() {
 
     setSaving(true);
     try {
-      if (profile?.id) {
-        await axios.patch(`${DB}/profiles/${profile.id}`, {
-          is_seller: isSeller,
-          phone: form.phone,
-          wilaya: form.wilaya,
-          baladia: form.baladia,
-          address: form.address,
-          store_name: form.store_name,
-          store_description: form.store_description,
-          store_category: form.store_category,
-        });
-      }
+      // In Django, we update the profile via the auth/profile endpoint
+      await axios.patch('/api/auth/profile/', {
+        is_seller: isSeller,
+        phone: form.phone,
+        wilaya: form.wilaya,
+        baladia: form.baladia,
+        address: form.address,
+        store_name: form.store_name,
+        store_description: form.store_description,
+        store_category: form.store_category,
+      });
 
       await fetchProfile();
+
       toast.success('🎉 تم حفظ بياناتك بنجاح!');
       navigate(isSeller ? '/merchant/dashboard' : '/');
     } catch {
@@ -68,6 +64,7 @@ export default function CompleteProfile() {
       setSaving(false);
     }
   };
+
 
   /* ══════════════════════════════════════════
      الخطوة 1 — اختيار نوع الحساب

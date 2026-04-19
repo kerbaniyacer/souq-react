@@ -4,8 +4,6 @@ import { Mail, KeyRound, ArrowRight, ShoppingBag, CheckCircle } from 'lucide-rea
 import axios from 'axios';
 import { sendPasswordResetEmail } from '@souq/services/emailService';
 
-const DB = '/db';
-
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,23 +15,21 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.get(`${DB}/users`);
-      const users: any[] = res.data;
-      const found = users.find((u) => u.email === email.trim());
-      if (!found) {
-        setError('لا يوجد حساب مرتبط بهذا البريد الإلكتروني');
-        return;
-      }
-      // إرسال بريد إعادة تعيين كلمة المرور (محاكاة)
-      const resetUrl = `${window.location.origin}/reset-password?token=mock-token-${Date.now()}`;
-      sendPasswordResetEmail(email.trim(), resetUrl).catch(() => {});
+      // In a real Django setup, we'd call a reset endpoint
+      await axios.post('/api/auth/password-reset/', { email: email.trim() });
       setSent(true);
-    } catch {
-      setError('حدث خطأ، يرجى المحاولة مرة أخرى');
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setError('لا يوجد حساب مرتبط بهذا البريد الإلكتروني');
+      } else {
+        setError('حدث خطأ، يرجى المحاولة مرة أخرى');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0F0F0F] flex flex-col">

@@ -206,7 +206,37 @@ export default function ProductDetail() {
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12">
-        {/* Details Section (First in code -> Right in RTL) */}
+        {/* Images Section (Now First in code -> Right in RTL) */}
+        <div className="flex flex-col gap-4">
+          <div className="aspect-square bg-white dark:bg-[#1f1f1f] rounded-3xl overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
+            {selectedImage ? (
+              <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ShoppingCart className="w-24 h-24 text-gray-300 dark:text-gray-700" />
+              </div>
+            )}
+          </div>
+          {images.length > 1 && (
+            <div className="flex gap-3 overflow-x-auto no-scrollbar justify-end pb-2">
+              {images.map((img) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img.image)}
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all ${
+                    selectedImage === img.image 
+                      ? 'border-primary-500 dark:border-[#6dbf8b]' 
+                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <img src={img.image} alt="" className="w-full h-full object-cover opacity-80 hover:opacity-100" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Details Section (Now Second in code -> Left in RTL) */}
         <div className="flex flex-col">
           {product.brand && (
             <p className="text-sm font-arabic mb-3 flex items-center justify-end gap-2 text-gray-400">
@@ -214,11 +244,12 @@ export default function ProductDetail() {
               <Store className="w-4 h-4 text-orange-300" />
             </p>
           )}
-          <h1 className="text-2xl md:text-3xl font-bold font-arabic mb-4 leading-tight text-gray-900 dark:text-gray-100 text-right">
+          {/* French name in LTR and left-aligned */}
+          <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight text-gray-900 dark:text-gray-100 text-left" dir="ltr">
             {product.name}
           </h1>
 
-          {/* Rating */}
+          {/* Rating - Stays Right as it blends with sold_count */}
           <div className="flex items-center justify-end gap-3 mb-8">
             <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">{product.sold_count} مبيع</span>
             <span className="text-gray-400">|</span>
@@ -234,22 +265,22 @@ export default function ProductDetail() {
           {/* Price Box */}
           <div className="bg-gray-50 dark:bg-[#1f1f1f] rounded-2xl p-6 mb-8 flex items-center justify-between border border-gray-200 dark:border-[#2a2a2a]">
             {activeVariant ? (
-              <div className="flex items-center gap-4 w-full justify-between flex-row-reverse">
-                <span className="text-3xl font-bold text-primary-600 dark:text-[#6dbf8b] font-mono">
-                  {Number(activeVariant.price).toLocaleString('ar-DZ')} د.ج
-                </span>
+              <div className="flex items-center gap-4 w-full justify-between flex-row">
                 <div className="flex items-center gap-3">
-                  {hasDiscount && (
-                    <span className="text-lg text-gray-500 line-through font-mono">
-                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} د.ج
-                    </span>
-                  )}
                   {hasDiscount && (
                     <span className="px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 text-xs font-bold rounded-md">
                       -{activeVariant.discount}%
                     </span>
                   )}
+                  {hasDiscount && (
+                    <span className="text-lg text-gray-500 line-through font-mono">
+                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} د.ج
+                    </span>
+                  )}
                 </div>
+                <span className="text-3xl font-bold text-primary-600 dark:text-[#6dbf8b] font-mono">
+                  {Number(activeVariant.price).toLocaleString('ar-DZ')} د.ج
+                </span>
               </div>
             ) : (
               <span className="text-gray-500 dark:text-gray-400 font-arabic w-full text-right">السعر غير متوفر</span>
@@ -262,12 +293,15 @@ export default function ProductDetail() {
               {attrKeys.map((key) => {
                 const values = getAvailableValues(key);
                 const isColor = key.includes('لون') || key.includes('Color') || key === 'اللون';
+                const isLatin = key.toLowerCase().includes('size') || key.includes('مقاس') || key.includes('Size');
+                
                 return (
                   <div key={key} className="flex flex-col items-end">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic mb-3 text-right">
                       {key}:
                     </p>
-                    <div className="flex flex-wrap gap-2 justify-end">
+                    {/* Size and Latin options aligned to the left (ltr) while keeping container rtl logic */}
+                    <div className={`flex flex-wrap gap-2 w-full ${isLatin ? 'justify-start' : 'justify-end'}`} dir={isLatin ? 'ltr' : 'rtl'}>
                       {values.map(({ value, available }) => {
                         const isSelected = effectiveAttrs[key] === value;
                         
@@ -315,6 +349,7 @@ export default function ProductDetail() {
               })}
             </div>
           )}
+
 
           {/* Quantity */}
           <div className="flex flex-col items-end mb-8">
@@ -372,37 +407,8 @@ export default function ProductDetail() {
             </button>
           </div>
         </div>
-
-        {/* Images Section (Second in code -> Left in RTL) */}
-        <div className="flex flex-col gap-4">
-          <div className="aspect-square bg-white dark:bg-[#1f1f1f] rounded-3xl overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
-            {selectedImage ? (
-              <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ShoppingCart className="w-24 h-24 text-gray-300 dark:text-gray-700" />
-              </div>
-            )}
-          </div>
-          {images.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto no-scrollbar justify-end pb-2">
-              {images.map((img) => (
-                <button
-                  key={img.id}
-                  onClick={() => setSelectedImage(img.image)}
-                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all ${
-                    selectedImage === img.image 
-                      ? 'border-primary-500 dark:border-[#6dbf8b]' 
-                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <img src={img.image} alt="" className="w-full h-full object-cover opacity-80 hover:opacity-100" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
+
 
       {/* Tabs */}
       <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">

@@ -72,10 +72,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         """Return main image URL for this variant (from VariantImage table)."""
-        request = self.context.get('request')
         url = obj.get_image  # @property on model
-        if url and request:
-            return request.build_absolute_uri(url)
         return url
 
 
@@ -99,23 +96,21 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     def get_main_image(self, obj):
         """Get main image via Product.image property (from VariantImage)."""
-        request = self.context.get('request')
         img_file = obj.image  # @property → ImageFieldFile or None
         if img_file:
             try:
-                url = img_file.url
-                return request.build_absolute_uri(url) if request else url
+                return img_file.url
             except Exception:
                 pass
         return None
 
     def get_min_price(self, obj):
-        from django.db.models import Min
-        return obj.variants.aggregate(Min('price'))['price__min']
+        # Already calculated via annotate in views.py for performance
+        return getattr(obj, 'min_price', None)
 
     def get_max_price(self, obj):
-        from django.db.models import Max
-        return obj.variants.aggregate(Max('price'))['price__max']
+        # Already calculated via annotate in views.py for performance
+        return getattr(obj, 'max_price', None)
 
 
 # ── Product Detail ────────────────────────────────────────────────────────────
@@ -139,12 +134,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_main_image(self, obj):
-        request = self.context.get('request')
         img_file = obj.image  # @property → ImageFieldFile or None
         if img_file:
             try:
-                url = img_file.url
-                return request.build_absolute_uri(url) if request else url
+                return img_file.url
             except Exception:
                 pass
         return None
