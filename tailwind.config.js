@@ -33,7 +33,7 @@ export default {
           dark: '#3d6b52',
         },
         page: {
-          bg: '#0F0F0F',
+          bg: 'var(--page-bg)',
         },
         surface: '#1A1A1A',
         card: {

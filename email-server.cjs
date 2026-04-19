@@ -189,6 +189,21 @@ const templates = {
       </div>
     `),
   }),
+
+  support: ({ from_name, error_type, message, sent_at }) => ({
+    subject: `طلب مساعدة: ${error_type} - سوق`,
+    html: baseTemplate('طلب مساعدة من زائر', `
+      <h2 style="color:#dc2626;font-size:22px;margin:0 0 16px;">بلاغ مشكلة جديدة ⚠️</h2>
+      <div style="background:#f8f6f2;border-radius:10px;padding:16px;margin:20px 0;">
+        <table width="100%">
+          <tr><td style="color:#6b7280;padding:4px 0;">اسم المرسل:</td><td style="font-weight:700;color:#1f2937;">${from_name || 'زائر'}</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">نوع المشكلة:</td><td style="font-weight:700;color:#1f2937;">${error_type}</td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0;">تاريخ الإرسال:</td><td style="font-weight:700;color:#1f2937;">${sent_at || new Date().toLocaleString('ar-DZ')}</td></tr>
+        </table>
+        <div style="margin-top:16px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;color:#374151;white-space:pre-wrap;">${message}</div>
+      </div>
+    `),
+  }),
 };
 
 // ─── Endpoint الرئيسي ──────────────────────────────────────────────────────

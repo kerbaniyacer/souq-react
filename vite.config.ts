@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@souq': path.resolve(__dirname, './src/souq'),
     },
   },
   server: {
@@ -14,9 +15,8 @@ export default defineConfig({
     allowedHosts: ['chan-greasier-olympia.ngrok-free.dev'],
     proxy: {
       '/api': {
-        target: '*',
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/db': {
         target: 'http://localhost:3001',

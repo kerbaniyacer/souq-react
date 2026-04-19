@@ -1,0 +1,4 @@
+-r base.txt
+# Dev extras (install manually if needed)
+# django-debug-toolbar
+# ipython

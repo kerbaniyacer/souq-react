@@ -34,19 +34,6 @@
       "provider": "local"
     },
     {
-      "username": "kerbaniyasser.s",
-      "email": "kerbaniyasser.s@gmail.com",
-      "password": "",
-      "first_name": "أحمد",
-      "last_name": "",
-      "is_staff": false,
-      "date_joined": "2026-04-17T07:53:19.942Z",
-      "provider": "google",
-      "provider_id": "102408028297895117608",
-      "photo": "https://lh3.googleusercontent.com/a/ACg8ocI9YMw3EnO5yIO7QSDXTrK8jKJ7Xu6J-XVKnF617Km_SGqdHO3x=s96-c",
-      "id": "dtEjFDmyhR0"
-    },
-    {
       "username": "a.kerbani.math",
       "email": "a.kerbani.math@lagh-univ.dz",
       "password": "",
@@ -58,6 +45,32 @@
       "provider_id": "104092887991962754227",
       "photo": "https://lh3.googleusercontent.com/a/ACg8ocL1m9CXEHZn40N-U9aQcSIme-mFVbxcv-j67XDlN4FjkoklQP0=s96-c",
       "id": "QhUKK7Y8Hv4"
+    },
+    {
+      "username": "kerbaniyasser.s",
+      "email": "kerbaniyasser.s@gmail.com",
+      "password": "",
+      "first_name": "أحمد",
+      "last_name": "",
+      "is_staff": false,
+      "date_joined": "2026-04-18T19:57:17.190Z",
+      "provider": "google",
+      "provider_id": "102408028297895117608",
+      "photo": "https://lh3.googleusercontent.com/a/ACg8ocI9YMw3EnO5yIO7QSDXTrK8jKJ7Xu6J-XVKnF617Km_SGqdHO3x=s96-c",
+      "id": "CJHIFhf7GpQ"
+    },
+    {
+      "username": "kerbaniyacer",
+      "email": "kerbaniyacer@gmail.com",
+      "password": "Kerbani127854369@",
+      "first_name": "",
+      "last_name": "",
+      "is_staff": false,
+      "date_joined": "2026-04-18T20:50:53.200Z",
+      "provider": "google",
+      "id": "_oOQN0IhybY",
+      "provider_id": "117847537620503462675",
+      "photo": "https://lh3.googleusercontent.com/a/ACg8ocLm3Ag84iWvtg22ICtNBhrB_gdD0wtJ--7bEK1_rrz85bDVlRk=s96-c"
     }
   ],
   "profiles": [
@@ -142,22 +155,6 @@
       "commercial_register": ""
     },
     {
-      "user_id": "dtEjFDmyhR0",
-      "is_seller": false,
-      "phone": "",
-      "address": "",
-      "wilaya": "",
-      "baladia": "",
-      "bio": "",
-      "photo": "https://lh3.googleusercontent.com/a/ACg8ocI9YMw3EnO5yIO7QSDXTrK8jKJ7Xu6J-XVKnF617Km_SGqdHO3x=s96-c",
-      "store_name": "",
-      "store_description": "",
-      "store_category": "",
-      "store_logo": null,
-      "commercial_register": "",
-      "id": "rsoy7ik-zgM"
-    },
-    {
       "user_id": "QhUKK7Y8Hv4",
       "is_seller": true,
       "phone": "0697649366",
@@ -188,6 +185,38 @@
       "store_logo": null,
       "commercial_register": "",
       "id": "BbrP2nsmavU"
+    },
+    {
+      "user_id": "CJHIFhf7GpQ",
+      "is_seller": false,
+      "phone": "0769431525",
+      "address": "قصر المرابطين ",
+      "wilaya": "عين صالح",
+      "baladia": "عين صالح",
+      "bio": "",
+      "photo": "https://lh3.googleusercontent.com/a/ACg8ocI9YMw3EnO5yIO7QSDXTrK8jKJ7Xu6J-XVKnF617Km_SGqdHO3x=s96-c",
+      "store_name": "",
+      "store_description": "",
+      "store_category": "",
+      "store_logo": null,
+      "commercial_register": "",
+      "id": "J7pmFWDExsw"
+    },
+    {
+      "user_id": "_oOQN0IhybY",
+      "is_seller": false,
+      "phone": "0697649366",
+      "address": "قصر المرابطين",
+      "wilaya": "عين صالح",
+      "baladia": "عين صالح",
+      "bio": "",
+      "photo": null,
+      "store_name": "",
+      "store_description": "",
+      "store_category": "",
+      "store_logo": null,
+      "commercial_register": "",
+      "id": "Qn3InZgXSbg"
     }
   ],
   "categories": [
@@ -1933,6 +1962,96 @@
       },
       "sent_at": "2026-04-17T19:13:29.225Z",
       "id": "YOlaDJvz1u0"
+    },
+    {
+      "type": "otp",
+      "to": "adminsouq@gmail.com",
+      "data": {
+        "otp": "506287"
+      },
+      "sent_at": "2026-04-18T19:45:50.176Z",
+      "id": "M-mqgf337Yo"
+    },
+    {
+      "type": "otp",
+      "to": "adminsouq@gmail.com",
+      "data": {
+        "otp": "652960"
+      },
+      "sent_at": "2026-04-18T19:48:00.043Z",
+      "id": "B1y3pRevQSs"
+    },
+    {
+      "type": "security-alert",
+      "to": "adminsouq@gmail.com",
+      "data": {
+        "ip": "154.245.249.63"
+      },
+      "sent_at": "2026-04-18T19:48:24.011Z",
+      "id": "4dNfsNv5fWY"
+    },
+    {
+      "type": "otp",
+      "to": "souqsupport@gmail.com",
+      "data": {
+        "otp": "339432"
+      },
+      "sent_at": "2026-04-18T19:48:51.169Z",
+      "id": "mds1TBXVG0U"
+    },
+    {
+      "type": "security-alert",
+      "to": "souqsupport@gmail.com",
+      "data": {
+        "ip": "154.245.249.63"
+      },
+      "sent_at": "2026-04-18T19:49:08.623Z",
+      "id": "g2wCn5YQxzY"
+    },
+    {
+      "type": "welcome",
+      "to": "kerbaniyasser.s@gmail.com",
+      "data": {
+        "username": "kerbaniyasser.s"
+      },
+      "sent_at": "2026-04-18T19:57:21.081Z",
+      "id": "BOgeW9w-j-A"
+    },
+    {
+      "type": "security-alert",
+      "to": "kerbaniyasser.s@gmail.com",
+      "data": {
+        "ip": "154.121.38.208"
+      },
+      "sent_at": "2026-04-18T19:57:22.967Z",
+      "id": "z32BR76vpJE"
+    },
+    {
+      "type": "welcome",
+      "to": "kerbaniyacer@gmail.com",
+      "data": {
+        "username": "kerbaniyacer"
+      },
+      "sent_at": "2026-04-18T20:50:55.111Z",
+      "id": "rlosJ7mfIRo"
+    },
+    {
+      "type": "otp",
+      "to": "kerbaniyacer@gmail.com",
+      "data": {
+        "otp": "828132"
+      },
+      "sent_at": "2026-04-18T20:50:58.900Z",
+      "id": "TJ_2HJ9uubw"
+    },
+    {
+      "type": "security-alert",
+      "to": "kerbaniyacer@gmail.com",
+      "data": {
+        "ip": "154.245.249.63"
+      },
+      "sent_at": "2026-04-18T20:51:37.033Z",
+      "id": "uB5mrkk2zCc"
     }
   ],
   "login_history": [
@@ -1956,6 +2075,76 @@
       "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
       "logged_at": "2026-04-17T22:22:26.898Z",
       "id": "GaBYIWfdcyI"
+    },
+    {
+      "user_id": "QhUKK7Y8Hv4",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:37:06.694Z",
+      "id": "iUxhedAhVrA"
+    },
+    {
+      "user_id": "YLUvRgWs-ek",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:38:33.481Z",
+      "id": "fgvzaZd8bck"
+    },
+    {
+      "user_id": "dtEjFDmyhR0",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:41:18.816Z",
+      "id": "ai9Cv9nx3oA"
+    },
+    {
+      "user_id": "1",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:48:22.510Z",
+      "id": "Bon5JakOPE0"
+    },
+    {
+      "user_id": "2",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:49:07.008Z",
+      "id": "H147R4Zksow"
+    },
+    {
+      "user_id": "1",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+      "logged_at": "2026-04-18T19:49:30.716Z",
+      "id": "4WrQwYeAyUc"
+    },
+    {
+      "user_id": "_oOQN0IhybY",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0",
+      "logged_at": "2026-04-18T20:51:35.347Z",
+      "id": "ADHcq6HP_-Y"
+    },
+    {
+      "user_id": "_oOQN0IhybY",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+      "logged_at": "2026-04-18T20:52:58.518Z",
+      "id": "t5bopLeD2fI"
+    },
+    {
+      "user_id": "QhUKK7Y8Hv4",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0",
+      "logged_at": "2026-04-18T20:55:52.359Z",
+      "id": "694ga-zCPc8"
+    },
+    {
+      "user_id": "QhUKK7Y8Hv4",
+      "ip": "154.245.249.63",
+      "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36",
+      "logged_at": "2026-04-18T21:12:47.144Z",
+      "id": "a7iXHFOyyI4"
     }
   ],
   "otps": [],

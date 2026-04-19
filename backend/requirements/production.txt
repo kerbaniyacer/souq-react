@@ -1,0 +1,5 @@
+-r base.txt
+whitenoise==6.9.0
+gunicorn==23.0.0
+# celery==5.4.0
+# redis==5.2.1
