@@ -1,22 +1,10 @@
 import axios from 'axios';
 import { sendNewsletterConfirmationEmail } from './emailService';
-// Re-export the real auth api instance for components that need it
-export { default as djangoApi } from './authService';
+import djangoApi from './authService';
+export { djangoApi };
 
-const api = axios.create({ baseURL: '/api' });
-
-// Attach JWT access token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  (error) => Promise.reject(error)
-);
-
+// Use djangoApi which handles JWT and 401 auto-refresh
+const api = djangoApi;
 export default api;
 
 // ---- JSON Server (mock backend) ----

@@ -22,7 +22,6 @@ export default function Profile() {
     address: '',
     wilaya: '',
     baladia: '',
-    postal_code: '',
     bio: '',
     store_name: '',
     store_description: '',
@@ -58,7 +57,6 @@ export default function Profile() {
         address: profile.address ?? '',
         wilaya: profile.wilaya ?? '',
         baladia: profile.baladia ?? '',
-        postal_code: (profile as any).postal_code ?? '',
         bio: profile.bio ?? '',
         store_name: profile.store_name ?? '',
         store_description: profile.store_description ?? '',
@@ -223,7 +221,6 @@ export default function Profile() {
               <AddressFields
                 wilaya={form.wilaya}
                 baladia={form.baladia}
-                postal_code={form.postal_code}
                 onChange={(field, value) => setForm((p) => ({ ...p, [field]: value }))}
                 required={false}
                 className="sm:col-span-2"

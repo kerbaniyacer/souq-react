@@ -1,13 +1,16 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductVariant, ProductImage, ProductAttribute
+from .models import Category, Brand, Product, ProductVariant, ProductAttribute, VariantImage
 
+
+# ── Category ──────────────────────────────────────────────────────────────────
 
 class CategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
+    products_count = serializers.ReadOnlyField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'icon', 'image', 'parent', 'children', 'order']
+        fields = ['id', 'name', 'slug', 'logo', 'parent', 'is_active', 'products_count', 'children']
 
     def get_children(self, obj):
         return CategorySerializer(obj.children.filter(is_active=True), many=True).data
@@ -16,13 +19,15 @@ class CategorySerializer(serializers.ModelSerializer):
 class CategoryMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'icon']
+        fields = ['id', 'name', 'slug', 'logo']
 
+
+# ── Brand ─────────────────────────────────────────────────────────────────────
 
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
-        fields = ['id', 'name', 'slug', 'logo', 'description']
+        fields = ['id', 'name', 'slug', 'logo', 'description', 'country']
 
 
 class BrandMiniSerializer(serializers.ModelSerializer):
@@ -31,64 +36,94 @@ class BrandMiniSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'logo']
 
 
+# ── Variant Image ─────────────────────────────────────────────────────────────
+
+class VariantImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VariantImage
+        fields = ['id', 'image', 'alt_text', 'is_main']
+
+
+# ── Product Attribute ─────────────────────────────────────────────────────────
+
 class ProductAttributeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductAttribute
         fields = ['id', 'name', 'value']
 
 
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImage
-        fields = ['id', 'image', 'alt', 'order']
-
+# ── Product Variant ───────────────────────────────────────────────────────────
 
 class ProductVariantSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    images = VariantImageSerializer(many=True, read_only=True)
+    image = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
-    discount = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ProductVariant
         fields = [
-            'id', 'name', 'sku', 'price', 'old_price', 'stock',
-            'image', 'attributes', 'is_main', 'is_active', 'order',
-            'is_in_stock', 'discount',
+            'id', 'product_id', 'product_name', 'product_slug', 'name', 'sku', 'price', 'old_price', 'discount',
+            'stock', 'is_active', 'attributes', 'is_main',
+            'images', 'image', 'is_in_stock',
         ]
 
+    def get_image(self, obj):
+        """Return main image URL for this variant (from VariantImage table)."""
+        request = self.context.get('request')
+        url = obj.get_image  # @property on model
+        if url and request:
+            return request.build_absolute_uri(url)
+        return url
+
+
+# ── Product List ──────────────────────────────────────────────────────────────
 
 class ProductListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for product list pages."""
     category = CategoryMiniSerializer(read_only=True)
     brand = BrandMiniSerializer(read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     main_image = serializers.SerializerMethodField()
+    min_price = serializers.SerializerMethodField()
+    max_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'main_image', 'category', 'brand',
-            'variants', 'rating', 'reviews_count', 'sold_count',
-            'is_featured', 'is_active', 'created_at',
+            'variants', 'min_price', 'max_price', 'rating', 'reviews_count', 
+            'sold_count', 'is_featured', 'is_active', 'created_at',
         ]
 
     def get_main_image(self, obj):
-        if not obj.main_image:
-            return None
-        name = obj.main_image.name or ''
-        # Paths like /images/products/... are frontend static assets
-        if name.startswith('/') or name.startswith('http'):
-            return name
+        """Get main image via Product.image property (from VariantImage)."""
         request = self.context.get('request')
-        url = obj.main_image.url
-        return request.build_absolute_uri(url) if request else url
+        img_file = obj.image  # @property → ImageFieldFile or None
+        if img_file:
+            try:
+                url = img_file.url
+                return request.build_absolute_uri(url) if request else url
+            except Exception:
+                pass
+        return None
 
+    def get_min_price(self, obj):
+        from django.db.models import Min
+        return obj.variants.aggregate(Min('price'))['price__min']
+
+    def get_max_price(self, obj):
+        from django.db.models import Max
+        return obj.variants.aggregate(Max('price'))['price__max']
+
+
+# ── Product Detail ────────────────────────────────────────────────────────────
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-    """Full serializer for product detail page."""
     category = CategoryMiniSerializer(read_only=True)
     brand = BrandMiniSerializer(read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
-    images = ProductImageSerializer(many=True, read_only=True)
     attributes = ProductAttributeSerializer(many=True, read_only=True)
     seller = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
@@ -98,20 +133,21 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'description', 'main_image',
             'sku', 'category', 'brand', 'seller',
-            'variants', 'images', 'attributes',
+            'variants', 'attributes',
             'rating', 'reviews_count', 'sold_count',
             'is_featured', 'is_active', 'created_at', 'updated_at',
         ]
 
     def get_main_image(self, obj):
-        if not obj.main_image:
-            return None
-        name = obj.main_image.name or ''
-        if name.startswith('/') or name.startswith('http'):
-            return name
         request = self.context.get('request')
-        url = obj.main_image.url
-        return request.build_absolute_uri(url) if request else url
+        img_file = obj.image  # @property → ImageFieldFile or None
+        if img_file:
+            try:
+                url = img_file.url
+                return request.build_absolute_uri(url) if request else url
+            except Exception:
+                pass
+        return None
 
     def get_seller(self, obj):
         return {
@@ -124,14 +160,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 # ── Merchant write serializers ────────────────────────────────────────────────
 
 class VariantWriteSerializer(serializers.Serializer):
-    name = serializers.CharField()
+    name = serializers.CharField(required=False, allow_blank=True, default='')
     sku = serializers.CharField(required=False, allow_blank=True, default='')
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
     old_price = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, allow_null=True, default=None
     )
     stock = serializers.IntegerField(default=0)
-    image = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    image = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default=''
+    )  # URL reference only — base64 is stripped
     is_main = serializers.BooleanField(default=False)
     is_active = serializers.BooleanField(default=True)
     attributes = serializers.DictField(required=False, default=dict)
@@ -154,31 +192,60 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         ]
 
     def _save_variants(self, product, variants_data):
+        import uuid
+        import base64
+        from django.core.files.base import ContentFile
+        from .models import VariantImage
+
+        old_images = {img.image.url: img for img in VariantImage.objects.filter(product=product) if img.image}
+
         product.variants.all().delete()
-        for i, vd in enumerate(variants_data):
-            image = vd.pop('image', '') or ''
-            # Truncate base64 to avoid DB issues — store URL form only
-            if image.startswith('data:'):
-                image = ''
-            ProductVariant.objects.create(product=product, order=i, image=image, **vd)
+        for vd in variants_data:
+            image_data = vd.pop('image', None)
+            
+            if not vd.get('sku'):
+                vd['sku'] = uuid.uuid4().hex[:10].upper()
+            
+            price = vd.get('price', 0)
+            old_price = vd.get('old_price')
+            if old_price and float(old_price) > float(price):
+                vd['discount'] = round((float(old_price) - float(price)) / float(old_price) * 100)
+            else:
+                vd['discount'] = 0
+            
+            variant = ProductVariant.objects.create(product=product, **vd)
+
+            if image_data:
+                if image_data.startswith('data:image'):
+                    try:
+                        fmt, imgstr = image_data.split(';base64,')
+                        ext = fmt.split('/')[-1]
+                        file_name = f'variant_{variant.id}.{ext}'
+                        file = ContentFile(base64.b64decode(imgstr), name=file_name)
+                        var_img = VariantImage.objects.create(product=product, image=file, is_main=variant.is_main)
+                        var_img.variants.add(variant)
+                    except Exception:
+                        pass
+                else:
+                    for url, img_obj in old_images.items():
+                        if url == image_data or image_data.endswith(url):
+                            img_obj.variants.add(variant)
+                            break
 
     def _resolve_brand(self, brand_name):
         if not brand_name:
             return None
-        # 1. Exact name match (case-insensitive)
         brand = Brand.objects.filter(name__iexact=brand_name).first()
         if brand:
             return brand
-        # 2. Build slug and look up by slug (handles duplicates from concurrent creates)
         slug = brand_name.lower().replace(' ', '-')
         brand = Brand.objects.filter(slug=slug).first()
         if brand:
             return brand
-        # 3. Create with a unique slug
         base_slug = slug
         counter = 1
         while Brand.objects.filter(slug=slug).exists():
-            slug = f"{base_slug}-{counter}"
+            slug = f'{base_slug}-{counter}'
             counter += 1
         return Brand.objects.create(name=brand_name, slug=slug)
 

@@ -180,7 +180,6 @@ export default function CompleteProfile() {
                 <AddressFields
                   wilaya={form.wilaya}
                   baladia={form.baladia}
-                  postal_code={(form as any).postal_code ?? ''}
                   onChange={(field, value) => setForm((p) => ({ ...p, [field]: value }))}
                   required
                   className="col-span-2"

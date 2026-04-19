@@ -14,6 +14,15 @@ def get_or_create_cart(user):
     return cart
 
 
+def _cart_with_prefetch(user):
+    """Return cart with all related data prefetched to avoid N+1."""
+    cart, _ = Cart.objects.prefetch_related(
+        'items__variant__product',
+        'items__variant__images',
+    ).get_or_create(user=user)
+    return cart
+
+
 @extend_schema(tags=['cart'], summary='جلب السلة')
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

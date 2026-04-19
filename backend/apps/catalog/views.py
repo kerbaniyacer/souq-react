@@ -47,7 +47,7 @@ def category_detail(request, slug):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def brand_list(request):
-    qs = Brand.objects.filter(is_active=True)
+    qs = Brand.objects.all()
     return Response(BrandSerializer(qs, many=True, context={'request': request}).data)
 
 
@@ -56,7 +56,7 @@ def brand_list(request):
 @permission_classes([AllowAny])
 def brand_detail(request, slug):
     try:
-        brand = Brand.objects.get(slug=slug, is_active=True)
+        brand = Brand.objects.get(slug=slug)
     except Brand.DoesNotExist:
         return Response({'detail': 'العلامة التجارية غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
     return Response(BrandSerializer(brand, context={'request': request}).data)
@@ -81,7 +81,7 @@ def brand_detail(request, slug):
 def product_list(request):
     qs = Product.objects.filter(is_active=True).select_related(
         'category', 'brand', 'seller__profile'
-    ).prefetch_related('variants')
+    ).prefetch_related('variants', 'variant_images__variants')
 
     search = request.query_params.get('search')
     if search:
@@ -121,7 +121,9 @@ def product_detail(request, slug):
     try:
         product = Product.objects.select_related(
             'category', 'brand', 'seller__profile'
-        ).prefetch_related('variants', 'images', 'attributes').get(slug=slug, is_active=True)
+        ).prefetch_related(
+            'variants', 'variant_images__variants', 'attributes'
+        ).get(slug=slug, is_active=True)
     except Product.DoesNotExist:
         return Response({'detail': 'المنتج غير موجود'}, status=status.HTTP_404_NOT_FOUND)
     return Response(ProductDetailSerializer(product, context={'request': request}).data)

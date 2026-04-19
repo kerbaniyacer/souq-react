@@ -91,6 +91,53 @@ def order_create(request):
         # Clear cart after successful order
         cart.items.all().delete()
 
+        # ── Send Emails ──────────────────────────────────────────────────────
+        try:
+            from django.core.mail import send_mail
+            from apps.accounts.utils import get_order_email_html
+            from collections import defaultdict
+
+            # 1. Customer Confirmation
+            items_data = [
+                {'product_name': item.product_name, 'quantity': item.quantity, 'subtotal': float(item.subtotal)}
+                for item in order.items.all()
+            ]
+            cust_html = get_order_email_html(False, order.order_number, float(order.total_amount), items_data)
+            send_mail(
+                f'تأكيد طلبك رقم {order.order_number} - سوق 🎉',
+                f'شكراً لطلبك من سوق! رقم الطلب: {order.order_number}',
+                'noreply@souq.dz',
+                [request.user.email],
+                fail_silently=True,
+                html_message=cust_html
+            )
+
+            # 2. Merchant Notifications
+            # Group items by merchant email
+            merchant_orders = defaultdict(list)
+            for item in order.items.all():
+                merchant_email = item.variant.product.seller.email
+                merchant_orders[merchant_email].append({
+                    'product_name': item.product_name, 
+                    'quantity': item.quantity, 
+                    'subtotal': float(item.subtotal)
+                })
+
+            for m_email, m_items in merchant_orders.items():
+                m_total = sum(i['subtotal'] for i in m_items)
+                m_html = get_order_email_html(True, order.order_number, m_total, m_items)
+                send_mail(
+                    f'طلب جديد رقم {order.order_number} - سوق 🛒',
+                    f'لديك طلب جديد في متجرك! رقم الطلب: {order.order_number}',
+                    'noreply@souq.dz',
+                    [m_email],
+                    fail_silently=True,
+                    html_message=m_html
+                )
+
+        except Exception as e:
+            print(f"Error sending order emails: {e}")
+
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

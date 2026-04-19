@@ -107,7 +107,7 @@ export default function AdminUserDetail() {
       </div>
 
       {/* User Info Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+      <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center shrink-0">
@@ -117,10 +117,10 @@ export default function AdminUserDetail() {
               }
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 font-arabic">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic">
                 {user.first_name || user.last_name ? `${user.first_name} ${user.last_name}`.trim() : user.username}
               </h2>
-              <p className="text-gray-500 text-sm">{user.email}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">{user.email}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-arabic font-medium ${
                   profile?.is_seller ? 'bg-primary-100 text-primary-700' : 'bg-blue-100 text-blue-700'
@@ -156,33 +156,33 @@ export default function AdminUserDetail() {
               { label: 'عدد المنتجات', value: products.length, icon: <Package className="w-5 h-5" />, color: 'text-blue-600 bg-blue-50' },
               { label: 'الطلبات المنجزة', value: orders.filter(o => o.status === 'delivered').length, icon: <ShoppingBag className="w-5 h-5" />, color: 'text-primary-600 bg-primary-50' },
             ].map((s) => (
-              <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div key={s.label} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.color}`}>{s.icon}</div>
-                <div className="text-xl font-bold text-gray-900 font-mono">{s.value}</div>
-                <div className="text-xs text-gray-500 font-arabic mt-1">{s.label}</div>
+                <div className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">{s.value}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-arabic mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           {/* Store info */}
           {profile?.store_name && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
-              <h3 className="font-bold text-gray-800 font-arabic mb-2">معلومات المتجر</h3>
-              <p className="text-gray-700 font-arabic font-medium">{profile.store_name}</p>
+            <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
+              <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic mb-2">معلومات المتجر</h3>
+              <p className="text-gray-700 dark:text-gray-300 font-arabic font-medium">{profile.store_name}</p>
               {profile.store_description && <p className="text-gray-500 text-sm font-arabic mt-1">{profile.store_description}</p>}
             </div>
           )}
 
           {/* Seller Products */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-bold text-gray-900 font-arabic mb-4">منتجات التاجر ({products.length})</h3>
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">منتجات التاجر ({products.length})</h3>
             {products.length === 0 ? (
               <p className="text-center py-8 text-gray-400 font-arabic text-sm">لا توجد منتجات لهذا التاجر</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-gray-500 font-arabic">
+                    <tr className="bg-gray-50 dark:bg-[#252525] text-gray-500 dark:text-gray-400 font-arabic">
                       <th className="px-4 py-3 text-right rounded-r-xl">المنتج</th>
                       <th className="px-4 py-3 text-right">السعر</th>
                       <th className="px-4 py-3 text-right">الحالة</th>
@@ -193,23 +193,23 @@ export default function AdminUserDetail() {
                     {products.map((p) => {
                       const mainVariant = p.variants?.find((v: any) => v.is_main) ?? p.variants?.[0];
                       return (
-                        <tr key={p.id} className="hover:bg-gray-50/50">
+                        <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-[#252525]/50 border-t border-gray-50 dark:border-[#2E2E2E]">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gray-50 rounded-lg overflow-hidden shrink-0">
+                              <div className="w-10 h-10 bg-gray-50 dark:bg-[#252525] rounded-lg overflow-hidden shrink-0">
                                 {p.main_image
                                   ? <img src={p.main_image} alt="" className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-300" /></div>
+                                  : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-300 dark:text-gray-600" /></div>
                                 }
                               </div>
-                              <span className="font-medium text-gray-800 font-arabic line-clamp-1">{p.name}</span>
+                              <span className="font-medium text-gray-800 dark:text-gray-200 font-arabic line-clamp-1">{p.name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-primary-600 font-mono font-bold">
+                          <td className="px-4 py-3 text-primary-600 dark:text-primary-400 font-mono font-bold">
                             {mainVariant ? `${Number(mainVariant.price).toLocaleString('ar-DZ')} دج` : '-'}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-1 rounded-full font-arabic ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            <span className={`text-xs px-2 py-1 rounded-full font-arabic ${p.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-[#252525] dark:text-gray-400'}`}>
                               {p.is_active ? 'نشط' : 'متوقف'}
                             </span>
                           </td>
@@ -233,41 +233,41 @@ export default function AdminUserDetail() {
       ) : (
         <>
           {/* Buyer Stats */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500 font-arabic">إجمالي الإنفاق</p>
-                <p className="text-2xl font-bold text-gray-900 font-mono">{totalSpent.toLocaleString('ar-DZ')} دج</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-arabic">إجمالي الإنفاق</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-mono">{totalSpent.toLocaleString('ar-DZ')} دج</p>
               </div>
             </div>
           </div>
 
           {/* Buyer Orders */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-bold text-gray-900 font-arabic mb-4">طلبات المشتري ({orders.length})</h3>
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">طلبات المشتري ({orders.length})</h3>
             {orders.length === 0 ? (
               <p className="text-center py-8 text-gray-400 font-arabic text-sm">لم يقم هذا المستخدم بأي طلبات بعد</p>
             ) : (
               <div className="space-y-3">
                 {orders.map((o) => (
-                  <div key={o.id} className="p-4 bg-gray-50 rounded-xl flex flex-col sm:flex-row justify-between gap-3">
+                  <div key={o.id} className="p-4 bg-gray-50 dark:bg-[#252525] rounded-xl flex flex-col sm:flex-row justify-between gap-3">
                     <div>
-                      <p className="font-medium text-gray-800 font-mono text-sm">#{o.order_number}</p>
-                      <p className="text-xs text-gray-500 font-arabic mt-0.5">
+                      <p className="font-medium text-gray-800 dark:text-gray-200 font-mono text-sm">#{o.order_number}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-arabic mt-0.5">
                         {new Date(o.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </p>
-                      <p className="text-xs text-gray-400 font-arabic">{o.items?.length ?? 0} منتج</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">{o.items?.length ?? 0} منتج</p>
                     </div>
                     <div className="text-left sm:text-right">
-                      <p className="font-bold text-primary-600 font-mono">{Number(o.total_amount).toLocaleString('ar-DZ')} دج</p>
+                      <p className="font-bold text-primary-600 dark:text-primary-400 font-mono">{Number(o.total_amount).toLocaleString('ar-DZ')} دج</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-arabic ${
-                        o.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                        o.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                        'bg-blue-100 text-blue-700'
+                        o.status === 'delivered' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                        o.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                        o.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
+                        'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                       }`}>
                         {o.status === 'delivered' ? 'مُسلَّم' : o.status === 'pending' ? 'معلّق' : o.status === 'cancelled' ? 'ملغى' : o.status}
                       </span>

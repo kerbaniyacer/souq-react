@@ -282,7 +282,6 @@ export default function Register() {
                 <AddressFields
                   wilaya={wilayaValue}
                   baladia={baladiaValue ?? ''}
-                  postal_code=""
                   onChange={(field, value) => setValue(field as 'wilaya' | 'baladia', value)}
                   required
                   className="col-span-2"

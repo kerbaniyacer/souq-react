@@ -80,3 +80,65 @@ class ChangePasswordSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['new_password2']:
             raise serializers.ValidationError({'new_password2': 'كلمتا المرور غير متطابقتان.'})
         return attrs
+
+
+from django.db.models import Q
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.core.mail import send_mail
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom JWT serializer that hooks into successful login to track LoginHistory."""
+    @classmethod
+    def get_token(cls, user):
+        return super().get_token(user)
+
+    def validate(self, attrs):
+        # Allow checking by username or email
+        email_or_username = attrs.get('email')
+        if email_or_username:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user_obj = User.objects.filter(Q(email__iexact=email_or_username) | Q(username__iexact=email_or_username)).first()
+            if user_obj:
+                attrs['email'] = user_obj.email
+
+        data = super().validate(attrs)
+        
+        user = self.user
+        request = self.context.get('request')
+        if request and user:
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            
+            from apps.accounts.models import LoginHistory, OTPVerification
+            
+            is_known_ip = LoginHistory.objects.filter(user=user, ip_address=ip).exists()
+            if not is_known_ip:
+                # Clear any existing unverified OTPs
+                OTPVerification.objects.filter(user=user).delete()
+                
+                otp_record = OTPVerification(user=user, ip_address=ip)
+                otp_record.generate_otp()
+                
+                from apps.accounts.utils import get_otp_email_html
+                otp_html = get_otp_email_html(otp_record.otp)
+                
+                send_mail(
+                    'رمز التحقق للولوج الآمن (Souq)',
+                    f'لقد لاحظنا تسجيل دخول من شبكة جديدة.\n\nرمز التحقق الخاص بك هو: {otp_record.otp}',
+                    'noreply@souq.dz',
+                    [user.email],
+                    fail_silently=False,
+                    html_message=otp_html
+                )
+                
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({
+                    "detail": "verification_required",
+                    "email": user.email
+                })
+            
+            LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
+            
+        return data

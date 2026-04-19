@@ -376,7 +376,7 @@ export default function MerchantProductForm() {
           price: Number(v.price),
           old_price: v.old_price ? Number(v.old_price) : null,
           stock: Number(v.stock),
-          image: v.image?.startsWith('data:') ? '' : (v.image || ''),
+          image: v.image || '',
           is_main: v.is_main,
           is_active: v.is_active,
           attributes: v.attributes,

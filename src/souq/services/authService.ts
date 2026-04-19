@@ -73,7 +73,46 @@ export interface DjangoProfile {
 // ── Auth API calls ─────────────────────────────────────────────────────────
 
 export async function loginDjango(email: string, password: string): Promise<AuthTokens> {
-  const res = await axios.post<AuthTokens>('/api/auth/login/', { email, password });
+  try {
+    const res = await axios.post('/api/auth/login/', { email, password });
+    return res.data;
+  } catch (err: any) {
+    const data = err.response?.data;
+    const detail = Array.isArray(data?.detail) ? data.detail[0] : data?.detail;
+    const userEmail = Array.isArray(data?.email) ? data.email[0] : data?.email;
+
+    if (err.response?.status === 400 && detail === 'verification_required') {
+      throw { type: 'VERIFICATION_REQUIRED', email: userEmail };
+    }
+    throw err;
+  }
+}
+
+export async function loginSocialDjango(data: {
+  provider: 'google' | 'facebook';
+  provider_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  photo?: string;
+}): Promise<AuthTokens & { user: DjangoUser }> {
+  try {
+    const res = await axios.post('/api/auth/social/', data);
+    return res.data;
+  } catch (err: any) {
+    const resData = err.response?.data;
+    const detail = Array.isArray(resData?.detail) ? resData.detail[0] : resData?.detail;
+    const userEmail = Array.isArray(resData?.email) ? resData.email[0] : resData?.email;
+
+    if (err.response?.status === 400 && detail === 'verification_required') {
+      throw { type: 'VERIFICATION_REQUIRED', email: userEmail };
+    }
+    throw err;
+  }
+}
+
+export async function verifyIpOtpDjango(email: string, otp: string): Promise<AuthTokens & { user: DjangoUser }> {
+  const res = await axios.post('/api/auth/verify-ip/', { email, otp });
   return res.data;
 }
 

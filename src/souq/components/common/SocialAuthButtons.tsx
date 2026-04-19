@@ -3,7 +3,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useFacebookSDK } from '@souq/hooks/useFacebookSDK';
 import { useAuthStore } from '@souq/stores/authStore';
 import { useToast } from '@souq/stores/toastStore';
-import { loginWithGoogle, loginWithFacebook } from '@souq/services/mockAuth';
+import { saveTokens, loginSocialDjango } from '@souq/services/authService';
 import type { User } from '@souq/types';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -33,9 +33,10 @@ function FacebookIcon({ spinning }: { spinning?: boolean }) {
 
 interface Props {
   mode: 'login' | 'register';
+  onVerificationRequired?: (email: string) => void;
 }
 
-export default function SocialAuthButtons({ mode }: Props) {
+export default function SocialAuthButtons({ mode, onVerificationRequired }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [fbLoading, setFbLoading] = useState(false);
 
@@ -59,15 +60,31 @@ export default function SocialAuthButtons({ mode }: Props) {
         );
         const googleUser = userInfoRes.data;
 
-        // تسجيل/دخول في قاعدة البيانات المحلية
-        const { token, user, isNewUser } = await loginWithGoogle(googleUser);
-        await loginSocial(user as unknown as User, token);
+        // تسجيل الدخول في الواجهة الحقيقية لـ Django
+        const payload = {
+          provider: 'google' as const,
+          provider_id: googleUser.sub,
+          email: googleUser.email,
+          first_name: googleUser.given_name || googleUser.name?.split(' ')[0] || '',
+          last_name: googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '',
+          photo: googleUser.picture
+        };
+        const tokens = await loginSocialDjango(payload);
+        
+        // حفظ التوكنز وتحديث Store
+        saveTokens(tokens);
+        await loginSocial(tokens.user as unknown as User, tokens.access);
 
-        toast.success(`مرحباً ${googleUser.given_name || googleUser.name}! 👋`);
-        navigate(isNewUser ? '/complete-profile' : '/');
-      } catch (err) {
+        toast.success(`مرحباً ${payload.first_name || googleUser.name}! 👋`);
+        // We assume returning users go to home, and handle onboarding differently if needed
+        navigate('/');
+      } catch (err: any) {
+        if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
+          onVerificationRequired(err.email);
+          return;
+        }
         console.error(err);
-        toast.error('تعذّر الاتصال — تأكد أن JSON Server يعمل على المنفذ 3001');
+        toast.error('أثناء تسجيل الدخول: ' + (err.message || 'حدث خطأ مجهول'));
       } finally {
         setGoogleLoading(false);
       }
@@ -115,14 +132,28 @@ export default function SocialAuthButtons({ mode }: Props) {
         picture = picRes.data?.data?.url;
       } catch { /* اختياري */ }
 
-      const { token, user, isNewUser } = await loginWithFacebook({ id: userID, name, email, picture });
-      await loginSocial(user as unknown as User, token);
+      const payload = {
+        provider: 'facebook' as const,
+        provider_id: userID,
+        email: email,
+        first_name: name.split(' ')[0] || '',
+        last_name: name.split(' ').slice(1).join(' ') || '',
+        photo: picture
+      };
+      
+      const tokens = await loginSocialDjango(payload);
+      saveTokens(tokens);
+      await loginSocial(tokens.user as unknown as User, tokens.access);
 
-      toast.success(`مرحباً ${name.split(' ')[0]}! 👋`);
-      navigate(isNewUser ? '/complete-profile' : '/');
-    } catch (err: unknown) {
-      const msg = (err as Error).message;
-      if (msg?.includes('إلغاء')) {
+      toast.success(`مرحباً ${payload.first_name}! 👋`);
+      navigate('/');
+    } catch (err: any) {
+      if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
+        onVerificationRequired(err.email);
+        return;
+      }
+      const msg = err.message || '';
+      if (msg.includes('إلغاء')) {
         toast.info('تم إلغاء تسجيل الدخول');
       } else {
         toast.error('تعذّر تسجيل الدخول بـ Facebook');

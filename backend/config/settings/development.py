@@ -20,8 +20,8 @@ if DB_ENGINE == 'sqlite':
 # Allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True
 
-# Show emails in console instead of sending
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Show emails in console by default, but allow .env override
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 # Django Debug Toolbar (optional — install separately)
 INTERNAL_IPS = ['127.0.0.1']

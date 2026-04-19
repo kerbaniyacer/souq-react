@@ -1,17 +1,18 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import type { Product } from '@souq/types';
-import { useCartStore } from '@souq/stores/cartStore';
 import { useWishlistStore } from '@souq/stores/wishlistStore';
 import { useAuthStore } from '@souq/stores/authStore';
 import { useToast } from '@souq/stores/toastStore';
+import VariantSelectorModal from './VariantSelectorModal';
 
 interface Props {
   product: Product;
 }
 
 export default function ProductCard({ product }: Props) {
-  const { addItem: addToCart } = useCartStore();
+  const [modalOpen, setModalOpen] = useState(false);
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
   const toast = useToast();
@@ -21,16 +22,11 @@ export default function ProductCard({ product }: Props) {
   const mainImage = product.main_image ?? product.images?.[0]?.image;
   const inWishlist = isInWishlist(product.id);
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!mainVariant) return;
-    try {
-      await addToCart(mainVariant.id);
-      toast.success('تمت الإضافة إلى السلة');
-    } catch {
-      toast.error('تعذّر إضافة المنتج');
-    }
+    setModalOpen(true);
   };
 
   const handleToggleWishlist = async (e: React.MouseEvent) => {
@@ -58,6 +54,12 @@ export default function ProductCard({ product }: Props) {
   const discountPercent = hasDiscount ? Math.round(((mainVariant.old_price! - mainVariant.price) / mainVariant.old_price!) * 100) : 0;
 
   return (
+    <>
+    <VariantSelectorModal
+      product={product}
+      isOpen={modalOpen}
+      onClose={() => setModalOpen(false)}
+    />
     <Link to={`/products/${product.slug}`} className="group block">
       <div className="bg-white dark:bg-[#1a1a2e] rounded-2xl overflow-hidden transition-all duration-300 border border-gray-100 dark:border-gray-800/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/30">
         {/* Image */}
@@ -151,5 +153,6 @@ export default function ProductCard({ product }: Props) {
         </div>
       </div>
     </Link>
+    </>
   );
 }

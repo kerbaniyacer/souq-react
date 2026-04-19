@@ -262,6 +262,7 @@ export default function AdminDashboard() {
               <tr>
                 <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 font-arabic">المنتج</th>
                 <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 font-arabic hidden sm:table-cell">القسم</th>
+                <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 font-arabic">التاجر</th>
                 <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 font-arabic">الحالة</th>
                 <th className="text-right px-5 py-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 font-arabic">إجراء</th>
               </tr>
@@ -275,6 +276,15 @@ export default function AdminDashboard() {
                   </td>
                   <td className="px-5 py-3.5 hidden sm:table-cell">
                     <span className="text-sm text-gray-600 dark:text-gray-400 font-arabic">{p.category?.name ?? '—'}</span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {p.seller ? (
+                      <Link to={`/admin/users/${p.seller.id}`} className="text-xs inline-block px-2.5 py-1 rounded-full font-arabic font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors shadow-sm">
+                        {p.seller.first_name || p.seller.username || 'معلومات التاجر'}
+                      </Link>
+                    ) : (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-arabic font-medium bg-gray-100 text-gray-500 dark:bg-[#252525] dark:text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-3.5">
                     <button onClick={() => handleToggleProductStatus(p)}

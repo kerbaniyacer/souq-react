@@ -75,3 +75,24 @@ class LoginHistory(models.Model):
 
     def __str__(self):
         return f'{self.user.email} — {self.ip_address} @ {self.logged_at}'
+
+
+import random
+
+class OTPVerification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_verifications')
+    otp = models.CharField(max_length=6)
+    ip_address = models.GenericIPAddressField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'رمز تحقق OTP'
+        verbose_name_plural = 'رموز تحقق OTP'
+        ordering = ['-created_at']
+
+    def generate_otp(self):
+        self.otp = f"{random.randint(100000, 999999)}"
+        self.save()
+        
+    def __str__(self):
+        return f'{self.user.email} — {self.otp}'

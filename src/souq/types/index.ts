@@ -103,6 +103,9 @@ export interface VariantImage {
 
 export interface ProductVariant {
   id: number;
+  product_id?: number;
+  product_name?: string;
+  product_slug?: string;
   product: number;
   name: string;
   sku: string;

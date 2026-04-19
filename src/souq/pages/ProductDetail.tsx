@@ -8,6 +8,22 @@ import { useWishlistStore } from '@souq/stores/wishlistStore';
 import { useToast } from '@souq/stores/toastStore';
 import { useAuthStore } from '@souq/stores/authStore';
 
+const COLOR_MAP: Record<string, string> = {
+  'أحمر': '#ef4444',
+  'أزرق': '#3b82f6',
+  'أخضر': '#22c55e',
+  'أسود': '#171717',
+  'أبيض': '#ffffff',
+  'رمادي': '#6b7280',
+  'ذهبي': '#eab308',
+  'فضي': '#d1d5db',
+  'بني': '#92400e',
+  'برتقالي': '#f97316',
+  'وردي': '#ec4899',
+  'بنفسجي': '#a855f7',
+  'أصفر': '#facc15'
+};
+
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -160,14 +176,15 @@ export default function ProductDetail() {
   const activeVariant = matchedVariant ?? selectedVariant;
   const hasDiscount = activeVariant?.old_price && activeVariant.old_price > activeVariant.price;
 
-  // Build thumbnail list: prefer product.images, fall back to per-variant images
-  const productImages = product.images ?? [];
-  const variantThumbs = productImages.length === 0
+  // Use the active variant's explicitly linked images
+  // Fall back to collecting the main image from all variants to show generic thumbnails
+  const activeImages = activeVariant?.images?.length ? activeVariant.images : [];
+  const fallbackThumbs = activeImages.length === 0 
     ? (product.variants ?? [])
         .filter((v) => (v as any).image)
         .map((v, i) => ({ id: i, image: (v as any).image as string }))
     : [];
-  const images = productImages.length > 0 ? productImages : variantThumbs;
+  const images = activeImages.length > 0 ? activeImages : fallbackThumbs;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -189,105 +206,104 @@ export default function ProductDetail() {
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-12">
-        {/* Images */}
-        <div>
-          <div className="aspect-square bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl overflow-hidden mb-4 border border-gray-100 dark:border-[#2E2E2E]">
-            {selectedImage ? (
-              <img src={selectedImage} alt={product.name} className="w-full h-full object-contain p-4" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ShoppingCart className="w-24 h-24 text-gray-200 dark:text-gray-700" />
-              </div>
-            )}
-          </div>
-          {images.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-              {images.map((img) => (
-                <button
-                  key={img.id}
-                  onClick={() => setSelectedImage(img.image)}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${selectedImage === img.image ? 'border-primary-400' : 'border-gray-200 dark:border-[#2E2E2E] hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                >
-                  <img src={img.image} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Details */}
-        <div>
+        {/* Details Section (First in code -> Right in RTL) */}
+        <div className="flex flex-col">
           {product.brand && (
-            <p className="text-sm text-primary-600 font-arabic mb-2">{product.brand.name}</p>
+            <p className="text-sm font-arabic mb-3 flex items-center justify-end gap-2 text-gray-400">
+              البائع: {product.brand.name}
+              <Store className="w-4 h-4 text-orange-300" />
+            </p>
           )}
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4 leading-tight">
+          <h1 className="text-2xl md:text-3xl font-bold font-arabic mb-4 leading-tight text-gray-900 dark:text-gray-100 text-right">
             {product.name}
           </h1>
 
           {/* Rating */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center justify-end gap-3 mb-8">
+            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">{product.sold_count} مبيع</span>
+            <span className="text-gray-400">|</span>
+            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">({product.reviews_count} تقييم)</span>
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{Number(product.rating || 0).toFixed(1)}</span>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="w-4 h-4" fill={s <= Math.round(product.rating) ? '#f59e0b' : 'none'} color={s <= Math.round(product.rating) ? '#f59e0b' : '#d1d5db'} />
+                <Star key={s} className="w-3.5 h-3.5" fill={s <= Math.round(Number(product.rating || 0)) ? '#eab308' : 'none'} color={s <= Math.round(Number(product.rating || 0)) ? '#eab308' : '#eab308'} />
               ))}
             </div>
-            <span className="text-sm text-gray-500 dark:text-gray-400 font-arabic">({product.reviews_count} تقييم)</span>
-            <span className="text-sm text-gray-400 dark:text-gray-500">·</span>
-            <span className="text-sm text-green-600 dark:text-green-500 font-arabic">{product.sold_count}+ مبيع</span>
           </div>
 
-          {/* Price */}
-          <div className="flex items-end gap-3 mb-6">
+          {/* Price Box */}
+          <div className="bg-gray-50 dark:bg-[#1f1f1f] rounded-2xl p-6 mb-8 flex items-center justify-between border border-gray-200 dark:border-[#2a2a2a]">
             {activeVariant ? (
-              <>
-                <span className="text-3xl font-bold text-primary-600 font-mono">
-                  {Number(activeVariant.price).toLocaleString('ar-DZ')} دج
+              <div className="flex items-center gap-4 w-full justify-between flex-row-reverse">
+                <span className="text-3xl font-bold text-primary-600 dark:text-[#6dbf8b] font-mono">
+                  {Number(activeVariant.price).toLocaleString('ar-DZ')} د.ج
                 </span>
-                {hasDiscount && (
-                  <>
-                    <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-mono">
-                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} دج
+                <div className="flex items-center gap-3">
+                  {hasDiscount && (
+                    <span className="text-lg text-gray-500 line-through font-mono">
+                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} د.ج
                     </span>
-                    <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg">
+                  )}
+                  {hasDiscount && (
+                    <span className="px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500 text-xs font-bold rounded-md">
                       -{activeVariant.discount}%
                     </span>
-                  </>
-                )}
-              </>
+                  )}
+                </div>
+              </div>
             ) : (
-              <span className="text-gray-400 dark:text-gray-500 font-arabic">السعر غير متوفر</span>
+              <span className="text-gray-500 dark:text-gray-400 font-arabic w-full text-right">السعر غير متوفر</span>
             )}
           </div>
 
-          {/* Variants — منفصلة حسب الخاصية */}
+          {/* Options */}
           {attrKeys.length > 0 && (
-            <div className="mb-6 space-y-4">
+            <div className="mb-8 space-y-5">
               {attrKeys.map((key) => {
                 const values = getAvailableValues(key);
+                const isColor = key.includes('لون') || key.includes('Color') || key === 'اللون';
                 return (
-                  <div key={key}>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">
+                  <div key={key} className="flex flex-col items-end">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic mb-3 text-right">
                       {key}:
-                      {effectiveAttrs[key] && (
-                        <span className="mr-2 text-primary-600 font-bold">{effectiveAttrs[key]}</span>
-                      )}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 justify-end">
                       {values.map(({ value, available }) => {
                         const isSelected = effectiveAttrs[key] === value;
+                        
+                        if (isColor) {
+                          const hex = COLOR_MAP[value] || '#888888';
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => available && handleAttrSelect(key, value)}
+                              disabled={!available}
+                              className={`w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 shadow-sm transition-all ${
+                                isSelected 
+                                  ? 'ring-2 ring-gray-400 dark:ring-gray-300 ring-offset-2 dark:ring-offset-[#121212]'
+                                  : 'opacity-80 hover:opacity-100'
+                              } ${!available ? 'opacity-30 cursor-not-allowed border-dashed' : ''}`}
+                              style={{ backgroundColor: hex }}
+                              title={value}
+                            />
+                          );
+                        }
+
+                        // Regular pill button
                         return (
                           <button
                             key={value}
                             type="button"
                             onClick={() => available && handleAttrSelect(key, value)}
                             disabled={!available}
-                            className={`px-4 py-2 rounded-xl border-2 text-sm font-arabic transition-all ${isSelected
-                                ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 font-bold'
+                            className={`px-5 py-2.5 rounded-xl text-sm font-arabic transition-all border ${
+                              isSelected
+                                ? 'border-primary-500 text-primary-600 bg-primary-50 dark:border-[#6dbf8b] dark:text-[#6dbf8b] dark:bg-[#6dbf8b]/10'
                                 : available
-                                  ? 'border-gray-200 dark:border-[#2E2E2E] hover:border-primary-300 text-gray-600 dark:text-gray-400'
-                                  : 'border-gray-100 dark:border-[#2E2E2E] text-gray-300 dark:text-gray-600 line-through cursor-not-allowed'
-                              }`}
+                                  ? 'border-gray-300 text-gray-700 hover:border-gray-400 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500'
+                                  : 'border-gray-200 text-gray-400 line-through cursor-not-allowed dark:border-gray-800 dark:text-gray-600'
+                            }`}
                           >
                             {value}
                           </button>
@@ -297,118 +313,94 @@ export default function ProductDetail() {
                   </div>
                 );
               })}
-              {/* رسالة إذا لم يُحدَّد متغير مطابق */}
-              {attrKeys.every((k) => !!effectiveAttrs[k]) && !matchedVariant && (
-                <p className="text-xs text-red-500 font-arabic">هذه التركيبة غير متوفرة</p>
-              )}
-              {!attrKeys.every((k) => !!effectiveAttrs[k]) && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">
-                  يرجى اختيار {attrKeys.filter((k) => !effectiveAttrs[k]).join(' و ')}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Fallback: متغيرات بدون خصائص */}
-          {attrKeys.length === 0 && product.variants && product.variants.length > 1 && (
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-3">اختر النسخة:</p>
-              <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => { setSelectedVariant(v); const img = (v as any).image ?? v.images?.[0]?.image; if (img) setSelectedImage(img); }}
-                    disabled={!v.is_in_stock}
-                    className={`px-4 py-2 rounded-xl border-2 text-sm font-arabic transition-all ${selectedVariant?.id === v.id
-                        ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
-                        : 'border-gray-200 dark:border-[#2E2E2E] hover:border-gray-300 text-gray-600 dark:text-gray-400'
-                      } ${!v.is_in_stock ? 'opacity-40 cursor-not-allowed line-through' : ''}`}
-                  >
-                    {v.name}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
           {/* Quantity */}
-          <div className="flex items-center gap-4 mb-6">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic">الكمية:</p>
-            <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1A1A1A] rounded-xl p-1 border border-gray-100 dark:border-[#2E2E2E]">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-[#252525] transition-colors text-gray-700 dark:text-gray-300"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="w-8 text-center font-bold text-gray-800 dark:text-gray-200">{quantity}</span>
+          <div className="flex flex-col items-end mb-8">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic mb-3 text-right">الكمية:</p>
+            <div className="flex items-center justify-between w-32 bg-white dark:bg-[#1f1f1f] border border-gray-200 dark:border-[#2a2a2a] rounded-xl p-1">
               <button
                 onClick={() => setQuantity(Math.min(activeVariant?.stock ?? 99, quantity + 1))}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-[#252525] transition-colors text-gray-700 dark:text-gray-300"
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors text-gray-600 dark:text-gray-300"
               >
                 <Plus className="w-4 h-4" />
               </button>
+              <span className="w-8 text-center font-bold font-mono text-gray-900 dark:text-white">{quantity}</span>
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors text-gray-600 dark:text-gray-300"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
             </div>
-            {activeVariant && (
-              <span className="text-sm text-gray-400 dark:text-gray-500 font-arabic">
-                ({activeVariant.stock} متوفر)
-              </span>
-            )}
           </div>
 
           {/* Actions */}
-          {isOwner ? (
-            <div className="flex items-center gap-3 mb-8">
-              <div className="flex-1 py-3.5 bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800/40 text-primary-700 dark:text-primary-400 font-bold rounded-xl font-arabic flex items-center justify-center gap-2">
-                <Store className="w-5 h-5" />
-                منتجك الخاص
+          <div className="flex gap-4 mt-auto">
+            {isOwner ? (
+                <Link
+                  to={`/merchant/products`}
+                  className="flex-1 py-4 bg-primary-400 text-white font-bold rounded-2xl hover:bg-primary-500 transition-all font-arabic flex items-center justify-center gap-2"
+                >
+                  <Settings className="w-5 h-5" /> إدارة المنتج
+                </Link>
+            ) : (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!allAttrsSelected || !(matchedVariant ?? selectedVariant)?.is_in_stock}
+                  className="flex-1 py-4 text-white font-bold rounded-2xl transition-all font-arabic flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed bg-primary-500 hover:bg-primary-600 dark:bg-[#6dbf8b] dark:text-[#121212] dark:hover:bg-[#5aa877]"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  {!allAttrsSelected
+                    ? `اختر ${attrKeys.filter((k) => !effectiveAttrs[k]).join(' و ')}`
+                    : (matchedVariant ?? selectedVariant)?.is_in_stock
+                      ? 'أضف إلى السلة'
+                      : 'غير متوفر'}
+                </button>
+            )}
+            <button
+              onClick={handleToggleWishlist}
+              className={`px-6 py-4 rounded-2xl border transition-all flex items-center gap-2 ${
+                inWishlist
+                  ? 'border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-[#252525] text-red-500'
+                  : 'border-gray-300 dark:border-[#2a2a2a] bg-white dark:bg-[#1f1f1f] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500'
+              }`}
+            >
+              <Heart className="w-5 h-5" fill={inWishlist ? 'currentColor' : 'none'} />
+              <span className="font-arabic text-sm">المفضلة</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Images Section (Second in code -> Left in RTL) */}
+        <div className="flex flex-col gap-4">
+          <div className="aspect-square bg-white dark:bg-[#1f1f1f] rounded-3xl overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
+            {selectedImage ? (
+              <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ShoppingCart className="w-24 h-24 text-gray-300 dark:text-gray-700" />
               </div>
-              <Link
-                to={`/merchant/products`}
-                className="p-3.5 rounded-xl border-2 border-primary-200 dark:border-primary-800/40 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-all"
-                title="إدارة المنتج"
-              >
-                <Settings className="w-5 h-5" />
-              </Link>
-            </div>
-          ) : (
-            <div className="flex gap-3 mb-8">
-              <button
-                onClick={handleAddToCart}
-                disabled={!allAttrsSelected || !(matchedVariant ?? selectedVariant)?.is_in_stock}
-                className="flex-1 py-3.5 bg-primary-400 text-white font-bold rounded-xl hover:bg-primary-500 active:scale-95 transition-all font-arabic flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {!allAttrsSelected
-                  ? `اختر ${attrKeys.filter((k) => !effectiveAttrs[k]).join(' و ')}`
-                  : (matchedVariant ?? selectedVariant)?.is_in_stock
-                    ? 'أضف إلى السلة'
-                    : 'غير متوفر'}
-              </button>
-              <button
-                onClick={handleToggleWishlist}
-                className={`p-3.5 rounded-xl border-2 transition-all ${inWishlist
-                    ? 'border-rose-300 bg-rose-50 dark:bg-rose-900/20 text-rose-500'
-                    : 'border-gray-200 dark:border-[#2E2E2E] text-gray-500 dark:text-gray-400 hover:border-rose-200 hover:text-rose-400'
+            )}
+          </div>
+          {images.length > 1 && (
+            <div className="flex gap-3 overflow-x-auto no-scrollbar justify-end pb-2">
+              {images.map((img) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img.image)}
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all ${
+                    selectedImage === img.image 
+                      ? 'border-primary-500 dark:border-[#6dbf8b]' 
+                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
-              >
-                <Heart className="w-5 h-5" fill={inWishlist ? 'currentColor' : 'none'} />
-              </button>
+                >
+                  <img src={img.image} alt="" className="w-full h-full object-cover opacity-80 hover:opacity-100" />
+                </button>
+              ))}
             </div>
           )}
-
-          {/* Trust badges */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: <Truck className="w-4 h-4" />, text: 'توصيل لجميع الولايات', color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
-              { icon: <Shield className="w-4 h-4" />, text: 'ضمان الإرجاع 7 أيام', color: 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
-            ].map((b) => (
-              <div key={b.text} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl ${b.color}`}>
-                {b.icon}
-                <span className="text-xs font-arabic">{b.text}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

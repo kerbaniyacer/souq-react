@@ -6,12 +6,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@souq/stores/authStore';
 import { useToast } from '@souq/stores/toastStore';
 import SocialAuthButtons from '@souq/components/common/SocialAuthButtons';
+import OtpModal from '@souq/components/common/OtpModal';
+import { verifyIpOtpDjango, saveTokens } from '@souq/services/authService';
 import { loginSchema, type LoginFormData } from '@souq/lib/schemas';
+import type { User } from '@souq/types';
 
 export default function Login() {
   const [showPass, setShowPass] = useState(false);
+  const [otpModalData, setOtpModalData] = useState<{ isOpen: boolean; email: string }>({ isOpen: false, email: '' });
 
-  const { login } = useAuthStore();
+  const { login, loginSocial } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,9 +34,25 @@ export default function Login() {
       await login(data.email, data.password);
       toast.success('تم تسجيل الدخول بنجاح! 👋');
       navigate(from, { replace: true });
-    } catch (err: unknown) {
-      toast.error((err as Error).message ?? 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+    } catch (err: any) {
+      console.log('Login error caught:', err);
+      if (err?.type === 'VERIFICATION_REQUIRED') {
+        console.log('Verification required for:', err.email);
+        setOtpModalData({ isOpen: true, email: err.email });
+        return;
+      }
+      console.error('Login failed with error:', err);
+      toast.error(err.message ?? err.response?.data?.detail ?? 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
     }
+  };
+
+  const handleVerifyOtp = async (otp: string) => {
+    const tokens = await verifyIpOtpDjango(otpModalData.email, otp);
+    saveTokens(tokens);
+    await loginSocial(tokens.user as unknown as User, tokens.access);
+    setOtpModalData({ isOpen: false, email: '' });
+    toast.success('تم التحقق وتسجيل الدخول بنجاح!');
+    navigate(from, { replace: true });
   };
 
   return (
@@ -51,17 +71,20 @@ export default function Login() {
         <p className="text-gray-500 dark:text-gray-400 font-arabic text-center mb-8">سجّل دخولك للمتابعة</p>
 
         <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl shadow-xl border border-gray-100 dark:border-[#2E2E2E] p-8">
-          <SocialAuthButtons mode="login" />
+          <SocialAuthButtons 
+            mode="login" 
+            onVerificationRequired={(email) => setOtpModalData({ isOpen: true, email })} 
+          />
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-5" noValidate>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">
-                البريد الإلكتروني
+                البريد الإلكتروني أو اسم المستخدم
               </label>
               <input
                 {...register('email')}
-                type="email"
-                placeholder="example@email.com"
+                type="text"
+                placeholder="example@email.com أو username"
                 className={`w-full px-4 py-3 rounded-xl border bg-gray-50 dark:bg-[#1E1E1E] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 font-arabic transition-all ${
                   errors.email ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-[#2E2E2E]'
                 }`}
@@ -123,6 +146,12 @@ export default function Login() {
           </div>
         </div>
       </div>
+      <OtpModal 
+        isOpen={otpModalData.isOpen} 
+        email={otpModalData.email} 
+        onVerify={handleVerifyOtp} 
+        onCancel={() => setOtpModalData({ isOpen: false, email: '' })} 
+      />
     </div>
   );
 }

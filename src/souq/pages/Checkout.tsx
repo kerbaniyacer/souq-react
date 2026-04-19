@@ -4,12 +4,12 @@ import { useCartStore } from '@souq/stores/cartStore';
 import { useAuthStore } from '@souq/stores/authStore';
 import { ordersApi } from '@souq/services/api';
 import { useToast } from '@souq/stores/toastStore';
-import { WILAYA_CHOICES } from '@souq/types';
+import AddressFields from '@souq/components/common/AddressFields';
 import type { CheckoutData } from '@souq/types';
 
 export default function Checkout() {
   const { cart, fetchCart, clearCart } = useCartStore();
-  const { profile, isAuthenticated } = useAuthStore();
+  const { user, profile, isAuthenticated } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -21,25 +21,24 @@ export default function Checkout() {
     address: '',
     wilaya: '',
     baladia: '',
-    postal_code: '',
     notes: '',
     payment_method: 'cod',
   });
 
   useEffect(() => {
     fetchCart();
-    if (profile) {
+    if (profile && user) {
       setForm((p) => ({
         ...p,
-        full_name: `${profile.user.first_name} ${profile.user.last_name}`.trim(),
+        full_name: `${user.first_name} ${user.last_name}`.trim(),
         phone: profile.phone,
-        email: profile.user.email,
+        email: user.email,
         address: profile.address,
         wilaya: profile.wilaya,
         baladia: profile.baladia,
       }));
     }
-  }, [fetchCart, profile]);
+  }, [fetchCart, profile, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
@@ -65,7 +64,7 @@ export default function Checkout() {
   };
 
   const items = cart?.items ?? [];
-  const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
+  const subtotal = items.reduce((s, i) => s + Number(i.subtotal || 0), 0);
   const shipping = subtotal > 5000 ? 0 : 500;
   const total = subtotal + shipping;
 
@@ -101,26 +100,13 @@ export default function Checkout() {
                   <input name="email" value={form.email} onChange={handleChange} required type="email"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الولاية *</label>
-                  <select name="wilaya" value={form.wilaya} onChange={handleChange} required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors">
-                    <option value="">اختر الولاية</option>
-                    {WILAYA_CHOICES.map((w) => (
-                      <option key={w} value={w}>{w}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">البلدية *</label>
-                  <input name="baladia" value={form.baladia} onChange={handleChange} required placeholder="اسم البلدية"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الرمز البريدي</label>
-                  <input name="postal_code" value={form.postal_code} onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic transition-colors" />
-                </div>
+                <AddressFields
+                  wilaya={form.wilaya}
+                  baladia={form.baladia}
+                  onChange={(field, value) => setForm(f => ({ ...f, [field]: value }))}
+                  required
+                  className="sm:col-span-2"
+                />
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">العنوان التفصيلي *</label>
                   <input name="address" value={form.address} onChange={handleChange} required placeholder="الشارع، الحي، رقم المبنى..."
@@ -170,8 +156,11 @@ export default function Checkout() {
               <div className="space-y-3 mb-5 max-h-60 overflow-y-auto">
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm font-arabic">
-                    <span className="text-gray-600 dark:text-gray-400 line-clamp-1 flex-1 ml-2">{item.variant?.name} × {item.quantity}</span>
-                    <span className="font-mono shrink-0">{Number(item.subtotal).toLocaleString('ar-DZ')} دج</span>
+                    <span className="text-gray-600 dark:text-gray-400 line-clamp-1 flex-1 ml-2 text-xs">
+                      <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{item.variant?.product_name ?? 'المنتج'}</span>
+                      {item.variant?.name} × {item.quantity}
+                    </span>
+                    <span className="font-mono shrink-0 font-bold">{Number(item.subtotal).toLocaleString('ar-DZ')} دج</span>
                   </div>
                 ))}
               </div>
