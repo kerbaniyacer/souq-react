@@ -5,15 +5,17 @@ import { useToast } from '@souq/stores/toastStore';
 import AddressFields from '@souq/components/common/AddressFields';
 import { Link } from 'react-router-dom';
 import { sendPasswordChangedEmail } from '@souq/services/emailService';
-import { getLoginHistory, type LoginRecord } from '@souq/services/ipService';
+import { getLoginHistory } from '@souq/services/ipService';
+import { useRef } from 'react';
+import ImageCropperModal from '@souq/components/profile/ImageCropperModal';
 
 export default function Profile() {
   const { user, profile, fetchProfile, updateProfile, changePassword } = useAuthStore();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'personal' | 'store' | 'password' | 'security'>('personal');
-  const [loginHistory, setLoginHistory] = useState<LoginRecord[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'personal' | 'store' | 'password'>('personal');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     first_name: '',
@@ -39,16 +41,6 @@ export default function Profile() {
   }, [fetchProfile]);
 
   useEffect(() => {
-    if (activeTab === 'security' && user) {
-      setHistoryLoading(true);
-      getLoginHistory(String(user.id ?? '')).then((data) => {
-        setLoginHistory(data);
-        setHistoryLoading(false);
-      });
-    }
-  }, [activeTab, user]);
-
-  useEffect(() => {
     if (profile) {
       setForm({
         first_name: user?.first_name ?? '',
@@ -67,6 +59,31 @@ export default function Profile() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setSelectedImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCropComplete = async (croppedImage: string) => {
+    setSelectedImage(null);
+    setLoading(true);
+    try {
+      await updateProfile({ photo: croppedImage });
+      toast.success('تم تحديث الصورة الشخصية بنجاح');
+    } catch (err: any) {
+      toast.error(err.message || 'فشل تحديث الصورة');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -123,9 +140,19 @@ export default function Profile() {
                 <User className="w-10 h-10 text-primary-400" />
               )}
             </div>
-            <button className="absolute -bottom-2 -left-2 p-2 bg-primary-400 text-white rounded-lg hover:bg-primary-500 transition-colors shadow-md">
+            <button 
+              onClick={handlePhotoClick}
+              className="absolute -bottom-2 -left-2 p-2 bg-primary-400 text-white rounded-lg hover:bg-primary-500 transition-colors shadow-md"
+            >
               <Camera className="w-3 h-3" />
             </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+            />
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-lg">{user?.username}</h3>
@@ -182,11 +209,10 @@ export default function Profile() {
           { key: 'personal', label: 'البيانات الشخصية', icon: <User className="w-4 h-4" /> },
           ...(profile?.is_seller ? [{ key: 'store', label: 'المتجر', icon: <Store className="w-4 h-4" /> }] : []),
           { key: 'password', label: 'كلمة المرور', icon: <Lock className="w-4 h-4" /> },
-          ...(user?.is_staff ? [{ key: 'security', label: 'سجل الدخول', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key as 'personal' | 'store' | 'password' | 'security')}
+            onClick={() => setActiveTab(tab.key as 'personal' | 'store' | 'password')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-arabic transition-all ${
               activeTab === tab.key
                 ? 'bg-white dark:bg-[#1E1E1E] text-primary-600 shadow-md shadow-black/10 dark:shadow-black/30 font-medium'
@@ -278,70 +304,23 @@ export default function Profile() {
           </div>
         )}
 
-        {activeTab === 'security' && (
-          <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-200 dark:border-[#2E2E2E] overflow-hidden">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 dark:border-[#2E2E2E]">
-              <ShieldCheck className="w-5 h-5 text-primary-400" />
-              <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic">سجل تسجيل الدخول</h3>
-            </div>
-            {historyLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <span className="w-6 h-6 border-2 border-primary-400/30 border-t-primary-400 rounded-full animate-spin" />
-              </div>
-            ) : loginHistory.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 dark:text-gray-500 font-arabic">لا يوجد سجل دخول حتى الآن</div>
-            ) : (
-              <div className="divide-y divide-gray-100 dark:divide-[#2E2E2E]">
-                {loginHistory.map((record, i) => {
-                  const date = new Date(record.logged_at);
-                  const isRecent = Date.now() - date.getTime() < 24 * 60 * 60 * 1000;
-                  return (
-                    <div key={record.id ?? i} className={`flex items-start gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors ${i === 0 ? 'bg-green-50/50 dark:bg-green-900/5' : ''}`}>
-                      <div className={`mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${i === 0 ? 'bg-green-100 dark:bg-green-900/20' : 'bg-gray-100 dark:bg-[#252525]'}`}>
-                        <Monitor className={`w-4 h-4 ${i === 0 ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="flex items-center gap-1 text-sm font-medium text-gray-800 dark:text-gray-200 font-mono">
-                            <Globe className="w-3.5 h-3.5 text-gray-400" />
-                            {record.ip}
-                          </span>
-                          {i === 0 && (
-                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded-full font-arabic">الجلسة الحالية</span>
-                          )}
-                          {isRecent && i !== 0 && (
-                            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs rounded-full font-arabic">اليوم</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate font-arabic" title={record.user_agent}>
-                          {record.user_agent?.split(' ').slice(0, 5).join(' ')}
-                        </p>
-                        <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          <Clock className="w-3 h-3" />
-                          {date.toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric' })}
-                          {' — '}
-                          {date.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab !== 'security' && (
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 w-full py-3.5 bg-primary-400 text-white font-bold rounded-xl hover:bg-primary-500 transition-colors font-arabic flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-5 h-5" />}
-            {activeTab === 'password' ? 'تغيير كلمة المرور' : 'حفظ التغييرات'}
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-4 w-full py-3.5 bg-primary-400 text-white font-bold rounded-xl hover:bg-primary-500 transition-colors font-arabic flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-5 h-5" />}
+          {activeTab === 'password' ? 'تغيير كلمة المرور' : 'حفظ التغييرات'}
+        </button>
       </form>
+
+      {selectedImage && (
+        <ImageCropperModal 
+          image={selectedImage} 
+          onClose={() => setSelectedImage(null)} 
+          onCropComplete={handleCropComplete} 
+        />
+      )}
     </div>
   );
 }

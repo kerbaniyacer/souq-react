@@ -1,6 +1,6 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import User, Profile
+from .models import User, Profile, Report, AdminActionLog
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -23,10 +23,22 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
-            'full_name', 'photo', 'provider', 'is_staff', 'date_joined',
-            'profile',
+            'full_name', 'photo', 'provider', 'is_staff', 'date_joined', 'role',
+            'profile', 'status', 'suspended_at', 'appeal_deadline', 'suspension_reason'
         ]
         read_only_fields = ['id', 'is_staff', 'date_joined', 'provider']
+
+
+class AdminActionLogSerializer(serializers.ModelSerializer):
+    admin_name = serializers.ReadOnlyField(source='admin_user.username')
+    
+    class Meta:
+        model = AdminActionLog
+        fields = [
+            'id', 'admin_user', 'admin_name', 'action', 'target_model', 
+            'target_id', 'target_name', 'reason', 'before_state', 
+            'after_state', 'created_at'
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -146,3 +158,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
             
         return data
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    reporter_name = serializers.ReadOnlyField(source='reporter.username')
+    target_product_name = serializers.ReadOnlyField(source='target_product.name')
+    target_product_slug = serializers.ReadOnlyField(source='target_product.slug')
+    target_user_name = serializers.ReadOnlyField(source='target_user.username')
+
+    class Meta:
+        model = Report
+        fields = [
+            'id', 'reporter', 'reporter_name', 'report_type', 
+            'target_product', 'target_product_name', 'target_product_slug',
+            'target_user', 'target_user_name', 'reason', 
+            'description', 'status', 'created_at'
+        ]
+        read_only_fields = [
+            'id', 'reporter', 'reporter_name', 'target_product_name', 
+            'target_product_slug', 'target_user_name', 'status', 'created_at'
+        ]

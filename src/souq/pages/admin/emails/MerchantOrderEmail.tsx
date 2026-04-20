@@ -1,10 +1,11 @@
 import EmailPreviewWrapper from './EmailPreviewWrapper';
-
-const SITE = 'https://chan-greasier-olympia.ngrok-free.dev';
+import { useEmailContent } from '@souq/data/useEmailContent';
 
 export default function MerchantOrderEmail() {
+  const content = useEmailContent('merchant-order');
+
   return (
-    <EmailPreviewWrapper title="طلب جديد في متجرك! - سوق">
+    <EmailPreviewWrapper title={content.subject} type="merchant-order">
       <div dir="rtl" lang="ar" style={{ margin: 0, padding: 0, backgroundColor: '#F8F6F2', fontFamily: 'Arial, sans-serif' }}>
         <table width="100%" cellPadding={0} cellSpacing={0} style={{ backgroundColor: '#F8F6F2', padding: '40px 20px' }}>
           <tbody><tr><td align="center">

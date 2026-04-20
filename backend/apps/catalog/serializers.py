@@ -67,7 +67,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'product_id', 'product_name', 'product_slug', 'name', 'sku', 'price', 'old_price', 'discount',
             'stock', 'is_active', 'attributes', 'is_main',
-            'images', 'image', 'is_in_stock',
+            'images', 'image', 'is_in_stock', 'stock_status',
         ]
 
     def get_image(self, obj):
@@ -91,7 +91,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'slug', 'main_image', 'category', 'brand',
             'variants', 'min_price', 'max_price', 'rating', 'reviews_count', 
-            'sold_count', 'is_featured', 'is_active', 'created_at',
+            'sold_count', 'is_featured', 'is_active', 'created_at', 'stock_status',
         ]
 
     def get_main_image(self, obj):
@@ -129,8 +129,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'description', 'main_image',
             'sku', 'category', 'brand', 'seller',
             'variants', 'attributes',
-            'rating', 'reviews_count', 'sold_count',
-            'is_featured', 'is_active', 'created_at', 'updated_at',
+            'rating', 'reviews_count', 'sold_count', 'total_stock',
+            'is_featured', 'is_active', 'created_at', 'updated_at', 'stock_status',
         ]
 
     def get_main_image(self, obj):

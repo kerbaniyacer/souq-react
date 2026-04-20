@@ -21,6 +21,7 @@ export default function Checkout() {
     address: '',
     wilaya: '',
     baladia: '',
+    postal_code: '',
     notes: '',
     payment_method: 'cod',
   });
@@ -127,8 +128,8 @@ export default function Checkout() {
               <div className="space-y-3">
                 {[
                   { value: 'cod', label: 'الدفع عند الاستلام', icon: '💵' },
+                  { value: 'ccp', label: 'بريد الجزائر (CCP/BaridiMob)', icon: '🏦' },
                   { value: 'card', label: 'بطاقة بنكية', icon: '💳' },
-                  { value: 'apple_pay', label: 'Apple Pay', icon: '' },
                 ].map((pm) => (
                   <label key={pm.value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     form.payment_method === pm.value ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-gray-300'

@@ -43,6 +43,8 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
 
     tracking_number = models.CharField(max_length=100, blank=True, default='')
+    receipt_image = models.ImageField(upload_to='orders/receipts/', null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, blank=True, default='')
     notes = models.TextField(blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)

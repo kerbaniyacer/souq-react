@@ -1,5 +1,3 @@
-import axios from 'axios';
-import { sendNewsletterConfirmationEmail } from './emailService';
 import djangoApi from './authService';
 export { djangoApi };
 
@@ -108,6 +106,12 @@ export const ordersApi = {
   detail: async (id: number | string) => { const res = await api.get(`/orders/${id}/`); return { data: res.data }; },
   create: async (data: object) => { const res = await api.post('/orders/create/', data); return { data: res.data }; },
   cancel: async (id: number | string) => { const res = await api.post(`/orders/${id}/cancel/`); return { data: res.data }; },
+  uploadReceipt: async (id: number | string, formData: FormData) => {
+    const res = await api.patch(`/orders/${id}/receipt/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return { data: res.data };
+  },
   track: async (orderNumber: string) => { const res = await api.get(`/orders/track/${orderNumber}/`); return { data: res.data }; },
   merchantList: async () => { 
     const res = await api.get('/merchant/orders/'); 

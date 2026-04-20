@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -10,10 +11,28 @@ class User(AbstractUser):
         GOOGLE = 'google', 'Google'
         FACEBOOK = 'facebook', 'Facebook'
 
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Active'
+        SUSPENDED = 'suspended', 'Suspended'
+        PENDING_DELETE = 'pending_delete', 'Pending Delete'
+        DELETED = 'deleted', 'Deleted'
+
+    class Role(models.TextChoices):
+        CUSTOMER = 'customer', 'Customer'
+        SELLER = 'seller', 'Seller'
+        ADMIN = 'admin', 'Admin'
+
     email = models.EmailField(unique=True)
     provider = models.CharField(max_length=20, choices=Provider, default=Provider.LOCAL)
     provider_id = models.CharField(max_length=255, blank=True, default='')
     photo = models.ImageField(upload_to='users/photos/', null=True, blank=True)
+
+    # Status & Audit tracking
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    role = models.CharField(max_length=15, choices=Role.choices, default=Role.CUSTOMER)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    appeal_deadline = models.DateTimeField(null=True, blank=True)
+    suspension_reason = models.TextField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -58,6 +77,63 @@ class Profile(models.Model):
 
     def __str__(self):
         return f'Profile({self.user.email})'
+
+
+class AdminActionLog(models.Model):
+    """Logs administrative actions for audit trails and undo capabilities."""
+    
+    class Action(models.TextChoices):
+        SUSPEND = 'suspend', 'Suspend'
+        RESTORE = 'restore', 'Restore'
+        DELETE = 'delete', 'Delete'
+        PERMANENT_DELETE = 'permanent_delete', 'Permanent Delete'
+
+    admin_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='admin_actions')
+    action = models.CharField(max_length=20, choices=Action.choices)
+    target_model = models.CharField(max_length=50) # 'User' or 'Product'
+    target_id = models.IntegerField()
+    target_name = models.CharField(max_length=255, blank=True, default='')
+
+    reason = models.TextField(blank=True, default='')
+    before_state = models.JSONField(null=True, blank=True)
+    after_state = models.JSONField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'سجل عمليات المسؤول'
+        verbose_name_plural = 'سجلات عمليات المسؤولين'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.admin_user.username} {self.action} {self.target_model}:{self.target_id}'
+
+
+class Report(models.Model):
+    REPORT_TYPES = (
+        ('product', 'منتج'),
+        ('seller', 'تاجر'),
+        ('buyer', 'مشتري'),
+    )
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports_made')
+    report_type = models.CharField(max_length=10, choices=REPORT_TYPES)
+    
+    # Use lazy import/string reference for Product to avoid circular imports
+    target_product = models.ForeignKey('catalog.Product', on_delete=models.CASCADE, null=True, blank=True)
+    target_user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='reports_received')
+    
+    reason = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, default='pending') # pending, resolved, dismissed
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'تبليغ'
+        verbose_name_plural = 'التبليغات'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.report_type} - {self.reason}"
 
 
 class LoginHistory(models.Model):

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Star, Heart, ShoppingCart, Truck, Shield, ArrowRight, Minus, Plus, Store, Settings } from 'lucide-react';
+import { Star, Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag } from 'lucide-react';
 import { productsApi, reviewsApi } from '@souq/services/api';
 import type { Product, ProductVariant, Review } from '@souq/types';
 import { useCartStore } from '@souq/stores/cartStore';
 import { useWishlistStore } from '@souq/stores/wishlistStore';
 import { useToast } from '@souq/stores/toastStore';
 import { useAuthStore } from '@souq/stores/authStore';
+import api from '@souq/services/authService';
 
 const COLOR_MAP: Record<string, string> = {
   'أحمر': '#ef4444',
@@ -40,6 +41,39 @@ export default function ProductDetail() {
   const toast = useToast();
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+
+  const handleReportSubmit = async () => {
+    if (!isAuthenticated) {
+      toast.info('يرجى تسجيل الدخول لتقديم بلاغ');
+      navigate('/login');
+      return;
+    }
+    if (!reportReason) {
+      toast.error('يرجى اختيار سبب التبليغ');
+      return;
+    }
+    setSubmittingReport(true);
+    try {
+      await api.post('/auth/reports/', {
+        report_type: 'product',
+        target_product: product?.id,
+        reason: reportReason,
+        description: reportDescription
+      });
+      toast.success('تم إرسال بلاغك بنجاح. سنقوم بمراجعته');
+      setIsReportModalOpen(false);
+      setReportReason('');
+      setReportDescription('');
+    } catch {
+      toast.error('تعذّر إرسال البلاغ حالياً');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
 
   useEffect(() => {
     if (!slug) return;
@@ -238,12 +272,22 @@ export default function ProductDetail() {
 
         {/* Details Section (Now Second in code -> Left in RTL) */}
         <div className="flex flex-col">
-          {product.brand && (
-            <p className="text-sm font-arabic mb-3 flex items-center justify-end gap-2 text-gray-400">
-              البائع: {product.brand.name}
-              <Store className="w-4 h-4 text-orange-300" />
-            </p>
-          )}
+          <div className="flex items-center justify-end gap-4 mb-3">
+            <button 
+              onClick={() => setIsReportModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors font-arabic"
+              title="تبليغ عن منتج مخالف"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              تبليغ
+            </button>
+            {product.brand && (
+              <p className="text-sm font-arabic flex items-center gap-2 text-gray-500 border-r border-gray-200 dark:border-gray-700 pr-4">
+                البائع: {product.brand.name}
+                <Store className="w-4 h-4 text-orange-300" />
+              </p>
+            )}
+          </div>
           {/* French name in LTR and left-aligned */}
           <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight text-gray-900 dark:text-gray-100 text-left" dir="ltr">
             {product.name}
@@ -351,9 +395,40 @@ export default function ProductDetail() {
           )}
 
 
-          {/* Quantity */}
-          <div className="flex flex-col items-end mb-8">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic mb-3 text-right">الكمية:</p>
+          {/* Quantity & Stock Status */}
+          <div className="flex flex-col items-end mb-8 w-full max-w-[200px] ml-auto">
+            <div className="flex justify-between items-center w-full mb-3">
+              {(() => {
+                const status = activeVariant?.stock_status || (product.total_stock > 0 ? 'high' : 'out_of_stock');
+                const config: Record<string, { text: string; classes: string }> = {
+                  high: { text: 'متوفر في المخزن', classes: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
+                  medium: { text: 'كمية محدودة', classes: 'text-orange-600 bg-orange-50 dark:bg-orange-900/10' },
+                  low: { text: `على وشك النفاذ - بقي ${activeVariant?.stock} فقط`, classes: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+                  out_of_stock: { text: 'غير متوفر', classes: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+                };
+                const { text, classes } = config[status] || config.out_of_stock;
+                return (
+                  <span className={`text-xs font-arabic px-2.5 py-1 rounded-md font-bold ${classes}`}>
+                    {text}
+                  </span>
+                );
+              })()}
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic text-right">الكمية:</p>
+            </div>
+
+            {/* Stock Progress Bar */}
+            {activeVariant && activeVariant.stock > 0 && (
+              <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mb-6 overflow-hidden flex flex-row-reverse">
+                <div 
+                  className={`h-full transition-all duration-500 ${
+                    activeVariant.stock_status === 'high' ? 'bg-green-500' :
+                    activeVariant.stock_status === 'medium' ? 'bg-orange-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(100, (activeVariant.stock / 20) * 100)}%` }}
+                />
+              </div>
+            )}
+
             <div className="flex items-center justify-between w-32 bg-white dark:bg-[#1f1f1f] border border-gray-200 dark:border-[#2a2a2a] rounded-xl p-1">
               <button
                 onClick={() => setQuantity(Math.min(activeVariant?.stock ?? 99, quantity + 1))}
@@ -375,7 +450,7 @@ export default function ProductDetail() {
           <div className="flex gap-4 mt-auto">
             {isOwner ? (
                 <Link
-                  to={`/merchant/products`}
+                  to={`/merchant/products/${product.id}/edit`}
                   className="flex-1 py-4 bg-primary-400 text-white font-bold rounded-2xl hover:bg-primary-500 transition-all font-arabic flex items-center justify-center gap-2"
                 >
                   <Settings className="w-5 h-5" /> إدارة المنتج
@@ -512,6 +587,61 @@ export default function ProductDetail() {
           )}
         </div>
       </div>
+      {/* Report Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl border border-gray-100 dark:border-[#2E2E2E] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-6">
+               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-2">التبليغ عن منتج</h3>
+               <p className="text-gray-500 dark:text-gray-400 font-arabic text-sm mb-6">
+                 هل لاحظت مخالفة في هذا المنتج؟ ساعدنا في الحفاظ على أمان المنصة.
+               </p>
+               
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">سبب التبليغ</label>
+                   <select 
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-[#252525] border border-gray-100 dark:border-[#2E2E2E] rounded-xl p-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic text-sm"
+                   >
+                     <option value="">اختر السبب...</option>
+                     <option value="معلومات مضللة">معلومات مضللة أو غير دقيقة</option>
+                     <option value="منتج مقلد">منتج مقلد أو غير أصلي</option>
+                     <option value="سعر غير منطقي">سعر غير منطقي أو تلاعب</option>
+                     <option value="محتوى غير لائق">محتوى غير لائق أو صور خادشة</option>
+                     <option value="أخرى">أسباب أخرى</option>
+                   </select>
+                 </div>
+                 
+                 <div>
+                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">تفاصيل إضافية</label>
+                   <textarea 
+                      value={reportDescription}
+                      onChange={(e) => setReportDescription(e.target.value)}
+                      placeholder="اشرح لنا المشكلة بالتفصيل (اختياري)..."
+                      className="w-full h-24 bg-gray-50 dark:bg-[#252525] border border-gray-100 dark:border-[#2E2E2E] rounded-xl p-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic text-sm resize-none"
+                   />
+                 </div>
+               </div>
+             </div>
+             
+             <div className="p-6 bg-gray-50 dark:bg-[#252525] border-t border-gray-100 dark:border-[#2E2E2E] flex gap-3">
+               <button 
+                  onClick={handleReportSubmit}
+                  disabled={submittingReport}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-arabic font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50">
+                 {submittingReport ? 'جاري الإرسال...' : 'إرسال التبليغ'}
+               </button>
+               <button 
+                  onClick={() => setIsReportModalOpen(false)}
+                  className="flex-1 bg-white dark:bg-[#1E1E1E] text-gray-600 dark:text-gray-400 py-3 rounded-xl font-arabic font-bold border border-gray-200 dark:border-[#2E2E2E] hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
+                 إلغاء
+               </button>
+             </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

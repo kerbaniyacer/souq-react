@@ -83,6 +83,17 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
           onVerificationRequired(err.email);
           return;
         }
+        if (err?.type === 'USER_NOT_REGISTERED') {
+          toast.info('هذا الحساب غير مسجل، يرجى إنشاء حساب أولاً. تم تعبئة بريدك تلقائياً.');
+          navigate('/register', { 
+            state: { 
+              email: err.email,
+              first_name: err.first_name,
+              last_name: err.last_name
+            } 
+          });
+          return;
+        }
         console.error(err);
         toast.error('أثناء تسجيل الدخول: ' + (err.message || 'حدث خطأ مجهول'));
       } finally {
@@ -150,6 +161,17 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
     } catch (err: any) {
       if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
         onVerificationRequired(err.email);
+        return;
+      }
+      if (err?.type === 'USER_NOT_REGISTERED') {
+        toast.info('هذا الحساب غير مسجل، يرجى إنشاء حساب أولاً. تم تعبئة بريدك تلقائياً.');
+        navigate('/register', { 
+            state: { 
+              email: err.email,
+              first_name: err.first_name,
+              last_name: err.last_name
+            } 
+          });
         return;
       }
       const msg = err.message || '';

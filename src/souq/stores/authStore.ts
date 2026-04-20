@@ -46,8 +46,10 @@ function djangoUserToUser(d: DjangoUser): User {
     email: d.email,
     first_name: d.first_name,
     last_name: d.last_name,
+    full_name: d.full_name,
     is_staff: d.is_staff,
     date_joined: d.date_joined,
+    role: d.role as 'customer' | 'seller' | 'admin',
     photo: d.photo ?? undefined,
     provider: d.provider as 'local' | 'google' | 'facebook',
   } as unknown as User;

@@ -38,8 +38,27 @@ export default function Navbar() {
 
   const cartCount = itemsCount();
 
+  const MobileNavLink = ({ to, icon: Icon, children, count, color = "text-gray-700 dark:text-gray-300" }: any) => (
+    <Link 
+      to={to} 
+      onClick={() => setIsOpen(false)} 
+      className={`flex items-center justify-between p-3.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 ${color} font-arabic font-medium`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 ${color.replace('text-', 'text-opacity-70 text-')}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        {children}
+      </div>
+      {count !== undefined && (
+        <span className="bg-primary-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{count}</span>
+      )}
+    </Link>
+  );
+
   return (
-    <nav
+    <>
+      <nav
       className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
         scrolled
           ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-md dark:shadow-gray-950/50'
@@ -212,57 +231,12 @@ export default function Navbar() {
             {/* Mobile menu btn */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300"
+              className="md:hidden p-2.5 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
             >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
             </button>
           </div>
         </div>
-
-        {/* Mobile menu */}
-        {isOpen && (
-          <div className="md:hidden pb-4 border-t border-gray-100 dark:border-gray-800 mt-2 animate-slide-down">
-            <form onSubmit={handleSearch} className="mt-3 mb-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="ابحث عن منتج..."
-                  className="w-full pr-4 pl-10 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-400/30 text-sm font-arabic text-gray-900 dark:text-gray-100"
-                />
-                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Search className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-            {/* Mobile theme toggle */}
-            <div className="flex items-center justify-between px-3 py-2 mb-2">
-              <span className="text-sm text-gray-700 dark:text-gray-300 font-arabic">المظهر</span>
-              <ThemeToggle />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Link to="/products" onClick={() => setIsOpen(false)} className="px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 font-arabic hover:text-primary-600 dark:hover:text-primary-400 transition-colors">المنتجات</Link>
-              <Link to="/cart" onClick={() => setIsOpen(false)} className="px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 font-arabic hover:text-primary-600 dark:hover:text-primary-400 transition-colors">السلة ({cartCount})</Link>
-              <Link to="/wishlist" onClick={() => setIsOpen(false)} className="px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 font-arabic hover:text-primary-600 dark:hover:text-primary-400 transition-colors">المفضلة</Link>
-              {isAuthenticated && profile?.is_seller && (
-                <>
-                  <div className="my-1 border-t border-gray-100 dark:border-gray-800" />
-                  <p className="px-3 py-1 text-xs text-gray-400 dark:text-gray-500 font-arabic">لوحة التاجر</p>
-                  <Link to="/merchant/dashboard" onClick={() => setIsOpen(false)} className="flex items-center gap-2 px-3 py-2.5 text-sm text-primary-600 dark:text-primary-400 font-arabic hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors">
-                    <LayoutDashboard className="w-4 h-4" /> لوحة التحكم
-                  </Link>
-                  <Link to="/merchant/products" onClick={() => setIsOpen(false)} className="flex items-center gap-2 px-3 py-2.5 text-sm text-primary-600 dark:text-primary-400 font-arabic hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors">
-                    <Package className="w-4 h-4" /> منتجاتي
-                  </Link>
-                  <Link to="/merchant/orders" onClick={() => setIsOpen(false)} className="flex items-center gap-2 px-3 py-2.5 text-sm text-primary-600 dark:text-primary-400 font-arabic hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors">
-                    <ClipboardList className="w-4 h-4" /> إدارة الطلبات
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* شريط التاجر */}
@@ -308,5 +282,110 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+
+    {/* Mobile Drawer (Outside nav) */}
+    {isOpen && (
+      <div className="fixed inset-0 z-[100] md:hidden">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]"
+          onClick={() => setIsOpen(false)}
+        />
+        
+        {/* Drawer Panel */}
+        <div className="absolute top-0 right-0 h-full w-[280px] bg-white dark:bg-gray-950 shadow-2xl flex flex-col animate-[slideInRight_0.4s_ease-out] border-l border-gray-100 dark:border-gray-800">
+          {/* Drawer Header */}
+          <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-primary-400 rounded-xl flex items-center justify-center shadow-md shadow-primary-400/20">
+                <Store className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-lg tracking-tight">سوق</span>
+            </div>
+            <button 
+              onClick={() => setIsOpen(false)}
+              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="إغلاق القائمة"
+            >
+              <X className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+
+          {/* Drawer Content */}
+          <div className="flex-1 overflow-y-auto p-5 no-scrollbar flex flex-col gap-8">
+            {/* Search */}
+            <form onSubmit={handleSearch}>
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ابحث عن منتجات..."
+                  className="w-full pr-11 pl-4 py-3.5 rounded-2xl border-2 border-gray-50 dark:border-gray-900 bg-gray-50 dark:bg-gray-900 focus:border-primary-400/50 focus:bg-white dark:focus:bg-gray-800 text-sm font-arabic transition-all"
+                />
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary-400 transition-colors" />
+              </div>
+            </form>
+
+            {/* Shopping Section */}
+            <div className="space-y-2">
+              <p className="px-3 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-arabic">اكتشف</p>
+              <div className="space-y-1">
+                <MobileNavLink to="/products" icon={Package}>جميع المنتجات</MobileNavLink>
+                <MobileNavLink to="/cart" icon={ShoppingCart} count={cartCount}>سلة المشتريات</MobileNavLink>
+                <MobileNavLink to="/wishlist" icon={Heart} color="text-rose-500">المفضلة</MobileNavLink>
+              </div>
+            </div>
+
+            {/* Account Section */}
+            <div className="space-y-2">
+              <p className="px-3 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest font-arabic">حسابي</p>
+              <div className="space-y-1">
+                {isAuthenticated ? (
+                  <>
+                    <MobileNavLink to="/profile" icon={User}>الملف الشخصي</MobileNavLink>
+                    <MobileNavLink to="/orders" icon={ClipboardList}>طلباتي</MobileNavLink>
+                    
+                    {profile?.is_seller && (
+                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                        <p className="px-3 text-[11px] font-bold text-primary-400 uppercase tracking-widest font-arabic mb-2">لوحة التاجر</p>
+                        <MobileNavLink to="/merchant/dashboard" icon={LayoutDashboard} color="text-primary-500">لوحة التحكم</MobileNavLink>
+                        <MobileNavLink to="/merchant/products" icon={Package} color="text-primary-500">منتجاتي</MobileNavLink>
+                        <MobileNavLink to="/merchant/orders" icon={ClipboardList} color="text-primary-500">إدارة الطلبات</MobileNavLink>
+                      </div>
+                    )}
+                    
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-arabic font-medium mt-4 group"
+                    >
+                      <div className="p-2 rounded-xl bg-red-50 dark:bg-red-900/10 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 transition-colors">
+                        <LogOut className="w-5 h-5" />
+                      </div>
+                      تسجيل الخروج
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-3 pt-2">
+                    <Link to="/login" onClick={() => setIsOpen(false)} className="w-full py-4 px-4 bg-gray-50 dark:bg-gray-800 rounded-2xl text-sm font-bold text-center text-gray-700 dark:text-gray-200 font-arabic hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">تسجيل الدخول</Link>
+                    <Link to="/register" onClick={() => setIsOpen(false)} className="w-full py-4 px-4 bg-primary-400 rounded-2xl text-sm font-bold text-center text-white font-arabic shadow-xl shadow-primary-400/20 hover:bg-primary-500 transition-all active:scale-[0.98]">إنشاء حساب مجاني</Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Drawer Footer */}
+          <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">الإصدار v1.0</p>
+              <p className="text-[10px] text-gray-300 dark:text-gray-600">Souq All Rights Reserved</p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }

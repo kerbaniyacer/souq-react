@@ -135,3 +135,64 @@ def get_security_alert_email_html(ip):
     return get_base_email_html('تنبيه أمني', body)
 
 
+def get_product_deleted_email_html(seller_name, product_name, reason):
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:#fee2e2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">📦</div>
+      </div>
+      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">تنبيه: حذف منتج من متجرك</h2>
+      <p style="color:#4b5563;line-height:1.8;">عزيزي <strong>{seller_name}</strong>،</p>
+      <p style="color:#4b5563;line-height:1.8;">نحيطك علماً بأنه تم حذف منتجك (<strong>{product_name}</strong>) من منصة سوق بناءً على مراجعة الإدارة.</p>
+      <div style="background:#fef2f2;border-right:4px solid #ef4444;padding:20px;margin:20px 0;">
+        <p style="margin:0 0 8px;color:#b91c1c;font-weight:700;">سبب الحذف:</p>
+        <p style="margin:0;color:#7f1d1d;line-height:1.6;">{reason}</p>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;">إذا كنت تعتقد أن هذا القرار تم بالخطأ، يمكنك التواصل مع الدعم الفني.</p>
+    """
+    return get_base_email_html('تنبيه حذف منتج', body)
+
+def get_account_deleted_email_html(username, reason):
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:#f3f4f6;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">👋</div>
+      </div>
+      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">إشعار بحذف الحساب</h2>
+      <p style="color:#4b5563;line-height:1.8;">عزيزي <strong>{username}</strong>، يؤسفنا إبلاغك بأنه تم إغلاق حسابك في منصة سوق.</p>
+      <div style="background:#f9fafb;border-right:4px solid #9ca3af;padding:20px;margin:20px 0;">
+        <p style="margin:0 0 8px;color:#374151;font-weight:700;">التوضيح:</p>
+        <p style="margin:0;color:#4b5563;line-height:1.6;">{reason}</p>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;">شكراً لاستخدامك منصتنا، ونتمنى لك التوفيق.</p>
+    """
+    return get_base_email_html('إشعار حذف الحساب', body)
+
+def get_report_notification_email_html(reporter_name, report_type, target_name, reason, description):
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:#fff7ed;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">🚩</div>
+      </div>
+      <h2 style="color:#c2410c;font-size:22px;margin:0 0 16px;text-align:center;">بلاغ جديد من مستخدم</h2>
+      <p style="color:#4b5563;line-height:1.8;">قام المستخدم (<strong>{reporter_name}</strong>) بتقديم بلاغ جديد في المنصة.</p>
+      
+      <div style="background:#f8f6f2;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e8e3db;">
+        <table width="100%" style="font-size:14px;color:#4b5563;">
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 0;font-weight:700;">نوع البلاغ:</td>
+            <td>{'منتج' if report_type == 'product' else 'مستخدم'}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 0;font-weight:700;">المستهدف:</td>
+            <td style="color:#5C8A6E;font-weight:700;">{target_name}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 0;font-weight:700;">السبب:</td>
+            <td>{reason}</td>
+          </tr>
+        </table>
+        <p style="margin:16px 0 0;font-weight:700;color:#1f2937;">التفاصيل:</p>
+        <p style="margin:4px 0 0;line-height:1.6;">{description or 'لا يوجد وصف إضافي'}</p>
+      </div>
+      
+      <p style="color:#9ca3af;font-size:13px;text-align:center;">يرجى مراجعة لوحة الإدارة لاتخاذ الإجراء اللازم.</p>
+    """
+    return get_base_email_html('بلاغ جديد', body)

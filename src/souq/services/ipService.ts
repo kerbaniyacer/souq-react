@@ -15,9 +15,10 @@ export async function getCurrentIP(): Promise<string> {
 }
 
 /** جلب سجل تسجيل الدخول لمستخدم معيّن (من Django) */
-export async function getLoginHistory() {
+export async function getLoginHistory(day?: string) {
   try {
-    const res = await djangoApi.get('/auth/login-history/');
+    const url = day ? `/auth/login-history/?day=${day}` : '/auth/login-history/';
+    const res = await djangoApi.get(url);
     return res.data;
   } catch {
     return [];

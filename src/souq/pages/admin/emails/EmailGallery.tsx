@@ -11,6 +11,10 @@ const EMAIL_TEMPLATES = [
   { id: 'security-alert',          title: 'تنبيه أمني',                  icon: '🚨', desc: 'تنبيه عند تسجيل دخول مشبوه' },
   { id: 'newsletter',              title: 'النشرة البريدية',              icon: '📩', desc: 'بريد تأكيد الاشتراك في النشرة' },
   { id: 'support',                 title: 'طلب دعم فني',                 icon: '🛠️', desc: 'إشعار للإدارة بطلب دعم جديد' },
+  { id: 'buyer-order',             title: 'تأكيد الطلب (للمشتري)',       icon: '🧾', desc: 'تأكيد الطلب بنجاح للعميل' },
+  { id: 'product-deleted',         title: 'حذف منتج من المتجر',         icon: '🗑️', desc: 'إشعار للتاجر بحذف منتجه' },
+  { id: 'account-deleted',         title: 'إغلاق الحساب',                icon: '👋', desc: 'إشعار بإغلاق حساب المستخدم' },
+  { id: 'report-notification',     title: 'بلاغ جديد للإدارة',          icon: '🚩', desc: 'تنبيه للإدارة بوجود بلاغ جديد' },
 ];
 
 export default function EmailGallery() {

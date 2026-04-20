@@ -119,6 +119,41 @@ export default function Products() {
         </div>
       </div>
 
+      {/* Premium Horizontal Category Bar */}
+      <div className="mb-8 overflow-hidden">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            onClick={() => updateFilter('category', '')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-arabic font-bold transition-all whitespace-nowrap ${
+              !category 
+                ? 'bg-primary-400 text-white shadow-lg shadow-primary-400/20 scale-105' 
+                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:border-primary-200'
+            }`}
+          >
+            الكل
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => updateFilter('category', cat.slug)}
+              className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-sm font-arabic font-bold transition-all whitespace-nowrap ${
+                category === cat.slug
+                  ? 'bg-primary-400 text-white shadow-lg shadow-primary-400/20 scale-105'
+                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:border-primary-200'
+              }`}
+            >
+              {cat.logo && <img src={cat.logo} alt="" className="w-5 h-5 object-contain rounded" />}
+              {cat.name}
+              {cat.products_count !== undefined && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${category === cat.slug ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+                  {cat.products_count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-8">
         {/* Filters sidebar */}
         <aside className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-64 shrink-0`}>

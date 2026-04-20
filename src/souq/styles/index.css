@@ -101,6 +101,19 @@
   .animate-carousel-slide {
     animation: carouselSlide 0.6s ease-in-out;
   }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  .glass {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-gray-100/20 dark:border-gray-800/20;
+  }
 }
 
 @keyframes float {

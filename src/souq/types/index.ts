@@ -5,8 +5,11 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  full_name?: string;
   is_staff: boolean;
   date_joined: string;
+  role: 'customer' | 'seller' | 'admin';
+  photo?: string;
 }
 
 export interface Profile {
@@ -118,6 +121,7 @@ export interface ProductVariant {
   created_at: string;
   is_main: boolean;
   is_in_stock: boolean;
+  stock_status: 'high' | 'medium' | 'low' | 'out_of_stock';
   images?: VariantImage[];
 }
 
@@ -140,6 +144,8 @@ export interface Product {
   variants: ProductVariant[];
   attributes: ProductAttribute[];
   images: VariantImage[];
+  total_stock: number;
+  stock_status: 'high' | 'medium' | 'low' | 'out_of_stock';
   main_image?: string;
 }
 
@@ -178,8 +184,8 @@ export interface Cart {
 }
 
 // ===== ORDER TYPES =====
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
-export type PaymentMethod = 'cod' | 'card' | 'apple_pay';
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type PaymentMethod = 'cod' | 'card' | 'ccp' | 'apple_pay';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
 
 export interface OrderItem {
@@ -210,6 +216,9 @@ export interface Order {
   discount: number;
   total_amount: number;
   tracking_number: string;
+  receipt_image?: string;
+  transaction_id?: string;
+  user: number | User;
   created_at: string;
   updated_at: string;
   items: OrderItem[];

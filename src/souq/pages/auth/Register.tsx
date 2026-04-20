@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Eye, EyeOff, Store, User, ShoppingBag, ArrowLeft, ArrowRight, Phone
 } from 'lucide-react';
@@ -17,6 +17,9 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 type Step = 'type' | 'details';
 
 export default function Register() {
+  const location = useLocation();
+  const socialData = location.state as { email?: string; first_name?: string; last_name?: string } | null;
+
   const [step, setStep] = useState<Step>('type');
   const [isSeller, setIsSeller] = useState<boolean | null>(null);
   const [showPass, setShowPass] = useState(false);
@@ -34,9 +37,17 @@ export default function Register() {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as never,
     defaultValues: {
-      username: '', email: '', password: '', password2: '',
-      phone: '', wilaya: '', baladia: '', address: '',
-      store_name: '', store_description: '', store_category: '',
+      username: '', 
+      email: socialData?.email || '', 
+      password: '', 
+      password2: '',
+      phone: '', 
+      wilaya: '', 
+      baladia: '', 
+      address: '',
+      store_name: '', 
+      store_description: '', 
+      store_category: '',
     },
   });
 

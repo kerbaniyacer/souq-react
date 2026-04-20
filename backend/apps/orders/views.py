@@ -3,17 +3,36 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from apps.cart.models import Cart
 from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderCreateSerializer
 
 
-@extend_schema(tags=['orders'], summary='قائمة طلبات المستخدم')
+@extend_schema(
+    tags=['orders'],
+    summary='قائمة الطلبات',
+    parameters=[
+        OpenApiParameter('user', int, description='فلترة بحسب المشتري (للمسؤولين)'),
+        OpenApiParameter('seller', int, description='فلترة بحسب التاجر (للمسؤولين)'),
+    ]
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_list(request):
-    orders = Order.objects.filter(user=request.user).prefetch_related('items')
+    if request.user.is_staff:
+        orders = Order.objects.all().prefetch_related('items').order_by('-created_at')
+        
+        user_id = request.query_params.get('user')
+        if user_id:
+            orders = orders.filter(user_id=user_id)
+            
+        seller_id = request.query_params.get('seller')
+        if seller_id:
+            # Filter orders containing at least one item from this seller
+            orders = orders.filter(items__variant__product__seller_id=seller_id).distinct()
+    else:
+        orders = Order.objects.filter(user=request.user).prefetch_related('items').order_by('-created_at')
     return Response(OrderSerializer(orders, many=True).data)
 
 
@@ -165,6 +184,33 @@ def order_track(request, order_number):
         order = Order.objects.prefetch_related('items').get(order_number=order_number)
     except Order.DoesNotExist:
         return Response({'detail': 'رقم الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(OrderSerializer(order).data)
+    
+    
+@extend_schema(tags=['orders'], summary='رفع وصل الدفع (CCP)')
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def order_upload_receipt(request, pk):
+    try:
+        order = Order.objects.get(pk=pk, user=request.user)
+    except Order.DoesNotExist:
+        return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if order.payment_method != Order.PaymentMethod.CCP:
+        return Response({'detail': 'هذا الطلب لا يتطلب وصل دفع بريدي'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    image = request.FILES.get('receipt_image')
+    tx_id = request.data.get('transaction_id')
+    
+    if not image and not tx_id:
+        return Response({'detail': 'يجب توفير صورة الوصل أو رقم العملة'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    if image:
+        order.receipt_image = image
+    if tx_id:
+        order.transaction_id = tx_id
+        
+    order.save()
     return Response(OrderSerializer(order).data)
 
 

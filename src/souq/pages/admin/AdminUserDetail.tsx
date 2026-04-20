@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Trash2, Package, ShoppingBag, TrendingUp } from 'lucide-react';
-import axios from 'axios';
+import api from '@souq/services/authService';
 import { useToast } from '@souq/stores/toastStore';
 
 export default function AdminUserDetail() {
@@ -12,26 +12,25 @@ export default function AdminUserDetail() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [boughtOrders, setBoughtOrders] = useState<any[]>([]);
+  const [soldOrders, setSoldOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     Promise.all([
-      axios.get(`/api/auth/users/${id}/`),
-      axios.get('/api/auth/profiles/'),
-      axios.get('/api/products/'),
-      axios.get('/api/orders/'),
-    ]).then(([uRes, pRes, prRes, oRes]) => {
+      api.get(`/auth/users/${id}/`),
+      api.get(`/products/?seller=${id}&page_size=1000`),
+      api.get(`/orders/?user=${id}`),
+      api.get(`/orders/?seller=${id}`),
+    ]).then(([uRes, prRes, boRes, soRes]) => {
       setUser(uRes.data);
-      const profiles: any[] = pRes.data.results ?? pRes.data;
-      const prof = profiles.find((p) => String(p.user_id) === String(id));
-      setProfile(prof ?? null);
-      const allProducts: any[] = prRes.data.results ?? prRes.data;
-      setProducts(allProducts.filter((p) => String(p.seller_id) === String(id)));
-      const allOrders: any[] = oRes.data.results ?? oRes.data;
-      setOrders(allOrders.filter((o) => String(o.user_id) === String(id)));
+      setProfile(uRes.data.profile);
+      setProducts(prRes.data.results ?? prRes.data);
+      setBoughtOrders(boRes.data.results ?? boRes.data);
+      setSoldOrders(soRes.data.results ?? soRes.data);
     }).catch(() => {
       // toast.error('فشل جلب بيانات المستخدم');
     }).finally(() => setLoading(false));
@@ -41,7 +40,7 @@ export default function AdminUserDetail() {
     if (!confirm('تحذير: هل أنت متأكد من حذف هذا الحساب وجميع بياناته نهائياً؟ لا يمكن التراجع.')) return;
     setDeleting(true);
     try {
-      await axios.delete(`/api/auth/users/${id}/`);
+      await api.delete(`/auth/users/${id}/delete/`);
       toast.success('تم حذف الحساب بنجاح');
       navigate('/admin-panel');
     } catch {
@@ -54,7 +53,7 @@ export default function AdminUserDetail() {
   const handleDeleteProduct = async (productId: string | number) => {
     if (!confirm('هل تريد حذف هذا المنتج نهائياً؟')) return;
     try {
-      await axios.delete(`/api/merchant/products/${productId}/`);
+      await api.delete(`/merchant/products/${productId}/`);
       setProducts((prev) => prev.filter((p) => String(p.id) !== String(productId)));
       toast.success('تم حذف المنتج');
     } catch {
@@ -63,11 +62,15 @@ export default function AdminUserDetail() {
   };
 
 
-  const sellerRevenue = orders
+  const sellerRevenue = soldOrders
     .filter((o) => o.status === 'delivered')
-    .reduce((s, o) => s + Number(o.total_amount), 0);
+    .reduce((total, order) => {
+        const merchantItems = order.items?.filter((item: any) => String(item.seller_id) === String(id));
+        const orderMerchantSubtotal = merchantItems?.reduce((sub: number, item: any) => sub + Number(item.subtotal), 0) || 0;
+        return total + orderMerchantSubtotal;
+    }, 0);
 
-  const totalSpent = orders.reduce((s, o) => s + Number(o.total_amount), 0);
+  const totalSpent = boughtOrders.reduce((s, o) => s + Number(o.total_amount), 0);
 
   if (loading) {
     return (
@@ -102,8 +105,8 @@ export default function AdminUserDetail() {
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center shrink-0">
-              {profile?.photo
-                ? <img src={profile.photo} alt="" className="w-full h-full rounded-full object-cover" />
+              {user.photo
+                ? <img src={user.photo} alt="" className="w-full h-full rounded-full object-cover" />
                 : <span className="text-primary-600 font-bold text-2xl">{user.username?.slice(0,1).toUpperCase()}</span>
               }
             </div>
@@ -127,25 +130,32 @@ export default function AdminUserDetail() {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleDeleteUser}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-xl text-sm font-arabic hover:bg-red-600 transition-colors disabled:opacity-60 shrink-0"
-          >
-            <Trash2 className="w-4 h-4" />
-            حذف الحساب نهائياً
-          </button>
+          {!user.is_staff && (
+            <button
+              onClick={handleDeleteUser}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-xl text-sm font-arabic hover:bg-red-600 transition-colors disabled:opacity-60 shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              حذف الحساب نهائياً
+            </button>
+          )}
         </div>
       </div>
 
-      {profile?.is_seller ? (
-        <>
-          {/* Seller Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Seller Section */}
+      {profile?.is_seller && (
+        <div className="mb-10">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
+            <Package className="w-5 h-5 text-primary-500" />
+            نشاط التاجر
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'إجمالي الأرباح', value: `${sellerRevenue.toLocaleString('ar-DZ')} دج`, icon: <TrendingUp className="w-5 h-5" />, color: 'text-green-600 bg-green-50' },
+              { label: 'إجمالي المبيعات', value: `${sellerRevenue.toLocaleString('ar-DZ')} دج`, icon: <TrendingUp className="w-5 h-5" />, color: 'text-green-600 bg-green-50' },
               { label: 'عدد المنتجات', value: products.length, icon: <Package className="w-5 h-5" />, color: 'text-blue-600 bg-blue-50' },
-              { label: 'الطلبات المنجزة', value: orders.filter(o => o.status === 'delivered').length, icon: <ShoppingBag className="w-5 h-5" />, color: 'text-primary-600 bg-primary-50' },
+              { label: 'الطلبات المستلمة', value: soldOrders.length, icon: <ShoppingBag className="w-5 h-5" />, color: 'text-primary-600 bg-primary-50' },
             ].map((s) => (
               <div key={s.label} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.color}`}>{s.icon}</div>
@@ -155,7 +165,6 @@ export default function AdminUserDetail() {
             ))}
           </div>
 
-          {/* Store info */}
           {profile?.store_name && (
             <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
               <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic mb-2">معلومات المتجر</h3>
@@ -164,9 +173,8 @@ export default function AdminUserDetail() {
             </div>
           )}
 
-          {/* Seller Products */}
           <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">منتجات التاجر ({products.length})</h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">المنتجات المعروضة ({products.length})</h3>
             {products.length === 0 ? (
               <p className="text-center py-8 text-gray-400 font-arabic text-sm">لا توجد منتجات لهذا التاجر</p>
             ) : (
@@ -180,20 +188,22 @@ export default function AdminUserDetail() {
                       <th className="px-4 py-3 text-right rounded-l-xl">إجراء</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-gray-50 dark:divide-[#2E2E2E]">
                     {products.map((p) => {
                       const mainVariant = p.variants?.find((v: any) => v.is_main) ?? p.variants?.[0];
                       return (
-                        <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-[#252525]/50 border-t border-gray-50 dark:border-[#2E2E2E]">
+                        <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-[#252525]/50">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-gray-50 dark:bg-[#252525] rounded-lg overflow-hidden shrink-0">
                                 {p.main_image
                                   ? <img src={p.main_image} alt="" className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-300 dark:text-gray-600" /></div>
+                                  : <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="w-4 h-4" /></div>
                                 }
                               </div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200 font-arabic line-clamp-1">{p.name}</span>
+                              <Link to={`/products/${p.slug}`} className="font-medium text-gray-800 dark:text-gray-200 font-arabic hover:text-primary-600 transition-colors line-clamp-1">
+                                {p.name}
+                              </Link>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-primary-600 dark:text-primary-400 font-mono font-bold">
@@ -220,38 +230,43 @@ export default function AdminUserDetail() {
               </div>
             )}
           </div>
-        </>
-      ) : (
-        <>
-          {/* Buyer Stats */}
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-arabic">إجمالي الإنفاق</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-mono">{totalSpent.toLocaleString('ar-DZ')} دج</p>
-              </div>
+        </div>
+      )}
+
+      {/* Buyer Section */}
+      <div className="mb-10">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
+          <ShoppingBag className="w-5 h-5 text-primary-500" />
+          نشاط المشتري
+        </h2>
+
+        <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-arabic">إجمالي الإنفاق</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-mono">{totalSpent.toLocaleString('ar-DZ')} دج</p>
             </div>
           </div>
+        </div>
 
-          {/* Buyer Orders */}
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">طلبات المشتري ({orders.length})</h3>
-            {orders.length === 0 ? (
-              <p className="text-center py-8 text-gray-400 font-arabic text-sm">لم يقم هذا المستخدم بأي طلبات بعد</p>
-            ) : (
-              <div className="space-y-3">
-                {orders.map((o) => (
-                  <div key={o.id} className="p-4 bg-gray-50 dark:bg-[#252525] rounded-xl flex flex-col sm:flex-row justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-gray-800 dark:text-gray-200 font-mono text-sm">#{o.order_number}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 font-arabic mt-0.5">
-                        {new Date(o.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">{o.items?.length ?? 0} منتج</p>
-                    </div>
+        <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">طلبات الشراء ({boughtOrders.length})</h3>
+          {boughtOrders.length === 0 ? (
+            <p className="text-center py-8 text-gray-400 font-arabic text-sm">لم يقم هذا المستخدم بأي طلبات بعد</p>
+          ) : (
+            <div className="space-y-3">
+              {boughtOrders.map((o) => (
+                <div key={o.id} className="p-4 bg-gray-50 dark:bg-[#252525] rounded-xl flex flex-col sm:flex-row justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-800 dark:text-gray-200 font-mono text-sm leading-none mb-1">#{o.order_number}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">
+                      {new Date(o.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
                     <div className="text-left sm:text-right">
                       <p className="font-bold text-primary-600 dark:text-primary-400 font-mono">{Number(o.total_amount).toLocaleString('ar-DZ')} دج</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-arabic ${
@@ -264,12 +279,12 @@ export default function AdminUserDetail() {
                       </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

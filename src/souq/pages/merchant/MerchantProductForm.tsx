@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowRight, Plus, Trash2, Save, ChevronDown, ChevronUp, Video, X, ImagePlus, Sparkles } from 'lucide-react';
+import { ArrowRight, Plus, Trash2, Save, ChevronDown, ChevronUp, Video, X, ImagePlus, Sparkles, Star, ShoppingBag, MessageCircle, Package } from 'lucide-react';
 import { useToast } from '@souq/stores/toastStore';
 import { productsApi, categoriesApi } from '@souq/services/api';
 import type { Category } from '@souq/types';
@@ -143,6 +143,7 @@ export default function MerchantProductForm() {
   // ─── Video ─────────────────────────────────────────────────────
   const [videoPreview, setVideoPreview] = useState<string>('');
   const [videoName, setVideoName] = useState('');
+  const [stats, setStats] = useState({ sold: 0, rating: 0, reviews: 0, stock: 0 });
 
   // ─── Load categories & product (edit) ──────────────────────────
   useEffect(() => {
@@ -189,6 +190,12 @@ export default function MerchantProductForm() {
             attributes: v.attributes ?? {},
           })));
         }
+        setStats({
+          sold: p.sold_count ?? 0,
+          rating: Number(p.rating ?? 0),
+          reviews: p.reviews_count ?? 0,
+          stock: p.total_stock ?? 0
+        });
       }).catch(() => {
         toast.error('تعذّر تحميل بيانات المنتج');
       }).finally(() => setLoading(false));
@@ -398,6 +405,17 @@ export default function MerchantProductForm() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المنتج؟ سيتم نقله إلى سجل العمليات ويمكن للمسؤول استعادته لاحقاً.')) return;
+    try {
+      await productsApi.delete(Number(id));
+      toast.success('تم حذف المنتج بنجاح');
+      navigate('/merchant/products');
+    } catch {
+      toast.error('حدث خطأ أثناء الحذف');
+    }
+  };
+
   // ─── Loading skeleton ─────────────────────────────────────────
   if (loading) return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-4 animate-pulse">
@@ -418,6 +436,15 @@ export default function MerchantProductForm() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-8">
         {isEdit ? 'تعديل المنتج' : '+ إضافة منتج جديد'}
       </h1>
+
+      {isEdit && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+           <StatBox label="إجمالي المبيعات" value={stats.sold} icon={<ShoppingBag className="w-5 h-5" />} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-900/10" />
+           <StatBox label="التقييم" value={stats.rating.toFixed(1)} icon={<Star className="w-5 h-5" />} color="text-yellow-600" bg="bg-yellow-50 dark:bg-yellow-900/10" />
+           <StatBox label="المراجعات" value={stats.reviews} icon={<MessageCircle className="w-5 h-5" />} color="text-purple-600" bg="bg-purple-50 dark:bg-purple-900/10" />
+           <StatBox label="المخزون الإجمالي" value={stats.stock} icon={<Package className="w-5 h-5" />} color="text-green-600" bg="bg-green-50 dark:bg-green-900/10" />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -852,6 +879,12 @@ export default function MerchantProductForm() {
             className="px-6 py-3.5 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2E2E2E] text-gray-700 dark:text-gray-300 font-arabic rounded-xl hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors text-center">
             إلغاء
           </Link>
+          {isEdit && (
+            <button type="button" onClick={handleDelete}
+              className="px-6 py-3.5 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-arabic rounded-xl hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2 mr-auto">
+              <Trash2 className="w-5 h-5" /> حذف المنتج
+            </button>
+          )}
         </div>
       </form>
     </div>
@@ -864,6 +897,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-6 space-y-4">
       <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic border-b border-gray-100 dark:border-[#2E2E2E] pb-3 -mt-1 mb-1">{title}</h3>
       {children}
+    </div>
+  );
+}
+
+function StatBox({ label, value, icon, color, bg }: { label: string; value: string | number; icon: React.ReactNode; color: string; bg: string }) {
+  return (
+    <div className={`${bg} p-5 rounded-3xl border border-white/50 dark:border-white/5`}>
+      <div className={`${color} mb-2`}>{icon}</div>
+      <div className="text-2xl font-bold text-gray-900 dark:text-white font-mono">{value}</div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 font-arabic">{label}</div>
     </div>
   );
 }

@@ -3,11 +3,13 @@ from .models import Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    seller_id = serializers.IntegerField(source='variant.product.seller_id', read_only=True)
+
     class Meta:
         model = OrderItem
         fields = [
             'id', 'product_name', 'variant_name', 'variant_attributes',
-            'product_price', 'quantity', 'subtotal',
+            'product_price', 'quantity', 'subtotal', 'seller_id',
         ]
 
 

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Review
+from .models import Review, SellerReview, BuyerReview
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -23,3 +23,21 @@ class ReviewSerializer(serializers.ModelSerializer):
             url = obj.user.photo.url
             return request.build_absolute_uri(url) if request else url
         return None
+
+
+class SellerReviewSerializer(serializers.ModelSerializer):
+    buyer_name = serializers.ReadOnlyField(source='buyer.username')
+
+    class Meta:
+        model = SellerReview
+        fields = ['id', 'order', 'seller', 'buyer', 'buyer_name', 'rating', 'comment', 'created_at']
+        read_only_fields = ['id', 'buyer', 'created_at']
+
+
+class BuyerReviewSerializer(serializers.ModelSerializer):
+    seller_name = serializers.ReadOnlyField(source='seller.username')
+
+    class Meta:
+        model = BuyerReview
+        fields = ['id', 'order', 'buyer', 'seller', 'seller_name', 'rating', 'comment', 'created_at']
+        read_only_fields = ['id', 'seller', 'created_at']

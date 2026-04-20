@@ -132,6 +132,16 @@ export async function loginSocialDjango(data: {
       throw { type: 'VERIFICATION_REQUIRED', email: userEmail };
     }
 
+    if (status === 404 && String(detail).toLowerCase().includes('user_not_registered')) {
+      throw {
+        type: 'USER_NOT_REGISTERED',
+        email: resData.email,
+        first_name: resData.first_name,
+        last_name: resData.last_name,
+        provider: resData.provider,
+        provider_id: resData.provider_id
+      };
+    }
     if (status === 400 && !resData?.detail) {
       const messages = Object.entries(resData || {})
         .map(([key, val]) => `${key}: ${Array.isArray(val) ? val[0] : val}`)

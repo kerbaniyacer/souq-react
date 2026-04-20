@@ -93,13 +93,17 @@ def product_list(request):
     if category:
         # Include products in the category OR any of its children
         qs = qs.filter(
-            models.Q(category__slug=category) |
-            models.Q(category__parent__slug=category)
+            Q(category__slug=category) |
+            Q(category__parent__slug=category)
         )
 
     brand = request.query_params.get('brand')
     if brand:
         qs = qs.filter(brand__slug=brand)
+
+    seller = request.query_params.get('seller')
+    if seller:
+        qs = qs.filter(seller_id=seller)
 
     is_featured = request.query_params.get('is_featured')
     if is_featured in ('true', '1', 'True'):
@@ -163,11 +167,12 @@ def merchant_product_list(request):
 @api_view(['GET', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def merchant_product_detail(request, pk):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
-        return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
-
+    """Handles product detail, update, and deletion. Deletion by staff requires a reason."""
     try:
-        product = Product.objects.get(pk=pk, seller=request.user)
+        if request.user.is_staff:
+            product = Product.objects.get(pk=pk)
+        else:
+            product = Product.objects.get(pk=pk, seller=request.user)
     except Product.DoesNotExist:
         return Response({'detail': 'المنتج غير موجود'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -175,14 +180,36 @@ def merchant_product_detail(request, pk):
         return Response(ProductDetailSerializer(product, context={'request': request}).data)
 
     if request.method == 'PATCH':
+        # Merchants can edit their own, staff can edit any
         serializer = ProductWriteSerializer(product, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             updated = serializer.save()
             return Response(ProductDetailSerializer(updated, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    product.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    if request.method == 'DELETE':
+        reason = request.data.get('reason', 'مخالفة سياسة النشر.')
+        
+        from apps.accounts.services import AdminService
+        AdminService.suspend_item(request.user, product, reason)
+        
+        # Notify seller
+        try:
+            from django.core.mail import send_mail
+            from apps.accounts.utils import get_product_deleted_email_html
+            email_html = get_product_deleted_email_html(product.seller.username, product.name, reason)
+            send_mail(
+                f'إشعار بخصوص منتجك: {product.name}',
+                f'تم تعليق منتجك "{product.name}" لسبب: {reason}. يمكنك تقديم طعن خلال 14 يوماً.',
+                'noreply@souq.dz',
+                [product.seller.email],
+                fail_silently=True,
+                html_message=email_html
+            )
+        except Exception as e:
+            print(f"Error sending product deletion email: {e}")
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Merchant Dashboard ───────────────────────────────────────────────────────

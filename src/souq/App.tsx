@@ -38,6 +38,10 @@ const MerchantOrderEmail = lazy(() => import('@souq/pages/admin/emails/MerchantO
 const SecurityAlertEmail = lazy(() => import('@souq/pages/admin/emails/SecurityAlertEmail'));
 const NewsletterEmail = lazy(() => import('@souq/pages/admin/emails/NewsletterEmail'));
 const SupportEmail = lazy(() => import('@souq/pages/admin/emails/SupportEmail'));
+const BuyerOrderEmail = lazy(() => import('@souq/pages/admin/emails/BuyerOrderEmail'));
+const ProductDeletedEmail = lazy(() => import('@souq/pages/admin/emails/ProductDeletedEmail'));
+const AccountDeletedEmail = lazy(() => import('@souq/pages/admin/emails/AccountDeletedEmail'));
+const ReportNotificationEmail = lazy(() => import('@souq/pages/admin/emails/ReportNotificationEmail'));
 
 import { useAuthStore } from '@souq/stores/authStore';
 import { useEffect } from 'react';
@@ -115,6 +119,10 @@ export default function App() {
           <Route path="/admin/emails/security-alert" element={<AdminRoute><SecurityAlertEmail /></AdminRoute>} />
           <Route path="/admin/emails/newsletter" element={<AdminRoute><NewsletterEmail /></AdminRoute>} />
           <Route path="/admin/emails/support" element={<AdminRoute><SupportEmail /></AdminRoute>} />
+          <Route path="/admin/emails/buyer-order" element={<AdminRoute><BuyerOrderEmail /></AdminRoute>} />
+          <Route path="/admin/emails/product-deleted" element={<AdminRoute><ProductDeletedEmail /></AdminRoute>} />
+          <Route path="/admin/emails/account-deleted" element={<AdminRoute><AccountDeletedEmail /></AdminRoute>} />
+          <Route path="/admin/emails/report-notification" element={<AdminRoute><ReportNotificationEmail /></AdminRoute>} />
 
           {/* Main layout */}
           <Route element={<Layout />}>
