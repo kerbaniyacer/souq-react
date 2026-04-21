@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loginSchema, registerSchema, checkoutSchema } from '@souq/lib/schemas';
+import { loginSchema, registerSchema, checkoutSchema } from '@shared/lib/schemas';
 
 describe('loginSchema', () => {
   it('يقبل بيانات صحيحة', () => {
