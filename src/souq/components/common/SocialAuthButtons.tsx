@@ -90,18 +90,25 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
         toast.success(`مرحباً ${payload.first_name || googleUser.name}! 👋`);
         navigate('/');
       } catch (err: any) {
+        // Handle suspension explicitly for social login
+        const data = err?.response?.data;
+        if (err?.response?.status === 403 && data?.code === 'ACCOUNT_SUSPENDED') {
+          const email = data.email || payload.email;
+          const reason = data.reason || 'مخالفة شروط الاستخدام';
+          navigate(`/account-suspended?email=${encodeURIComponent(email)}&reason=${encodeURIComponent(reason)}`);
+          return;
+        }
+
         if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
           onVerificationRequired(err.email);
           return;
         }
         if (err?.type === 'USER_NOT_REGISTERED') {
-          // This should no longer happen with the new backend changes, 
-          // but we keep a fallback or log for debugging.
           toast.error('تعذر إنشاء الحساب الاجتماعي تلقائياً.');
           return;
         }
         console.error(err);
-        toast.error('أثناء تسجيل الدخول: ' + (err.message || 'حدث خطأ مجهول'));
+        toast.error('أثناء تسجيل الدخول: ' + (data?.detail || err.message || 'حدث خطأ مجهول'));
       } finally {
         setGoogleLoading(false);
       }
@@ -177,6 +184,15 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
       toast.success(`مرحباً ${payload.first_name}! 👋`);
       navigate('/');
     } catch (err: any) {
+      // Handle suspension explicitly for social login
+      const data = err?.response?.data;
+      if (err?.response?.status === 403 && data?.code === 'ACCOUNT_SUSPENDED') {
+        const email = data.email || payload.email;
+        const reason = data.reason || 'مخالفة شروط الاستخدام';
+        navigate(`/account-suspended?email=${encodeURIComponent(email)}&reason=${encodeURIComponent(reason)}`);
+        return;
+      }
+
       if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
         onVerificationRequired(err.email);
         return;
@@ -185,11 +201,11 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
         toast.error('تعذر إنشاء الحساب الاجتماعي تلقائياً.');
         return;
       }
-      const msg = err.message || '';
+      const msg = data?.detail || err.message || '';
       if (msg.includes('إلغاء')) {
         toast.info('تم إلغاء تسجيل الدخول');
       } else {
-        toast.error('تعذّر تسجيل الدخول بـ Facebook');
+        toast.error('تعذّر تسجيل الدخول بـ Facebook: ' + msg);
         console.error(err);
       }
     } finally {

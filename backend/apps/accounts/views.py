@@ -373,7 +373,8 @@ def social_login(request):
             'detail': 'account_suspended',
             'code': 'ACCOUNT_SUSPENDED',
             'reason': user.suspension_reason or 'مخالفة شروط الاستخدام',
-            'user_id': user.id
+            'user_id': user.id,
+            'email': user.email
         }, status=status.HTTP_403_FORBIDDEN)
         
     # Track the successful login in LoginHistory
@@ -443,6 +444,15 @@ def verify_ip_login(request):
         
         if not otp_record or otp_record.otp != otp:
             return Response({'detail': 'الرمز غير صحيح أو منتهي الصلاحية.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check if user was suspended AFTER the OTP was sent
+        if user.status == 'suspended':
+            return Response({
+                'detail': 'account_suspended',
+                'code': 'ACCOUNT_SUSPENDED',
+                'reason': user.suspension_reason or 'مخالفة شروط الاستخدام',
+                'email': user.email
+            }, status=status.HTTP_403_FORBIDDEN)
             
         # Success! Clear OTP, record login, issue tokens
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')

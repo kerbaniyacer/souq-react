@@ -20,7 +20,11 @@ class JWTCookieAuthentication(JWTAuthentication):
             try:
                 user_auth = super().authenticate(request)
                 if user_auth is not None:
-                    return user_auth
+                    user, token = user_auth
+                    # Check for suspension even with a valid token
+                    if getattr(user, 'status', None) == 'suspended':
+                        return None
+                    return user, token
             except (InvalidToken, TokenError):
                 # If header is invalid/expired, don't fail yet — try the cookie!
                 pass
@@ -32,7 +36,10 @@ class JWTCookieAuthentication(JWTAuthentication):
 
         try:
             validated_token = self.get_validated_token(raw_token)
+            user = self.get_user(validated_token)
+            # Check for suspension
+            if getattr(user, 'status', None) == 'suspended':
+                return None
+            return user, validated_token
         except (InvalidToken, TokenError):
             return None
-
-        return self.get_user(validated_token), validated_token

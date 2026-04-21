@@ -54,3 +54,29 @@ class EnsureOnboardingMiddleware:
                         )
 
         return self.get_response(request)
+
+
+class SuspendedUserMiddleware:
+    """
+    Middleware that enforces account suspension in real-time.
+    If an authenticated user is suspended, they are blocked from all API access.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith('/api/'):
+            user = getattr(request, 'user', None)
+
+            if user and user.is_authenticated:
+                if getattr(user, 'status', None) == 'suspended':
+                    return JsonResponse(
+                        {
+                            "detail": "account_suspended",
+                            "code": "ACCOUNT_SUSPENDED",
+                        },
+                        status=403,
+                    )
+
+        return self.get_response(request)
