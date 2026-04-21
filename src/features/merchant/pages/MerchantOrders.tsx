@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, Package } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
-import { ordersApi } from '@shared/services/api';
 import type { Order, OrderStatus } from '@shared/types';
 
 const statusConfig: Record<string, { label: string; color: string; next?: OrderStatus }> = {
@@ -15,50 +14,32 @@ const statusConfig: Record<string, { label: string; color: string; next?: OrderS
   returned:   { label: 'مُرجَع',          color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
 };
 
-export default function MerchantOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [updating, setUpdating] = useState<string | null>(null);
-  const toast = useToast();
+import { useMerchantOrders, useUpdateOrderStatus } from '../hooks/useMerchantData';
 
-  useEffect(() => {
-    ordersApi.merchantList()
-      .then((res) => setOrders(res.data as Order[]))
-      .catch(() => toast.error('تعذّر تحميل الطلبات'))
-      .finally(() => setLoading(false));
-  }, []);
+export default function MerchantOrders() {
+  const { data: orders = [], isLoading: loading } = useMerchantOrders();
+  const updateStatus = useUpdateOrderStatus();
+  const [statusFilter, setStatusFilter] = useState('all');
+  const toast = useToast();
 
   const handleNextStatus = async (order: Order) => {
     const nextStatus = statusConfig[order.status]?.next;
     if (!nextStatus) return;
-    setUpdating(String(order.id));
     try {
-      await ordersApi.updateStatus(order.id, nextStatus);
-      setOrders((prev) => prev.map((o) =>
-        String(o.id) === String(order.id) ? { ...o, status: nextStatus } : o
-      ));
+      await updateStatus.mutateAsync({ id: order.id, status: nextStatus });
       toast.success(`تم تحديث الحالة إلى: ${statusConfig[nextStatus].label}`);
     } catch {
       toast.error('تعذّر تحديث الحالة');
-    } finally {
-      setUpdating(null);
     }
   };
 
   const handleCancel = async (order: Order) => {
     if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
-    setUpdating(String(order.id));
     try {
-      await ordersApi.updateStatus(order.id, 'cancelled');
-      setOrders((prev) => prev.map((o) =>
-        String(o.id) === String(order.id) ? { ...o, status: 'cancelled' } : o
-      ));
+      await updateStatus.mutateAsync({ id: order.id, status: 'cancelled' });
       toast.success('تم إلغاء الطلب');
     } catch {
       toast.error('تعذّر إلغاء الطلب');
-    } finally {
-      setUpdating(null);
     }
   };
 
@@ -108,7 +89,7 @@ export default function MerchantOrders() {
         <div className="space-y-3">
           {filtered.map((order) => {
             const cfg = statusConfig[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
-            const isUpdating = updating === String(order.id);
+            const isUpdating = updateStatus.isPending && updateStatus.variables?.id === order.id;
             return (
               <div key={order.id} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 hover:border-gray-200 dark:hover:border-[#3E3E3E] transition-colors">
                 <div className="flex items-start justify-between gap-4">

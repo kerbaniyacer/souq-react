@@ -1,18 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GoogleOAuthProvider } from '@react-oauth/google'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { queryClient } from '@shared/lib/queryClient'
 import '@shared/styles/index.css'
 import App from './App.tsx'
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      retry: 1,
-    },
-  },
-})
 
 import { env } from '@shared/lib/env'
 
@@ -37,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <App />
+        <ReactQueryDevtools initialIsOpen={false} />
       </GoogleOAuthProvider>
     </QueryClientProvider>
   </StrictMode>,

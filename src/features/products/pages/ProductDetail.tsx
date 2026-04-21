@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag } from 'lucide-react';
-import { productsApi, reviewsApi } from '@shared/services/api';
-import type { Product, ProductVariant, Review } from '@shared/types';
+import { queryKeys } from '@shared/lib/queryKeys';
+import type { ProductVariant } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
 import { useWishlistStore } from '@shared/stores/wishlistStore';
 import { useToast } from '@shared/stores/toastStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { useProductDetail, useProductReviews } from '@features/merchant/hooks/useMerchantData';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '@features/auth/services/authService';
 
 // Review Components
@@ -33,12 +35,12 @@ const COLOR_MAP: Record<string, string> = {
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const { data: product, isLoading: productLoading } = useProductDetail(slug || '');
+  const { data: reviews = [], isLoading: _reviewsLoading } = useProductReviews(product?.id || '');
+
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'desc' | 'specs' | 'reviews'>('desc');
   const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
 
@@ -47,6 +49,7 @@ export default function ProductDetail() {
   const toast = useToast();
   const { user, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
@@ -81,30 +84,15 @@ export default function ProductDetail() {
     }
   };
 
-  const fetchReviews = async (id: number) => {
-    try {
-      const res = await reviewsApi.list(id);
-      setReviews((res?.data as any)?.results ?? res?.data ?? []);
-    } catch {
-       setReviews([]);
-    }
-  };
-
   useEffect(() => {
-    if (!slug) return;
-    setLoading(true);
-    productsApi.detail(slug)
-      .then((pRes) => {
-        const p: Product = pRes.data;
-        setProduct(p);
-        const main = p.variants?.find((v) => v.is_main) ?? p.variants?.[0];
-        setSelectedVariant(main ?? null);
-        setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? p.main_image ?? p.images?.[0]?.image ?? null);
-        return fetchReviews(p.id);
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false));
-  }, [slug]);
+    if (product) {
+      const main = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
+      setSelectedVariant(main ?? null);
+      setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? product.main_image ?? product.images?.[0]?.image ?? null);
+    }
+  }, [product]);
+
+  const loading = productLoading;
 
   const handleAddToCart = async () => {
     const target = matchedVariant ?? selectedVariant;
@@ -571,9 +559,8 @@ export default function ProductDetail() {
                     <ReviewForm 
                       productId={String(product.id)} 
                       onSuccess={() => {
-                        fetchReviews(product.id);
-                        // refresh product for new rating
-                        productsApi.detail(slug!).then(res => setProduct(res.data));
+                        queryClient.invalidateQueries({ queryKey: queryKeys.reviews(product.id) });
+                        queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(slug || '') });
                       }} 
                     />
                   ) : (

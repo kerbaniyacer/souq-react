@@ -322,3 +322,12 @@ export interface Appeal {
   created_at: string;
   reviewed_at?: string;
 }
+
+export interface MerchantStats {
+  revenue: number;
+  orders_count: number;
+  products_count: number;
+  pending_orders: number;
+  sales_history: { date: string; revenue: number; orders: number }[];
+  top_products: { id: number; name: string; sales: number; revenue: number }[];
+}

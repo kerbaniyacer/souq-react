@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowRight, Package, ChevronLeft, User, Phone, MapPin, CreditCard, CheckCircle, Eye, XCircle, AlertCircle, Calendar, Hash, DollarSign } from 'lucide-react';
-import { ordersApi } from '@shared/services/api';
 import { useToast } from '@shared/stores/toastStore';
-import type { Order, OrderStatus } from '@shared/types';
+import type { OrderStatus } from '@shared/types';
 
 const statusConfig: Record<string, { label: string; color: string; next?: OrderStatus }> = {
   pending:    { label: 'معلّق',         color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',    next: 'confirmed' },
@@ -31,80 +30,63 @@ const paymentLabels: Record<string, string> = {
   apple_pay: 'Apple Pay',
 };
 
+import { useMerchantOrderDetail, useUpdateOrderStatus, useApprovePaymentProof, useRejectPaymentProof } from '../hooks/useMerchantData';
+
 export default function MerchantOrderDetail() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const { data: order, isLoading: loading } = useMerchantOrderDetail(id || '');
+  const updateStatus = useUpdateOrderStatus();
+  const approveProof = useApprovePaymentProof();
+  const rejectProof = useRejectPaymentProof();
+
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [rejectProofId, setRejectProofId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const toast = useToast();
 
-  useEffect(() => {
-    if (!id) return;
-    ordersApi.merchantDetail(Number(id))
-      .then((res) => setOrder(res.data))
-      .catch(() => toast.error('تعذّر تحميل تفاصيل الطلب'))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const updating = updateStatus.isPending || approveProof.isPending || rejectProof.isPending;
 
   const handleNextStatus = async () => {
     if (!order) return;
     const nextStatus = statusConfig[order.status]?.next;
     if (!nextStatus) return;
-    setUpdating(true);
+    
     try {
-      await ordersApi.updateStatus(order.id, nextStatus);
-      setOrder((prev) => prev ? { ...prev, status: nextStatus } : prev);
+      await updateStatus.mutateAsync({ id: order.id, status: nextStatus });
       toast.success(`✅ تم تحديث الحالة إلى: ${statusConfig[nextStatus].label}`);
     } catch {
       toast.error('تعذّر تحديث الحالة');
-    } finally {
-      setUpdating(false);
     }
   };
 
   const handleCancel = async () => {
     if (!order || !confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
-    setUpdating(true);
     try {
-      await ordersApi.updateStatus(order.id, 'cancelled');
-      setOrder((prev) => prev ? { ...prev, status: 'cancelled' } : prev);
+      await updateStatus.mutateAsync({ id: order.id, status: 'cancelled' });
       toast.success('تم إلغاء الطلب');
     } catch {
       toast.error('تعذّر إلغاء الطلب');
-    } finally {
-      setUpdating(false);
     }
   };
 
   const handleApproveProof = async (proofId: number) => {
-    setUpdating(true);
     try {
-      const res = await ordersApi.approveProof(proofId);
-      setOrder(res.data);
+      await approveProof.mutateAsync(proofId);
       toast.success('✅ تم تأكيد الدفع بنجاح');
     } catch {
       toast.error('تعذّر تأكيد الدفع');
-    } finally {
-      setUpdating(false);
     }
   };
 
   const handleRejectProof = async () => {
     if (!rejectProofId || !rejectionReason.trim()) return;
-    setUpdating(true);
     try {
-      const res = await ordersApi.rejectProof(rejectProofId, rejectionReason);
-      setOrder(res.data);
+      await rejectProof.mutateAsync({ proofId: rejectProofId, reason: rejectionReason });
       toast.success('❌ تم رفض الدفع');
       setRejectProofId(null);
       setRejectionReason('');
     } catch {
       toast.error('تعذّر رفض الدفع');
-    } finally {
-      setUpdating(false);
     }
   };
 
