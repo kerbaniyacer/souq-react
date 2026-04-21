@@ -70,13 +70,24 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
           photo: googleUser.picture
         };
         const tokens = await loginSocialDjango(payload);
-        
-        // حفظ التوكنز وتحديث Store
-        saveTokens(tokens);
-        await loginSocial(tokens.user as unknown as User, tokens.access);
+        const isOnboarded = (tokens.user as any)?.is_onboarded ?? true;
 
+        if (!isOnboarded) {
+          // Store tokens temporarily — user remains a guest until profile is complete
+          sessionStorage.setItem('pending_auth', JSON.stringify({
+            access: tokens.access,
+            refresh: tokens.refresh,
+            user: tokens.user,
+          }));
+          toast.info('يرجى إكمال ملفك الشخصي أولاً 👋');
+          navigate('/complete-profile');
+          return;
+        }
+
+        // Save tokens and update store (user is fully onboarded)
+        saveTokens(tokens);
+        await loginSocial(tokens.user as unknown as User, tokens.access, tokens.refresh);
         toast.success(`مرحباً ${payload.first_name || googleUser.name}! 👋`);
-        // We assume returning users go to home, and handle onboarding differently if needed
         navigate('/');
       } catch (err: any) {
         if (err?.type === 'VERIFICATION_REQUIRED' && onVerificationRequired) {
@@ -84,14 +95,9 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
           return;
         }
         if (err?.type === 'USER_NOT_REGISTERED') {
-          toast.info('هذا الحساب غير مسجل، يرجى إنشاء حساب أولاً. تم تعبئة بريدك تلقائياً.');
-          navigate('/register', { 
-            state: { 
-              email: err.email,
-              first_name: err.first_name,
-              last_name: err.last_name
-            } 
-          });
+          // This should no longer happen with the new backend changes, 
+          // but we keep a fallback or log for debugging.
+          toast.error('تعذر إنشاء الحساب الاجتماعي تلقائياً.');
           return;
         }
         console.error(err);
@@ -153,9 +159,21 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
       };
       
       const tokens = await loginSocialDjango(payload);
-      saveTokens(tokens);
-      await loginSocial(tokens.user as unknown as User, tokens.access);
+      const isOnboarded = (tokens.user as any)?.is_onboarded ?? true;
 
+      if (!isOnboarded) {
+        sessionStorage.setItem('pending_auth', JSON.stringify({
+          access: tokens.access,
+          refresh: tokens.refresh,
+          user: tokens.user,
+        }));
+        toast.info('يرجى إكمال ملفك الشخصي أولاً!');
+        navigate('/complete-profile');
+        return;
+      }
+
+      saveTokens(tokens);
+      await loginSocial(tokens.user as unknown as User, tokens.access, tokens.refresh);
       toast.success(`مرحباً ${payload.first_name}! 👋`);
       navigate('/');
     } catch (err: any) {
@@ -164,14 +182,7 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
         return;
       }
       if (err?.type === 'USER_NOT_REGISTERED') {
-        toast.info('هذا الحساب غير مسجل، يرجى إنشاء حساب أولاً. تم تعبئة بريدك تلقائياً.');
-        navigate('/register', { 
-            state: { 
-              email: err.email,
-              first_name: err.first_name,
-              last_name: err.last_name
-            } 
-          });
+        toast.error('تعذر إنشاء الحساب الاجتماعي تلقائياً.');
         return;
       }
       const msg = err.message || '';

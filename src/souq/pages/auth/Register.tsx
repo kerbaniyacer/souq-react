@@ -48,6 +48,9 @@ export default function Register() {
       store_name: '', 
       store_description: '', 
       store_category: '',
+      ccp_number: '',
+      ccp_name: '',
+      baridimob_id: '',
     },
   });
 
@@ -78,6 +81,9 @@ export default function Register() {
         store_name: data.store_name ?? '',
         store_description: data.store_description ?? '',
         store_category: data.store_category ?? '',
+        ccp_number: data.ccp_number ?? '',
+        ccp_name: data.ccp_name ?? '',
+        baridimob_id: data.baridimob_id ?? '',
       });
       toast.success('🎉 تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن');
       navigate('/login');
@@ -346,6 +352,38 @@ export default function Register() {
                     placeholder="اكتب وصفاً مختصراً لمتجرك..."
                     className="w-full px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-800/40 bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-400/30 text-sm resize-none"
                   />
+                </div>
+
+                <div className="pt-2">
+                  <p className="text-xs font-semibold text-primary-600 dark:text-primary-400 font-arabic uppercase tracking-wider mb-3">
+                    💳 معلومات الحساب البنكي (اختياري)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 font-arabic mb-1.5">رقم الـ CCP</label>
+                      <input
+                        {...register('ccp_number')}
+                        placeholder="00XXX... / المفتاح: XX"
+                        className="w-full px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-800/40 bg-white dark:bg-[#1E1E1E] text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 font-arabic mb-1.5">الاسم في الحساب</label>
+                      <input
+                        {...register('ccp_name')}
+                        placeholder="الاسم الكامل"
+                        className="w-full px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-800/40 bg-white dark:bg-[#1E1E1E] text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 font-arabic mb-1.5">رقم الـ RIP أو BaridiMob</label>
+                      <input
+                        {...register('baridimob_id')}
+                        placeholder="رقم الـ RIP المكون من 20 رقم"
+                        className="w-full px-4 py-2.5 rounded-xl border border-primary-200 dark:border-primary-800/40 bg-white dark:bg-[#1E1E1E] text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

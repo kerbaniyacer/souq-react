@@ -138,33 +138,62 @@ def get_security_alert_email_html(ip):
 def get_product_deleted_email_html(seller_name, product_name, reason):
     body = f"""
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:64px;height:64px;background:#fee2e2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">📦</div>
+        <div style="width:64px;height:64px;background:#fff7ed;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">📦</div>
       </div>
-      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">تنبيه: حذف منتج من متجرك</h2>
+      <h2 style="color:#c2410c;font-size:22px;margin:0 0 16px;text-align:center;">إشعار إداري: تجميد منتج</h2>
       <p style="color:#4b5563;line-height:1.8;">عزيزي <strong>{seller_name}</strong>،</p>
-      <p style="color:#4b5563;line-height:1.8;">نحيطك علماً بأنه تم حذف منتجك (<strong>{product_name}</strong>) من منصة سوق بناءً على مراجعة الإدارة.</p>
-      <div style="background:#fef2f2;border-right:4px solid #ef4444;padding:20px;margin:20px 0;">
-        <p style="margin:0 0 8px;color:#b91c1c;font-weight:700;">سبب الحذف:</p>
-        <p style="margin:0;color:#7f1d1d;line-height:1.6;">{reason}</p>
+      <p style="color:#4b5563;line-height:1.8;">نحيطك علماً بأنه تقرر <strong>تجميد</strong> منتجك (<strong>{product_name}</strong>) مؤقتاً بناءً على مراجعة فريق الرقابة.</p>
+      <div style="background:#fffbeb;border-right:4px solid #f59e0b;padding:24px;margin:20px 0;border-radius:8px;">
+        <p style="margin:0 0 8px;color:#92400e;font-weight:700;">سبب الإجراء:</p>
+        <p style="margin:0;color:#92400e;line-height:1.6;">{reason}</p>
       </div>
-      <p style="color:#9ca3af;font-size:13px;">إذا كنت تعتقد أن هذا القرار تم بالخطأ، يمكنك التواصل مع الدعم الفني.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="mailto:souqsupport@gmail.com?subject=Appeal: Product Freeze - {product_name}" style="display:inline-block;background:#f59e0b;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;">تقديم طعن إداري ←</a>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;">لديك مهلة <strong>14 يوماً</strong> لتقديم طعن قبل الحذف النهائي للمنتج من قواعد البيانات.</p>
     """
-    return get_base_email_html('تنبيه حذف منتج', body)
+    return get_base_email_html('إشعار تجميد منتج', body)
 
 def get_account_deleted_email_html(username, reason):
     body = f"""
-      <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:64px;height:64px;background:#f3f4f6;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">👋</div>
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="width:80px;height:80px;background:#FEF2F2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin:0 auto;">
+          <span style="font-size:32px;">🚫</span>
+        </div>
       </div>
-      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">إشعار بحذف الحساب</h2>
-      <p style="color:#4b5563;line-height:1.8;">عزيزي <strong>{username}</strong>، يؤسفنا إبلاغك بأنه تم إغلاق حسابك في منصة سوق.</p>
-      <div style="background:#f9fafb;border-right:4px solid #9ca3af;padding:20px;margin:20px 0;">
-        <p style="margin:0 0 8px;color:#374151;font-weight:700;">التوضيح:</p>
-        <p style="margin:0;color:#4b5563;line-height:1.6;">{reason}</p>
+      
+      <h2 style="color:#B91C1C;font-size:24px;margin:0 0 16px;text-align:center;font-weight:800;">تنبيه هـام: تم تجميد حسابك</h2>
+      
+      <p style="color:#374151;line-height:1.8;font-size:16px;">مرحباً <strong>{username}</strong>،</p>
+      
+      <p style="color:#4B5563;line-height:1.8;font-size:15px;margin-bottom:24px;">
+        نحيطك علماً بأنه تقرر <strong>تجميد حسابك</strong> في منصة سوق مؤقتاً. هذا الإجراء تم اتخاذه لمراجعة بعض النشاطات الأخيرة لضمان سلامة المجتمع ومصداقية المنصة.
+      </p>
+      
+      <div style="background:#FFFBFB;border:1px solid #FEE2E2;border-right:5px solid #EF4444;padding:24px;margin:28px 0;border-radius:12px;">
+        <p style="margin:0 0 8px;color:#991B1B;font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:1px;">السبب المسجل في النظام:</p>
+        <p style="margin:0;color:#B91C1C;line-height:1.6;font-size:16px;">{reason}</p>
       </div>
-      <p style="color:#9ca3af;font-size:13px;">شكراً لاستخدامك منصتنا، ونتمنى لك التوفيق.</p>
+      
+      <div style="text-align:center;margin:32px 0;">
+        <a href="mailto:souqsupport@gmail.com?subject=Appeal: Account Freeze - {username}" 
+           style="display:inline-block;background:#EF4444;color:#ffffff;padding:16px 40px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;box-shadow:0 4px 12px rgba(239, 68, 68, 0.25);">
+           تقديم طعن إداري الآن ←
+        </a>
+      </div>
+      
+      <div style="background:#F9FAFB;border-radius:12px;padding:24px;margin-top:32px;">
+        <h3 style="margin:0 0 12px;color:#111827;font-size:15px;font-weight:700;">ماذا يعني هذا؟</h3>
+        <p style="margin:0;color:#6B7280;font-size:14px;line-height:1.7;">
+          أنت الآن في فترة المراجعة القانونية التي تدوم <strong>14 يوماً</strong>. خلال هذه الفترة، نتيح لك الفرصة لتوضيح موقفك أو تقديم الوثائق اللازمة لتسوية وضعك وتفعيل الحساب مرة أخرى.
+        </p>
+      </div>
+      
+      <p style="color:#9CA3AF;font-size:13px;text-align:center;margin-top:32px;padding-top:24px;border-top:1px dashed #E5E7EB;">
+        ملاحظة: إذا لم يتم تقديم طعن خلال المهلة المحددة، سيتم إغلاق الحساب نهائياً وحذف البيانات المرتبطة به.
+      </p>
     """
-    return get_base_email_html('إشعار حذف الحساب', body)
+    return get_base_email_html('تنبيه بخصوص حسابك', body)
 
 def get_report_notification_email_html(reporter_name, report_type, target_name, reason, description):
     body = f"""
@@ -196,3 +225,45 @@ def get_report_notification_email_html(reporter_name, report_type, target_name, 
       <p style="color:#9ca3af;font-size:13px;text-align:center;">يرجى مراجعة لوحة الإدارة لاتخاذ الإجراء اللازم.</p>
     """
     return get_base_email_html('بلاغ جديد', body)
+def get_support_email_html(sender_name, issue_type, created_at, description):
+    body = f"""
+      <h2 style="color:#dc2626;font-size:22px;margin:0 0 16px;text-align:center;">بلاغ مشكلة جديدة ⚠️</h2>
+      
+      <div style="background:#f8f6f2;border-radius:12px;padding:24px;margin:20px 0;border:1px solid #e8e3db;">
+        <table width="100%" style="font-size:14px;color:#4b5563;border-collapse:collapse;">
+          <tr>
+            <td style="padding:8px 0;font-weight:700;color:#6b7280;width:120px;">اسم المرسل:</td>
+            <td style="padding:8px 0;font-weight:700;color:#1f2937;">{sender_name}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;font-weight:700;color:#6b7280;">نوع المشكلة:</td>
+            <td style="padding:8px 0;font-weight:700;color:#1f2937;">{issue_type}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;font-weight:700;color:#6b7280;">تاريخ الإرسال:</td>
+            <td style="padding:8px 0;font-weight:700;color:#1f2937;direction:ltr;text-align:right;">{created_at}</td>
+          </tr>
+        </table>
+        
+        <div style="margin-top:20px;padding:20px;background:#ffffff;border-radius:10px;border:1px solid #e5e7eb;min-height:80px;color:#374151;line-height:1.6;">
+          {description or 'لا يوجد وصف إضافي'}
+        </div>
+      </div>
+      
+      <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">تم إرسال هذا البلاغ تلقائياً من نظام الدعم الفني لسوق.</p>
+    """
+    return get_base_email_html('بلاغ مشكلة جديدة', body)
+
+def get_password_changed_email_html(username):
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:#d1fae5;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">✅</div>
+      </div>
+      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">تم تغيير كلمة المرور</h2>
+      <p style="color:#4b5563;line-height:1.8;text-align:center;">مرحباً <strong>{username}</strong>، نحيطك علماً بأنه تم تغيير كلمة مرور حسابك بنجاح.</p>
+      <div style="background:#fef3c7;border-radius:10px;padding:16px;margin:20px 0;text-align:center;">
+        <p style="margin:0;color:#92400e;font-size:14px;">⚠️ إذا لم تكن أنت من قام بهذا التغيير، يرجى التواصل مع الدعم الفني فوراً لحماية حسابك.</p>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">تم إرسال هذا الإشعار كإجراء أمني لحسابك في سوق.</p>
+    """
+    return get_base_email_html('تم تغيير كلمة المرور', body)

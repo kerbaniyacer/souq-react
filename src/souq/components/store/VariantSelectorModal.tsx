@@ -7,7 +7,7 @@ import { useToast } from '@souq/stores/toastStore';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
-  product: Product;
+  product: Product | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -49,15 +49,17 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
   const toast = useToast();
   const navigate = useNavigate();
 
-  const variants = product.variants ?? [];
-  const attrKeys = getAttributeKeys(variants);
-  const hasAttributes = attrKeys.length > 0;
-
   // ── state ──────────────────────────────────────────────────────
+  // All hooks must be called at the top, unconditionally.
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
+
+  // ── Derived Data (Safe for null product) ────────────────────────
+  const variants = product?.variants ?? [];
+  const attrKeys = getAttributeKeys(variants);
+  const hasAttributes = attrKeys.length > 0;
 
   // Resolve the current active variant
   const activeVariant: ProductVariant | undefined = hasAttributes
@@ -70,32 +72,36 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
   const variantImages =
     activeVariant?.images && activeVariant.images.length > 0
       ? activeVariant.images
-      : product.images ?? [];
+      : product?.images ?? [];
 
-  const productFallbackImage = product.main_image ?? product.images?.[0]?.image;
+  const productFallbackImage = product?.main_image ?? product?.images?.[0]?.image;
 
-  // ── reset on open ──────────────────────────────────────────────
+  // ── Effects (Unconditional) ─────────────────────────────────────
+  
+  // Reset on open
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !product) return;
     setQuantity(1);
     setActiveImageIndex(0);
     setIsAdding(false);
 
     // Pre-select the main variant's attributes
-    const mainV = variants.find((v) => v.is_main) ?? variants[0];
+    // Need current variants list
+    const currentVariants = product.variants ?? [];
+    const mainV = currentVariants.find((v) => v.is_main) ?? currentVariants[0];
     if (mainV?.attributes) {
       setSelected({ ...mainV.attributes });
     } else {
       setSelected({});
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset image index when variant changes
   useEffect(() => {
     setActiveImageIndex(0);
   }, [activeVariant?.id]);
 
-  // ── keyboard close ─────────────────────────────────────────────
+  // Keyboard close
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -116,10 +122,14 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     };
   }, [isOpen]);
 
-  // ── attribute selection ────────────────────────────────────────
+  // ── Callbacks ──────────────────────────────────────────────────
   const handleSelectAttr = useCallback((key: string, value: string) => {
     setSelected((prev) => ({ ...prev, [key]: value }));
   }, []);
+
+  // ── Early Return Guard ──────────────────────────────────────────
+  // MUST be after all hooks to comply with React's architecture.
+  if (!product || !isOpen) return null;
 
   /** Check if a specific attribute value is still available given OTHER selected attrs */
   const isValueAvailable = (key: string, value: string): boolean => {
@@ -384,22 +394,22 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 </div>
               )}
 
-              {/* Stock badge */}
-              {activeVariant && (
-                <div className="flex items-center gap-2">
-                  {activeVariant.is_in_stock ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-lg font-arabic">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      متوفر · {activeVariant.stock} قطعة
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg font-arabic">
-                      <PackageX className="w-3.5 h-3.5" />
-                      نفدت الكمية
-                    </span>
-                  )}
-                </div>
-              )}
+              {/* Stock badge — same logic as ProductDetail.tsx */}
+              {activeVariant && (() => {
+                const status = (activeVariant as any).stock_status || (activeVariant.is_in_stock ? 'high' : 'out_of_stock');
+                const config: Record<string, { text: string; classes: string }> = {
+                  high:         { text: 'متوفر في المخزن',                                         classes: 'text-green-700 bg-green-50 dark:bg-green-900/20' },
+                  medium:       { text: 'كمية محدودة',                                             classes: 'text-orange-600 bg-orange-50 dark:bg-orange-900/10' },
+                  low:          { text: `على وشك النفاذ - بقي ${activeVariant.stock} فقط`,         classes: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+                  out_of_stock: { text: 'نفدت الكمية',                                             classes: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+                };
+                const { text, classes } = config[status] || config.out_of_stock;
+                return (
+                  <span className={`inline-block text-xs font-arabic px-3 py-1 rounded-lg font-bold ${classes}`}>
+                    {text}
+                  </span>
+                );
+              })()}
 
               {/* Quantity selector */}
               {activeVariant?.is_in_stock && (

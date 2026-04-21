@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, ShoppingBag, Package, TrendingUp, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Globe, Clock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, ShoppingBag, Package, TrendingUp, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Globe, Clock, ShieldCheck, CheckCircle2, AlertCircle, Gavel } from 'lucide-react';
 import api from '@souq/services/authService';
 import { getLoginHistory } from '@souq/services/ipService';
 import { useAuthStore } from '@souq/stores/authStore';
@@ -81,10 +81,11 @@ export default function AdminDashboard() {
   const [adminLogs, setAdminLogs] = useState<AdminActionLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'users' | 'products' | 'orders' | 'reports' | 'history' | 'actions'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'products' | 'orders' | 'reports' | 'appeals' | 'history' | 'actions'>('overview');
   const [search, setSearch] = useState('');
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'buyer' | 'seller'>('all');
   const [historyDate, setHistoryDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [actionHistoryDate, setActionHistoryDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ id: string, type: 'user' | 'product', name: string } | null>(null);
   const [viewingReport, setViewingReport] = useState<AdminReport | null>(null);
@@ -122,11 +123,11 @@ export default function AdminDashboard() {
       }).finally(() => setHistoryLoading(false));
     } else if (tab === 'actions') {
       setLoading(true);
-      api.get('/auth/admin/action-log/')
+      api.get(`/auth/admin/action-log/?day=${actionHistoryDate}`)
         .then((res) => setAdminLogs(res.data))
         .finally(() => setLoading(false));
     }
-  }, [tab, historyDate]);
+  }, [tab, historyDate, actionHistoryDate]);
 
   const confirmDelete = async () => {
     if (!deleteModal || !deleteReason.trim()) {
@@ -140,7 +141,7 @@ export default function AdminDashboard() {
     
     try {
         if (type === 'user') {
-            await api.delete(`/auth/users/${id}/`, { data: { reason: deleteReason } });
+            await api.delete(`/auth/users/${id}/delete/`, { data: { reason: deleteReason } });
             toast.success('تم تجميد المستخدم وإعلامه بالسبب');
         } else {
             await api.delete(`/merchant/products/${id}/`, { data: { reason: deleteReason } });
@@ -222,6 +223,10 @@ export default function AdminDashboard() {
             <Clock className="w-4 h-4" />
             سجل العمليات
           </button>
+          <Link to="/admin/appeals" className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 dark:bg-amber-900/10 text-amber-600 rounded-2xl hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all text-sm font-arabic font-bold border border-amber-100 dark:border-amber-900/10">
+            <Gavel className="w-4 h-4" />
+            إدارة الطعون
+          </Link>
           <Link to="/admin/emails" className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 dark:bg-[#252525] text-gray-600 dark:text-gray-400 rounded-2xl hover:bg-gray-100 dark:hover:bg-[#2E2E2E] transition-all text-sm font-arabic font-bold">
             <Mail className="w-4 h-4" />
             قوالب البريد
@@ -231,23 +236,24 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex gap-2 bg-gray-100 dark:bg-[#252525] rounded-2xl p-1.5 mb-8 w-fit overflow-x-auto no-scrollbar max-w-full">
-        {(['overview', 'users', 'products', 'orders', 'reports', 'history', 'actions'] as const).map((t) => (
+        {(['overview', 'users', 'products', 'orders', 'reports', 'appeals', 'history', 'actions'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-5 py-2.5 rounded-xl text-sm font-arabic font-bold transition-all whitespace-nowrap ${tab === t ? 'bg-white dark:bg-[#1E1E1E] text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-            {t === 'overview' ? 'نظرة عامة' : t === 'users' ? 'المستخدمون' : t === 'products' ? 'المنتجات' : t === 'orders' ? 'الطلبات' : t === 'reports' ? 'البلاغات' : t === 'history' ? 'سجل الدخول' : 'العمليات'}
+            {t === 'overview' ? 'نظرة عامة' : t === 'users' ? 'المستخدمون' : t === 'products' ? 'المنتجات' : t === 'orders' ? 'الطلبات' : t === 'reports' ? 'البلاغات' : t === 'appeals' ? 'الطعون' : t === 'history' ? 'سجل الدخول' : 'العمليات'}
           </button>
         ))}
       </div>
 
-      {/* Filters */}
-      {(tab === 'users' || tab === 'products' || tab === 'history') && (
+      {(tab === 'users' || tab === 'products' || tab === 'history' || tab === 'actions') && (
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="relative flex-1">
-              <input value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث هنا..."
-                className="w-full pr-12 pl-4 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic transition-all" />
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            </div>
+            {(tab === 'users' || tab === 'products') && (
+                <div className="relative flex-1">
+                  <input value={search} onChange={(e) => setSearch(e.target.value)}
+                    placeholder="ابحث هنا..."
+                    className="w-full pr-12 pl-4 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic transition-all" />
+                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
+            )}
             {tab === 'users' && (
               <select value={userTypeFilter} onChange={(e) => setUserTypeFilter(e.target.value as any)}
                 className="px-6 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic font-bold outline-none">
@@ -256,8 +262,9 @@ export default function AdminDashboard() {
                 <option value="seller">التجار</option>
               </select>
             )}
-            {tab === 'history' && (
-               <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)}
+            {(tab === 'history' || tab === 'actions') && (
+               <input type="date" value={tab === 'history' ? historyDate : actionHistoryDate} 
+                onChange={(e) => tab === 'history' ? setHistoryDate(e.target.value) : setActionHistoryDate(e.target.value)}
                 className="px-6 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic outline-none" />
             )}
         </div>
@@ -455,8 +462,28 @@ export default function AdminDashboard() {
 
                       {log.action === 'suspend' && (
                         <div className="flex gap-2">
-                           <button onClick={() => handleManageAction(log.id, 'restore')} className="px-4 py-2 bg-green-50 text-green-600 text-xs font-bold rounded-xl hover:bg-green-100 transition-colors font-arabic">استعادة</button>
-                           <button onClick={() => handleManageAction(log.id, 'finalize_delete')} className="px-4 py-2 bg-red-50 text-red-600 text-xs font-bold rounded-xl hover:bg-red-100 transition-colors font-arabic">حذف نهائي</button>
+                           <button 
+                             onClick={() => handleManageAction(log.id, 'restore')} 
+                             disabled={log.is_processed}
+                             className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors font-arabic ${
+                               log.is_processed 
+                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60' 
+                               : 'bg-green-50 text-green-600 hover:bg-green-100'
+                             }`}
+                           >
+                             استعادة
+                           </button>
+                           <button 
+                             onClick={() => handleManageAction(log.id, 'finalize_delete')} 
+                             disabled={log.is_processed}
+                             className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors font-arabic ${
+                               log.is_processed 
+                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60' 
+                               : 'bg-red-50 text-red-600 hover:bg-red-100'
+                             }`}
+                           >
+                             حذف نهائي
+                           </button>
                         </div>
                       )}
                    </div>
@@ -491,6 +518,23 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
             </div>
+          )}
+
+          {/* Appeals List */}
+          {tab === 'appeals' && (
+             <div className="animate-in fade-in duration-300">
+               {/* 
+                  Since we have a dedicated page for AdminAppeals, 
+                  we can either import the same logic or just link to it.
+                  I'll add a simplified iframe-like call or just redirect for now.
+               */}
+               <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] p-12 text-center">
+                  <Gavel size={64} className="mx-auto mb-6 text-amber-500 opacity-50" />
+                  <h3 className="text-xl font-bold font-arabic mb-4">إدارة طعون المستخدمين</h3>
+                  <p className="text-gray-500 font-arabic mb-8">يمكنك مراجعة كافة طلبات التظلم للمستخدمين والتجار وتغيير حالتهم من هنا.</p>
+                  <Link to="/admin/appeals" className="px-8 py-3 bg-primary-600 text-white rounded-2xl font-bold font-arabic shadow-lg shadow-primary-600/20">فتح لوحة الطعون المخصصة</Link>
+               </div>
+             </div>
           )}
 
           {/* Login History */}

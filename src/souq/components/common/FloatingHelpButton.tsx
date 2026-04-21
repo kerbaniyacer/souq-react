@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, AlertTriangle, CheckCircle } from 'lucide-react';
-import axios from 'axios';
 
 const ERROR_TYPES = [
   'مشكلة في الموقع',
@@ -64,17 +63,13 @@ export default function FloatingHelpButton() {
 
     setIsSending(true);
     try {
-      // إرسال البريد عبر الخادم
-      await axios.post('/email-api/send-email', {
-        type: 'support',
-        to: 'souqsupport@gmail.com',
-        data: {
-          from_name: 'زائر سوق',
-          error_type: errorType,
-          message: message,
-          sent_at: new Date().toLocaleString('ar-DZ', { timeZone: 'Africa/Algiers' }),
-        }
-      });
+      // إرسال البلاغ عبر Django API
+      await import('@souq/services/authService').then(({ default: api }) =>
+        api.post('/support/request/', {
+          issue_type: errorType,
+          description: message,
+        })
+      );
 
       setIsSent(true);
       setErrorType('');
@@ -83,8 +78,20 @@ export default function FloatingHelpButton() {
         setIsSent(false);
         setIsOpen(false);
       }, 3000);
-    } catch (error) {
-      console.error('Failed to send support request:', error);
+    } catch (error: any) {
+      // Fallback: try emailService directly
+      try {
+        const { sendSupportEmail } = await import('@souq/services/emailService');
+        await sendSupportEmail('souqsupport@gmail.com', 'زائر سوق', errorType, message);
+        setIsSent(true);
+        setErrorType('');
+        setMessage('');
+        setTimeout(() => { setIsSent(false); setIsOpen(false); }, 3000);
+      } catch {
+        console.error('Failed to send support request');
+        // Show a user-friendly error message in the button
+        setIsSending(false);
+      }
     } finally {
       setIsSending(false);
     }

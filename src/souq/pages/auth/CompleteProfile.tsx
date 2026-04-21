@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Store, ShoppingBag, User, Phone, ArrowLeft, Save } from 'lucide-react';
 import { useAuthStore } from '@souq/stores/authStore';
@@ -7,13 +7,26 @@ import AddressFields from '@souq/components/common/AddressFields';
 import axios from 'axios';
 
 export default function CompleteProfile() {
-  const { profile, user, fetchProfile } = useAuthStore();
+  const { profile, user, fetchProfile, finalizeLogin, isAuthenticated } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<'type' | 'details'>('type');
   const [isSeller, setIsSeller] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+
+  // Read pending auth from sessionStorage (unauthenticated flow)
+  useEffect(() => {
+    const raw = sessionStorage.getItem('pending_auth');
+    if (raw) {
+      const pending = JSON.parse(raw);
+      setPendingToken(pending.access);
+    } else if (!isAuthenticated) {
+      // No pending auth and not signed in → redirect to login
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const [form, setForm] = useState({
     phone: profile?.phone ?? '',
@@ -42,19 +55,32 @@ export default function CompleteProfile() {
 
     setSaving(true);
     try {
-      // In Django, we update the profile via the auth/profile endpoint
-      await axios.patch('/api/auth/profile/', {
-        is_seller: isSeller,
-        phone: form.phone,
-        wilaya: form.wilaya,
-        baladia: form.baladia,
-        address: form.address,
-        store_name: form.store_name,
-        store_description: form.store_description,
-        store_category: form.store_category,
-      });
+      // Determine the token to use: pending (guest flow) or existing (already logged in)
+      const authHeader = pendingToken
+        ? { Authorization: `Bearer ${pendingToken}` }
+        : { Authorization: `Bearer ${localStorage.getItem('access_token')}` };
 
-      await fetchProfile();
+      await axios.patch(
+        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api/auth/profile/`,
+        {
+          is_seller: isSeller,
+          phone: form.phone,
+          wilaya: form.wilaya,
+          baladia: form.baladia,
+          address: form.address,
+          store_name: form.store_name,
+          store_description: form.store_description,
+          store_category: form.store_category,
+        },
+        { headers: authHeader }
+      );
+
+      if (pendingToken) {
+        // Finalize login: move pending tokens into auth store → user becomes authenticated
+        await finalizeLogin();
+      } else {
+        await fetchProfile(true); // force=true to bypass throttle after save
+      }
 
       toast.success('🎉 تم حفظ بياناتك بنجاح!');
       navigate(isSeller ? '/merchant/dashboard' : '/');

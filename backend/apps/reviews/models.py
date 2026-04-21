@@ -12,6 +12,7 @@ class Review(models.Model):
     )
     comment = models.TextField(blank=True, default='')
     verified = models.BooleanField(default=False)  # purchased the product
+    is_visible = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -32,6 +33,7 @@ class SellerReview(models.Model):
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='made_seller_reviews')
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True, default='')
+    is_visible = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -46,8 +48,27 @@ class BuyerReview(models.Model):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='made_buyer_reviews')
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True, default='')
+    is_visible = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'تقييم مشتري'
         verbose_name_plural = 'تقييمات المشترين'
+
+
+class ReviewReply(models.Model):
+    """Official single reply from merchant or admin to a review."""
+    product_review = models.OneToOneField(Review, null=True, blank=True, on_delete=models.CASCADE, related_name='official_reply')
+    seller_review = models.OneToOneField(SellerReview, null=True, blank=True, on_delete=models.CASCADE, related_name='official_reply')
+    buyer_review = models.OneToOneField(BuyerReview, null=True, blank=True, on_delete=models.CASCADE, related_name='official_reply')
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE) # The merchant or admin who replied
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'رد على تقييم'
+        verbose_name_plural = 'ردود التقييمات'
+
+    def __str__(self):
+        return f"Reply by {self.user.username}"

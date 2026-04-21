@@ -17,10 +17,13 @@ class Order(models.Model):
         COD = 'cod', 'الدفع عند الاستلام'
         CARD = 'card', 'بطاقة بنكية'
         CCP = 'ccp', 'بريد الجزائر'
+        BARIDIMOB = 'baridimob', 'بريدي موب (BaridiMob)'
 
     class PaymentStatus(models.TextChoices):
-        PENDING = 'pending', 'قيد الانتظار'
+        PENDING = 'pending', 'في انتظار الدفع'
+        PROOF_UPLOADED = 'proof_uploaded', 'تم رفع الوصل'
         PAID = 'paid', 'مدفوع'
+        REJECTED = 'rejected', 'مرفوض'
         FAILED = 'failed', 'فشل'
         REFUNDED = 'refunded', 'مسترجع'
 
@@ -43,8 +46,6 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
 
     tracking_number = models.CharField(max_length=100, blank=True, default='')
-    receipt_image = models.ImageField(upload_to='orders/receipts/', null=True, blank=True)
-    transaction_id = models.CharField(max_length=100, blank=True, default='')
     notes = models.TextField(blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -80,6 +81,32 @@ class Order(models.Model):
                 candidate = f'TRK{digits}'
             self.tracking_number = candidate
         super().save(*args, **kwargs)
+
+
+class PaymentProof(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'قيد الانتظار'
+        APPROVED = 'approved', 'مقبول'
+        REJECTED = 'rejected', 'مرفوض'
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='proofs')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_proofs', null=True)
+    image = models.ImageField(upload_to='orders/receipts/')
+    transaction_id = models.CharField(max_length=100, blank=True, default='')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status, default=Status.PENDING)
+    rejection_reason = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'إثبات دفع'
+        verbose_name_plural = 'إثباتات الدفع'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Proof for Order {self.order.order_number}'
 
 
 class OrderItem(models.Model):

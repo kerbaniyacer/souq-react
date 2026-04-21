@@ -68,12 +68,32 @@ class Profile(models.Model):
     store_logo = models.ImageField(upload_to='stores/logos/', null=True, blank=True)
     commercial_register = models.CharField(max_length=100, blank=True, default='')
 
+    # Bank / Payment Details (for Sellers)
+    ccp_number = models.CharField(max_length=20, blank=True, default='', verbose_name='رقم الحساب البريدي (CCP)')
+    ccp_name   = models.CharField(max_length=200, blank=True, default='', verbose_name='الاسم الكامل في الحساب')
+    baridimob_id = models.CharField(max_length=50, blank=True, default='', verbose_name='رقم RIP أو BaridiMob')
+
+    # Performance metrics
+    seller_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    seller_reviews_count = models.PositiveIntegerField(default=0)
+    buyer_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    buyer_reviews_count = models.PositiveIntegerField(default=0)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'ملف شخصي'
         verbose_name_plural = 'الملفات الشخصية'
+
+    @property
+    def is_onboarded(self) -> bool:
+        """Returns True if the user has completed the mandatory profile fields."""
+        if not self.phone or not self.wilaya:
+            return False
+        if self.is_seller and not self.store_name:
+            return False
+        return True
 
     def __str__(self):
         return f'Profile({self.user.email})'
@@ -97,6 +117,7 @@ class AdminActionLog(models.Model):
     reason = models.TextField(blank=True, default='')
     before_state = models.JSONField(null=True, blank=True)
     after_state = models.JSONField(null=True, blank=True)
+    is_processed = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -172,3 +193,56 @@ class OTPVerification(models.Model):
         
     def __str__(self):
         return f'{self.user.email} — {self.otp}'
+
+
+class Appeal(models.Model):
+    """Users can dispute account or product suspensions."""
+    STATUS_CHOICES = [
+        ("pending", "قيد المراجعة"),
+        ("approved", "مقبول"),
+        ("rejected", "مرفوض"),
+    ]
+    TARGET_TYPE = [
+        ("account", "حساب"),
+        ("product", "منتج"),
+    ]
+
+    appeal_id = models.CharField(max_length=20, unique=True, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appeals')
+    
+    target_type = models.CharField(max_length=20, choices=TARGET_TYPE)
+    target_id = models.PositiveIntegerField() # ID of User or Product
+    
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    admin_response = models.TextField(blank=True, default='')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'طعن'
+        verbose_name_plural = 'الطعون'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.appeal_id:
+            import datetime
+            import string
+            import random
+            
+            # Format: APL-YEAR-RANDOM
+            year = datetime.datetime.now().year
+            rand = ''.join(random.choices(string.digits, k=4))
+            prefix = f"APL-{year}-{rand}"
+            
+            # Ensure uniqueness
+            while Appeal.objects.filter(appeal_id=prefix).exists():
+                rand = ''.join(random.choices(string.digits, k=4))
+                prefix = f"APL-{year}-{rand}"
+            self.appeal_id = prefix
+            
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.appeal_id} - {self.user.email}"

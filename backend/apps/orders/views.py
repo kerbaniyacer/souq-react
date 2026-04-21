@@ -5,8 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from apps.cart.models import Cart
-from .models import Order, OrderItem
-from .serializers import OrderSerializer, OrderCreateSerializer
+from .models import Order, OrderItem, PaymentProof
+from .serializers import OrderSerializer, OrderCreateSerializer, PaymentProofSerializer
 
 
 @extend_schema(
@@ -41,7 +41,10 @@ def order_list(request):
 @permission_classes([IsAuthenticated])
 def order_detail(request, pk):
     try:
-        order = Order.objects.prefetch_related('items').get(pk=pk, user=request.user)
+        if request.user.is_staff:
+            order = Order.objects.prefetch_related('items', 'proofs').get(pk=pk)
+        else:
+            order = Order.objects.prefetch_related('items', 'proofs').get(pk=pk, user=request.user)
     except Order.DoesNotExist:
         return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
     return Response(OrderSerializer(order).data)
@@ -187,30 +190,99 @@ def order_track(request, order_number):
     return Response(OrderSerializer(order).data)
     
     
-@extend_schema(tags=['orders'], summary='رفع وصل الدفع (CCP)')
-@api_view(['PATCH'])
+@extend_schema(tags=['orders'], summary='رفع وصل الدفع (CCP/BaridiMob)')
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def order_upload_receipt(request, pk):
+def payment_proof_upload(request, pk):
     try:
         order = Order.objects.get(pk=pk, user=request.user)
     except Order.DoesNotExist:
         return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
-        
-    if order.payment_method != Order.PaymentMethod.CCP:
+
+    if order.payment_method not in (Order.PaymentMethod.CCP, Order.PaymentMethod.BARIDIMOB):
         return Response({'detail': 'هذا الطلب لا يتطلب وصل دفع بريدي'}, status=status.HTTP_400_BAD_REQUEST)
+
+    seller_id = request.data.get('seller_id')
+    if not seller_id:
+        return Response({'detail': 'يجب تحديد التاجر المراد الدفع له'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify seller is part of this order
+    if not OrderItem.objects.filter(order=order, variant__product__seller_id=seller_id).exists():
+        return Response({'detail': 'هذا التاجر ليس جزءاً من هذا الطلب'}, status=status.HTTP_400_BAD_REQUEST)
+
+    image = request.FILES.get('image')
+    if not image:
+        return Response({'detail': 'يجب توفير صورة الوصل'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Create new proof linked to seller
+    proof = PaymentProof.objects.create(
+        order=order,
+        seller_id=seller_id,
+        image=image,
+        transaction_id=request.data.get('transaction_id', ''),
+        amount=request.data.get('amount') or None,
+    )
+
+    # Update order status to reflect that at least one proof was uploaded
+    order.payment_status = Order.PaymentStatus.PROOF_UPLOADED
+    order.save(update_fields=['payment_status', 'updated_at'])
+
+    return Response(OrderSerializer(order).data)
+
+
+@extend_schema(tags=['merchant'], summary='تأكيد الدفع')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def payment_proof_approve(request, pk):
+    # Here pk is the PaymentProof ID
+    try:
+        proof = PaymentProof.objects.get(pk=pk, seller=request.user)
+    except PaymentProof.DoesNotExist:
+        return Response({'detail': 'إثبات الدفع غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+
+    with transaction.atomic():
+        proof.status = PaymentProof.Status.APPROVED
+        proof.save(update_fields=['status', 'updated_at'])
+
+        order = proof.order
         
-    image = request.FILES.get('receipt_image')
-    tx_id = request.data.get('transaction_id')
-    
-    if not image and not tx_id:
-        return Response({'detail': 'يجب توفير صورة الوصل أو رقم العملة'}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if ALL sellers in this order have an approved proof
+        # 1. Get all unique sellers for this order
+        involved_sellers = set(OrderItem.objects.filter(order=order).values_list('variant__product__seller_id', flat=True))
         
-    if image:
-        order.receipt_image = image
-    if tx_id:
-        order.transaction_id = tx_id
+        # 2. Get all approved sellers for this order
+        approved_sellers = set(PaymentProof.objects.filter(order=order, status=PaymentProof.Status.APPROVED).values_list('seller_id', flat=True))
         
-    order.save()
+        if involved_sellers.issubset(approved_sellers):
+            order.payment_status = Order.PaymentStatus.PAID
+            order.status = Order.Status.CONFIRMED
+            order.save(update_fields=['payment_status', 'status', 'updated_at'])
+
+    return Response(OrderSerializer(order).data)
+
+
+@extend_schema(tags=['merchant'], summary='رفض الدفع')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def payment_proof_reject(request, pk):
+    try:
+        proof = PaymentProof.objects.get(pk=pk, seller=request.user)
+    except PaymentProof.DoesNotExist:
+        return Response({'detail': 'إثبات الدفع غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+
+    reason = request.data.get('reason', '')
+    if not reason:
+        return Response({'detail': 'يجب ذكر سبب الرفض'}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        proof.status = PaymentProof.Status.REJECTED
+        proof.rejection_reason = reason
+        proof.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+
+        order = proof.order
+        order.payment_status = Order.PaymentStatus.REJECTED
+        order.save(update_fields=['payment_status', 'updated_at'])
+
     return Response(OrderSerializer(order).data)
 
 
@@ -224,7 +296,7 @@ def merchant_order_list(request):
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
     orders = Order.objects.filter(
         items__variant__product__seller=request.user
-    ).distinct().prefetch_related('items')
+    ).distinct().prefetch_related('items', 'proofs')
     return Response(OrderSerializer(orders, many=True).data)
 
 
@@ -249,3 +321,26 @@ def merchant_order_status(request, pk):
     order.status = new_status
     order.save(update_fields=['status', 'updated_at'])
     return Response(OrderSerializer(order).data)
+
+
+@extend_schema(tags=['merchant'], summary='تفاصيل طلب التاجر')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def merchant_order_detail(request, pk):
+    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+        return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        # Check if the order contains at least one item from this seller
+        order = Order.objects.prefetch_related('items', 'proofs').get(
+            pk=pk, items__variant__product__seller=request.user
+        )
+    except Order.DoesNotExist:
+        return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Filter items and proofs to only show those belonging to this merchant
+    data = OrderSerializer(order).data
+    data['items'] = [i for i in data['items'] if i['seller_id'] == request.user.id]
+    data['proofs'] = [p for p in data['proofs'] if p['seller'] == request.user.id]
+    
+    return Response(data)

@@ -23,6 +23,13 @@ CORS_ALLOW_ALL_ORIGINS = True
 # Show emails in console by default, but allow .env override
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
+# Disable throttling in dev to prevent 429 storms during development
+REST_FRAMEWORK = {
+    **globals().get('REST_FRAMEWORK', {}),
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+}
+
 # Django Debug Toolbar (optional — install separately)
 INTERNAL_IPS = ['127.0.0.1']
 

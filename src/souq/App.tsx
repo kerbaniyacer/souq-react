@@ -1,6 +1,13 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from '@souq/components/layout/Layout';
+
+/** Scrolls to top on every route change */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname]);
+  return null;
+}
 
 // Eager-loaded (core user paths)
 import Home from '@souq/pages/Home';
@@ -17,17 +24,23 @@ import Register from '@souq/pages/auth/Register';
 import Profile from '@souq/pages/auth/Profile';
 import CompleteProfile from '@souq/pages/auth/CompleteProfile';
 import ForgotPassword from '@souq/pages/auth/ForgotPassword';
+import ResetPassword from '@souq/pages/auth/ResetPassword';
+import AccountSuspended from '@souq/pages/auth/AccountSuspended';
 import RegistrationSuccess from '@souq/pages/auth/RegistrationSuccess';
+import AppealForm from '@souq/pages/auth/AppealForm';
+import MyAppeals from '@souq/pages/auth/MyAppeals';
 
 // Lazy-loaded (merchant section)
 const MerchantDashboard = lazy(() => import('@souq/pages/merchant/MerchantDashboard'));
 const MerchantProducts = lazy(() => import('@souq/pages/merchant/MerchantProducts'));
 const MerchantProductForm = lazy(() => import('@souq/pages/merchant/MerchantProductForm'));
 const MerchantOrders = lazy(() => import('@souq/pages/merchant/MerchantOrders'));
+const MerchantOrderDetail = lazy(() => import('@souq/pages/merchant/MerchantOrderDetail'));
 
 // Lazy-loaded (admin section)
 const AdminDashboard = lazy(() => import('@souq/pages/admin/AdminDashboard'));
 const AdminUserDetail = lazy(() => import('@souq/pages/admin/AdminUserDetail'));
+const AdminAppeals = lazy(() => import('@souq/pages/admin/AdminAppeals'));
 const EmailGallery = lazy(() => import('@souq/pages/admin/emails/EmailGallery'));
 const WelcomeEmail = lazy(() => import('@souq/pages/admin/emails/WelcomeEmail'));
 const OtpEmail = lazy(() => import('@souq/pages/admin/emails/OtpEmail'));
@@ -44,10 +57,10 @@ const AccountDeletedEmail = lazy(() => import('@souq/pages/admin/emails/AccountD
 const ReportNotificationEmail = lazy(() => import('@souq/pages/admin/emails/ReportNotificationEmail'));
 
 import { useAuthStore } from '@souq/stores/authStore';
-import { useEffect } from 'react';
 import { useCartStore } from '@souq/stores/cartStore';
 import { useWishlistStore } from '@souq/stores/wishlistStore';
 import ToastContainer from '@souq/components/common/Toast';
+import OnboardingGuard from '@souq/components/auth/OnboardingGuard';
 
 function RouteLoader() {
   return (
@@ -80,7 +93,9 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { isAuthenticated, fetchProfile } = useAuthStore();
+  // Use specific selectors to avoid re-rendering on every store change
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const fetchProfile = useAuthStore((s) => s.fetchProfile);
   const { fetchCart, resetCart } = useCartStore();
   const { fetchWishlist, resetWishlist } = useWishlistStore();
 
@@ -93,10 +108,12 @@ export default function App() {
       resetCart();
       resetWishlist();
     }
-  }, [isAuthenticated, fetchProfile, fetchCart, fetchWishlist, resetCart, resetWishlist]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]); // Only isAuthenticated should trigger this — functions are stable
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ScrollToTop />
       <ToastContainer />
       <Suspense fallback={<RouteLoader />}>
         <Routes>
@@ -104,9 +121,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/complete-profile" element={
-            <PrivateRoute><CompleteProfile /></PrivateRoute>
-          } />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/account-suspended" element={<AccountSuspended />} />
+          <Route path="/registration-success" element={<RegistrationSuccess />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
 
           {/* Email previews (lazy — admin only) */}
           <Route path="/admin/emails" element={<AdminRoute><EmailGallery /></AdminRoute>} />
@@ -134,11 +152,15 @@ export default function App() {
             <Route path="/track-order" element={<TrackOrder />} />
 
             {/* Protected */}
-            <Route path="/checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
-            <Route path="/orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
-            <Route path="/orders/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
-            <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+            <Route path="/checkout" element={<PrivateRoute><OnboardingGuard><Checkout /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders" element={<PrivateRoute><OnboardingGuard><Orders /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders/:id" element={<PrivateRoute><OnboardingGuard><OrderDetail /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
             <Route path="/registration-success" element={<PrivateRoute><RegistrationSuccess /></PrivateRoute>} />
+            
+            {/* Appeals */}
+            <Route path="/appeals/new" element={<PrivateRoute><OnboardingGuard><AppealForm /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/appeals/list" element={<PrivateRoute><OnboardingGuard><MyAppeals /></OnboardingGuard></PrivateRoute>} />
 
             {/* Merchant (lazy) */}
             <Route path="/merchant/dashboard" element={<MerchantRoute><MerchantDashboard /></MerchantRoute>} />
@@ -146,11 +168,12 @@ export default function App() {
             <Route path="/merchant/products/add" element={<MerchantRoute><MerchantProductForm /></MerchantRoute>} />
             <Route path="/merchant/products/:id/edit" element={<MerchantRoute><MerchantProductForm /></MerchantRoute>} />
             <Route path="/merchant/orders" element={<MerchantRoute><MerchantOrders /></MerchantRoute>} />
-            <Route path="/merchant/orders/:id" element={<MerchantRoute><OrderDetail /></MerchantRoute>} />
+            <Route path="/merchant/orders/:id" element={<MerchantRoute><MerchantOrderDetail /></MerchantRoute>} />
 
             {/* Admin (lazy) */}
             <Route path="/admin-panel" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/users/:id" element={<AdminRoute><AdminUserDetail /></AdminRoute>} />
+            <Route path="/admin/appeals" element={<AdminRoute><AdminAppeals /></AdminRoute>} />
           </Route>
 
           {/* 404 */}

@@ -1,20 +1,35 @@
 from rest_framework import serializers
-from .models import Order, OrderItem
+from .models import Order, OrderItem, PaymentProof
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
     seller_id = serializers.IntegerField(source='variant.product.seller_id', read_only=True)
+    seller_name = serializers.CharField(source='variant.product.seller.username', read_only=True)
+    ccp_number = serializers.CharField(source='variant.product.seller.profile.ccp_number', read_only=True)
+    ccp_name = serializers.CharField(source='variant.product.seller.profile.ccp_name', read_only=True)
+    baridimob_id = serializers.CharField(source='variant.product.seller.profile.baridimob_id', read_only=True)
 
     class Meta:
         model = OrderItem
         fields = [
             'id', 'product_name', 'variant_name', 'variant_attributes',
-            'product_price', 'quantity', 'subtotal', 'seller_id',
+            'product_price', 'quantity', 'subtotal', 'seller_id', 'seller_name',
+            'ccp_number', 'ccp_name', 'baridimob_id',
+        ]
+
+
+class PaymentProofSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentProof
+        fields = [
+            'id', 'seller', 'image', 'transaction_id', 'amount', 'status',
+            'rejection_reason', 'created_at', 'updated_at',
         ]
 
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    proofs = PaymentProofSerializer(many=True, read_only=True)
 
     # Expose shipping fields with the frontend-friendly names
     full_name = serializers.CharField(source='shipping_full_name', read_only=True)
@@ -30,12 +45,12 @@ class OrderSerializer(serializers.ModelSerializer):
             # frontend-friendly aliases
             'full_name', 'phone', 'wilaya', 'baladia', 'address',
             'subtotal', 'shipping_cost', 'discount', 'total_amount',
-            'tracking_number', 'notes', 'items', 'created_at', 'updated_at',
+            'tracking_number', 'notes', 'items', 'proofs', 'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'order_number', 'status', 'payment_status',
             'subtotal', 'shipping_cost', 'total_amount',
-            'tracking_number', 'items', 'created_at', 'updated_at',
+            'tracking_number', 'items', 'proofs', 'created_at', 'updated_at',
         ]
 
 

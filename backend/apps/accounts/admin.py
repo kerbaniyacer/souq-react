@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Profile, LoginHistory
+from .models import User, Profile, LoginHistory, AdminActionLog
 
 
 @admin.register(User)
@@ -28,3 +28,11 @@ class LoginHistoryAdmin(admin.ModelAdmin):
     list_filter = ['logged_at']
     search_fields = ['user__email', 'ip_address']
     readonly_fields = ['user', 'ip_address', 'user_agent', 'logged_at']
+
+
+@admin.register(AdminActionLog)
+class AdminActionLogAdmin(admin.ModelAdmin):
+    list_display = ['admin_user', 'action', 'target_model', 'target_name', 'is_processed', 'created_at']
+    list_filter = ['action', 'target_model', 'is_processed', 'created_at']
+    search_fields = ['admin_user__username', 'target_name', 'reason']
+    readonly_fields = ['admin_user', 'action', 'target_model', 'target_id', 'target_name', 'reason', 'before_state', 'after_state', 'is_processed', 'created_at']

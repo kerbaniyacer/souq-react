@@ -1,6 +1,7 @@
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -11,6 +12,11 @@ from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, 
 import base64
 from django.core.files.base import ContentFile
 import uuid
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from .utils import get_password_reset_email_html, get_password_changed_email_html
 
 def decode_base64_file(data):
     """Helper to convert base64 string to ContentFile."""
@@ -115,22 +121,205 @@ def change_password(request):
     user.set_password(serializer.validated_data['new_password'])
     user.save()
     update_session_auth_hash(request, user)
+
+    # Send Notification Email from Backend
+    try:
+        email_html = get_password_changed_email_html(user.username)
+        send_mail(
+            'تم تغيير كلمة المرور بنجاح - سوق',
+            f'مرحباً {user.username}، تم تغيير كلمة مرور حسابك بنجاح.',
+            'noreply@souq.dz',
+            [user.email],
+            fail_silently=True,
+            html_message=email_html
+        )
+    except Exception as e:
+        print(f"Error sending password changed email: {e}")
+
     return Response({'detail': 'تم تغيير كلمة المرور بنجاح.'})
+
+@extend_schema(tags=['auth'], summary='طلب إعادة تعيين كلمة المرور')
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AuthRateThrottle])
+def password_reset_request(request):
+    email = request.data.get('email', '').strip()
+    if not email:
+        return Response({'detail': 'البريد الإلكتروني مطلوب.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(email__iexact=email)
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # In production, use the real domain. For now, localhost:5173
+        reset_url = f"http://localhost:5173/reset-password?uid={uid}&token={token}"
+        
+        email_html = get_password_reset_email_html(reset_url)
+        send_mail(
+            'إعادة تعيين كلمة المرور - سوق',
+            f'استلمنا طلباً لإعادة تعيين كلمة المرور. اتبع الرابط: {reset_url}',
+            'noreply@souq.dz',
+            [user.email],
+            fail_silently=False,
+            html_message=email_html
+        )
+        return Response({'detail': 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.'})
+    except User.DoesNotExist:
+        # Security best practice: don't reveal if user exists, but here the user specifically
+        # wants to know why they get "No matching email", so I'll return 404 for clarity.
+        return Response({'detail': 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'detail': f'خطأ أثناء إرسال البريد: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@extend_schema(tags=['auth'], summary='تأكيد إعادة تعيين كلمة المرور')
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_confirm(request):
+    uidb64 = request.data.get('uid')
+    token = request.data.get('token')
+    new_password = request.data.get('new_password')
+    
+    if not all([uidb64, token, new_password]):
+        return Response({'detail': 'جميع الحقول مطلوبة.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+        
+        if default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.save()
+            return Response({'detail': 'تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن.'})
+        else:
+            return Response({'detail': 'الرابط غير صالح أو منتهي الصلاحية.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return Response({'detail': 'الرابط غير صالح.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 from .serializers import CustomTokenObtainPairSerializer
+from django.conf import settings
+
+def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = False, request=None):
+    """
+    Sets the Refresh Token as a secure HttpOnly cookie.
+    Access Tokens are handled in-memory by the frontend (Zustand).
+    """
+    from django.conf import settings
+    
+    # Secure detection for production/ngrok stability
+    is_secure = False
+    if request:
+        is_secure = request.is_secure() or 'ngrok' in request.get_host().lower() or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https'
+    
+    # Fallback to settings
+    is_secure = is_secure or getattr(settings, 'SESSION_COOKIE_SECURE', True)
+    
+    # SameSite=None is required for cross-origin (ngrok on mobile) but REQUIRES Secure=True
+    samesite = 'None' if is_secure else 'Lax'
+    secure = is_secure
+
+    # Refresh token age: 7 days (standard) or 30 days if remember_me
+    refresh_max_age = (60 * 60 * 24 * 30) if remember_me else (60 * 60 * 24 * 7)
+
+    if refresh_token:
+        response.set_cookie(
+            key='refresh_token',
+            value=refresh_token,
+            httponly=True,
+            secure=secure,
+            samesite=samesite,
+            max_age=refresh_max_age,
+            path='/',
+        )
+
 
 class CustomLoginView(TokenObtainPairView):
-    """Custom login view to track LoginHistory on successful login."""
+    """Custom login view — issues JWT tokens AND sets them as HttpOnly cookies."""
     serializer_class = CustomTokenObtainPairSerializer
+    # Disable auth classes to avoid 401s from stale browser headers/cookies
+    authentication_classes = []
 
-# JWT refresh/logout are handled by simplejwt views — wired in urls.py
+    def post(self, request, *args, **kwargs):
+        remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            # Pass refresh_token to cookie helper, access_token stays in response data
+            _set_auth_cookies(
+                response,
+                refresh_token=response.data.get('refresh', ''),
+                remember_me=remember_me,
+                request=request
+            )
+            # Remove refresh from JSON response body for extra security if desired (optional)
+            # response.data.pop('refresh', None)
+        return response
+
+
+class CustomTokenRefreshView(APIView):
+    """Reads the refresh token from the HttpOnly cookie, rotates it, and sets new cookies."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        from rest_framework_simplejwt.views import TokenRefreshView
+        from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+
+        refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
+        if not refresh_token:
+            return Response({'detail': 'الرمز المميز للتجديد مفقود.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken as RT
+            token = RT(refresh_token)
+            new_access = str(token.access_token)
+
+            # Rotate refresh token if configured
+            if settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS'):
+                if settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION'):
+                    token.blacklist()
+                token.set_jti()
+                token.set_exp()
+                new_refresh = str(token)
+            else:
+                new_refresh = refresh_token
+
+            response = Response({'access': new_access, 'detail': 'تم تجديد الجلسة بنجاح.'})
+            _set_auth_cookies(response, refresh_token=new_refresh, request=request)
+            return response
+
+        except (TokenError, InvalidToken) as e:
+            return Response({'detail': 'رمز التجديد غير صالح أو منتهي الصلاحية.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class CustomLogoutView(APIView):
+    """Blacklists the refresh token and clears both JWT cookies."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
+        if refresh_token:
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken as RT
+                token = RT(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass  # Token already invalid — continue to clear cookies
+
+        response = Response({'detail': 'تم تسجيل الخروج بنجاح.'})
+        # Clear cookies
+        response.delete_cookie('access_token', path='/')
+        response.delete_cookie('refresh_token', path='/')
+        return response
+
+
+# JWT refresh/logout are handled above via cookie-aware views — see urls.py
 
 from rest_framework_simplejwt.tokens import RefreshToken
 import uuid
 
 @extend_schema(tags=['auth'], summary='الدخول عبر منصات التواصل (Google/Facebook)')
 @api_view(['POST'])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def social_login(request):
     email = request.data.get('email')
@@ -142,6 +331,7 @@ def social_login(request):
     if not email:
         return Response({'detail': 'Email is required for social login.'}, status=status.HTTP_400_BAD_REQUEST)
         
+    is_new = False
     try:
         user = User.objects.get(email=email)
         # Update provider bindings if they differ
@@ -150,16 +340,41 @@ def social_login(request):
             user.provider_id = provider_id
             user.save()
     except User.DoesNotExist:
-        # DO NOT create the user automatically. 
-        # Inform the frontend so it can redirect to registration.
+        # Create new user for social onboarding
+        # Use email prefix for username, ensuring uniqueness
+        base_username = email.split('@')[0]
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+            
+        user = User.objects.create(
+            email=email,
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            provider=provider,
+            provider_id=provider_id,
+            is_active=True
+        )
+        # Set a random password as it's a social account
+        user.set_unusable_password()
+        user.save()
+        
+        # Create Profile
+        from .models import Profile
+        Profile.objects.get_or_create(user=user)
+        is_new = True
+        
+    # Check if user is suspended
+    if user.status == 'suspended':
         return Response({
-            'detail': 'user_not_registered',
-            'email': email,
-            'first_name': first_name,
-            'last_name': last_name,
-            'provider': provider,
-            'provider_id': provider_id
-        }, status=status.HTTP_404_NOT_FOUND)
+            'detail': 'account_suspended',
+            'code': 'ACCOUNT_SUSPENDED',
+            'reason': user.suspension_reason or 'مخالفة شروط الاستخدام',
+            'user_id': user.id
+        }, status=status.HTTP_403_FORBIDDEN)
         
     # Track the successful login in LoginHistory
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -171,7 +386,7 @@ def social_login(request):
     user_agent = request.META.get('HTTP_USER_AGENT', '')
     
     is_known_ip = LoginHistory.objects.filter(user=user, ip_address=ip).exists()
-    if not is_known_ip:
+    if not is_known_ip and not is_new:
         # Clear any existing unverified OTPs for this user
         OTPVerification.objects.filter(user=user).delete()
         
@@ -201,11 +416,15 @@ def social_login(request):
     # Issue JWT tokens
     refresh = RefreshToken.for_user(user)
     
-    return Response({
+    response = Response({
         'access': str(refresh.access_token),
         'refresh': str(refresh),
-        'user': UserSerializer(user).data
+        'user': UserSerializer(user).data,
+        'is_new_social_user': is_new
     })
+    
+    _set_auth_cookies(response, refresh_token=str(refresh), request=request)
+    return response
 
 
 @extend_schema(tags=['auth'], summary='تأكيد تسجيل الدخول من IP جديد')
@@ -235,11 +454,14 @@ def verify_ip_login(request):
         
         refresh = RefreshToken.for_user(user)
         
-        return Response({
+        response = Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'user': UserSerializer(user).data
         })
+        
+        _set_auth_cookies(response, refresh_token=str(refresh), request=request)
+        return response
     except User.DoesNotExist:
         return Response({'detail': 'حساب غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -359,7 +581,21 @@ def admin_action_log(request):
     
     from .models import AdminActionLog
     from .serializers import AdminActionLogSerializer
+    
+    day = request.query_params.get('day')
     logs = AdminActionLog.objects.all().order_by('-created_at')
+    
+    if day:
+        from datetime import datetime as dt
+        try:
+            date_obj = dt.strptime(day, '%Y-%m-%d').date()
+            logs = logs.filter(created_at__date=date_obj)
+        except ValueError:
+            pass
+    else:
+        # Default to last 100 actions if no date filter
+        logs = logs[:100]
+
     return Response(AdminActionLogSerializer(logs, many=True).data)
 
 
@@ -383,9 +619,13 @@ def admin_manage_action(request, pk):
     try:
         if action_type == 'restore':
             AdminService.restore_item(request.user, log.target_model, log.target_id, log.id)
+            log.is_processed = True
+            log.save()
             return Response({'detail': 'تمت استعادة العنصر بنجاح.'})
         elif action_type == 'finalize_delete':
             AdminService.finalize_delete(request.user, log.target_model, log.target_id)
+            log.is_processed = True
+            log.save()
             return Response({'detail': 'تم الحذف النهائي بنجاح.'})
         else:
             return Response({'detail': 'عملية غير صالحة.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -402,8 +642,180 @@ def admin_report_list(request):
         return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
     
     reports = Report.objects.all().order_by('-created_at')
+    from .serializers import ReportSerializer
     serializer = ReportSerializer(reports, many=True)
     return Response(serializer.data)
+
+
+@extend_schema(tags=['appeals'], summary='تقديم طعن على تجميد')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_appeal(request):
+    """
+    Users submit an appeal for account or product suspension.
+    Rules:
+    1. Must be within 14 days of suspension.
+    2. Max 3 appeals per item.
+    """
+    from .models import Appeal
+    from .serializers import AppealSerializer
+    from apps.catalog.models import Product
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    target_type = request.data.get('target_type') # 'account' or 'product'
+    target_id = request.data.get('target_id')
+    reason = request.data.get('reason')
+    
+    if not all([target_type, target_id, reason]):
+        return Response({'detail': 'جميع الحقول مطلوبة.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 1. Fetch Target and check suspension
+    try:
+        if target_type == 'account':
+            target = request.user if str(request.user.id) == str(target_id) else User.objects.get(pk=target_id)
+            if target != request.user and not request.user.is_staff:
+                 return Response({'detail': 'غير مصرح لك بالطعن نيابة عن غيرك.'}, status=status.HTTP_403_FORBIDDEN)
+            suspended_at = target.suspended_at
+        elif target_type == 'product':
+            target = Product.objects.get(pk=target_id, seller=request.user)
+            suspended_at = target.suspended_at
+        else:
+            return Response({'detail': 'نوع مستهدف غير صحيح.'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return Response({'detail': 'العنصر المستهدف غير موجود أو لا تملكه.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not suspended_at:
+        return Response({'detail': 'هذا العنصر غير مجمد حالياً.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. Check 14-day deadline
+    if timezone.now() > suspended_at + timedelta(days=14):
+        return Response({'detail': 'لقد انتهت فترة الـ 14 يوماً المتاحة لتقديم الطعن.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 3. Check Appeal Limit (Max 3)
+    existing_count = Appeal.objects.filter(target_type=target_type, target_id=target_id).count()
+    if existing_count >= 3:
+        return Response({'detail': 'لقد استنفدت الحد الأقصى من الطعون لهذا العنصر (3).'}, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = AppealSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user, target_type=target_type, target_id=target_id)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(tags=['appeals'], summary='تقديم طعن عام (للحسابات المجمدة)')
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def public_submit_appeal(request):
+    """Allows suspended users to submit an appeal without logging in."""
+    email = request.data.get('email', '').strip()
+    reason = request.data.get('reason', '').strip()
+    
+    if not email or not reason:
+        return Response({'detail': 'البريد الإلكتروني والسبب مطلوبان.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        user = User.objects.get(email__iexact=email)
+        if user.status != User.Status.SUSPENDED:
+            return Response({'detail': 'هذا الحساب غير مجمد حالياً.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check for 14-day deadline
+        from django.utils import timezone
+        from datetime import timedelta
+        if user.suspended_at and timezone.now() > user.suspended_at + timedelta(days=14):
+            return Response({'detail': 'لقد انتهت المهلة المتاحة لتقديم طعن (14 يوماً).'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check limit (max 3)
+        from .models import Appeal
+        if Appeal.objects.filter(target_type='account', target_id=user.id).count() >= 3:
+            return Response({'detail': 'لقد استنفدت الحد الأقصى من الطعون.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        appeal = Appeal.objects.create(
+            user=user,
+            target_type='account',
+            target_id=user.id,
+            reason=reason
+        )
+        return Response({'detail': 'تم تقديم طعنك بنجاح. سيتم مراجعته من قبل الإدارة.', 'appeal_id': appeal.appeal_id})
+        
+    except User.DoesNotExist:
+        return Response({'detail': 'البريد الإلكتروني غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'detail': f'خطأ أثناء تقديم الطعن: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(tags=['appeals'], summary='قائمة الطعون الخاصة بالمستخدم')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_appeal_list(request):
+    from .models import Appeal
+    from .serializers import AppealSerializer
+    appeals = Appeal.objects.filter(user=request.user)
+    return Response(AppealSerializer(appeals, many=True).data)
+
+
+@extend_schema(tags=['admin'], summary='قائمة الطعون (للمسؤولين)')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_appeal_list(request):
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from .models import Appeal
+    from .serializers import AppealSerializer
+    appeals = Appeal.objects.all().order_by('-created_at')
+    return Response(AppealSerializer(appeals, many=True).data)
+
+
+@extend_schema(tags=['admin'], summary='معالجة الطعن (قبول/رفض)')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_manage_appeal(request, pk):
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from .models import Appeal
+    from .services import AdminService
+    from django.utils import timezone
+    
+    try:
+        appeal = Appeal.objects.get(pk=pk)
+    except Appeal.DoesNotExist:
+        return Response({'detail': 'الطعن غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    decision = request.data.get('status') # 'approved' or 'rejected'
+    admin_response = request.data.get('admin_response', '')
+
+    if decision not in ['approved', 'rejected']:
+        return Response({'detail': 'قرار غير صالح.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    appeal.status = decision
+    appeal.admin_response = admin_response
+    appeal.reviewed_at = timezone.now()
+    appeal.save()
+
+    if decision == 'approved':
+        # Automatically restore the item
+        try:
+            AdminService.restore_item(
+                admin_user=request.user,
+                target_type=appeal.target_type,
+                target_id=appeal.target_id,
+                reason=f"تم قبول الطعن رقم: {appeal.appeal_id}"
+            )
+        except Exception as e:
+            return Response({'detail': f'تم قبول الطعن ولكن فشلت الاستعادة التلقائية: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Mark related "Suspend" logs as processed so the UI updates correctly
+        from .models import AdminActionLog
+        AdminActionLog.objects.filter(
+            target_model=appeal.target_type,
+            target_id=appeal.target_id,
+            action='suspend',
+            is_processed=False
+        ).update(is_processed=True)
+
+    return Response({'detail': f'تم تحديث حالة الطعن إلى {decision}.'})
 
 
 @extend_schema(tags=['auth'], summary='تقديم بلاغ جديد')

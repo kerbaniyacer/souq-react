@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Camera, Save, Lock, Store, ShoppingBag, LayoutDashboard, Package, ClipboardList, ShieldCheck, Monitor, Globe, Clock } from 'lucide-react';
+import { User, Camera, Save, Lock, Store, ShoppingBag, LayoutDashboard, Package, ClipboardList, ShieldCheck, Monitor, Globe, Clock, CreditCard } from 'lucide-react';
 import { useAuthStore } from '@souq/stores/authStore';
 import { useToast } from '@souq/stores/toastStore';
 import AddressFields from '@souq/components/common/AddressFields';
@@ -8,6 +8,7 @@ import { sendPasswordChangedEmail } from '@souq/services/emailService';
 import { getLoginHistory } from '@souq/services/ipService';
 import { useRef } from 'react';
 import ImageCropperModal from '@souq/components/profile/ImageCropperModal';
+import StarRating from '@souq/components/reviews/StarRating';
 
 export default function Profile() {
   const { user, profile, fetchProfile, updateProfile, changePassword } = useAuthStore();
@@ -25,9 +26,11 @@ export default function Profile() {
     wilaya: '',
     baladia: '',
     bio: '',
-    store_name: '',
     store_description: '',
     store_category: '',
+    ccp_number: '',
+    ccp_name: '',
+    baridimob_id: '',
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -38,7 +41,8 @@ export default function Profile() {
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount to get fresh data
 
   useEffect(() => {
     if (profile) {
@@ -53,6 +57,9 @@ export default function Profile() {
         store_name: profile.store_name ?? '',
         store_description: profile.store_description ?? '',
         store_category: profile.store_category ?? '',
+        ccp_number: profile.ccp_number ?? '',
+        ccp_name: profile.ccp_name ?? '',
+        baridimob_id: profile.baridimob_id ?? '',
       });
     }
   }, [profile, user]);
@@ -106,7 +113,6 @@ export default function Profile() {
         );
         setPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
         toast.success('تم تغيير كلمة المرور بنجاح');
-        if (user?.email) sendPasswordChangedEmail(user.email, user.username ?? '').catch(() => {});
       } catch (err: any) {
         toast.error(err.message || 'تعذّر تغيير كلمة المرور');
       } finally {
@@ -157,20 +163,26 @@ export default function Profile() {
           <div className="flex-1">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-lg">{user?.username}</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">{user?.email}</p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               {profile?.is_seller ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-100 text-primary-700 text-xs rounded-full font-arabic font-medium">
+                <div className="flex items-center gap-2 px-3 py-1 bg-primary-100 text-primary-700 text-xs rounded-full font-arabic font-medium border border-primary-200">
                   <Store className="w-3 h-3" />
                   تاجر
-                </span>
+                  <span className="mx-1 text-primary-300">|</span>
+                  <StarRating rating={profile?.seller_rating ?? 0} size={10} />
+                  <span className="font-mono">({profile?.seller_reviews_count ?? 0})</span>
+                </div>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-arabic font-medium">
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-arabic font-medium border border-blue-200">
                   <ShoppingBag className="w-3 h-3" />
                   مشتري
-                </span>
+                  <span className="mx-1 text-blue-300">|</span>
+                  <StarRating rating={profile?.buyer_rating ?? 0} size={10} />
+                  <span className="font-mono">({profile?.buyer_reviews_count ?? 0})</span>
+                </div>
               )}
               {user?.is_staff && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-arabic font-medium">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-arabic font-medium border border-red-200">
                   مدير
                 </span>
               )}
@@ -281,6 +293,29 @@ export default function Profile() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">وصف المتجر</label>
               <textarea name="store_description" value={form.store_description} onChange={handleChange} rows={4}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic resize-none" />
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 dark:border-[#2E2E2E]">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-primary-500" /> معلومات الحساب البنكي (للمدفوعات)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">رقم الحساب البريدي (CCP)</label>
+                  <input name="ccp_number" value={form.ccp_number} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" placeholder="00XXX... المفتاح: XX" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">الاسم الكامل في الحساب</label>
+                  <input name="ccp_name" value={form.ccp_name} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" placeholder="الاسم كما يظهر في الصك" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">رقم الـ RIP أو البريدي موب (BaridiMob)</label>
+                  <input name="baridimob_id" value={form.baridimob_id} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic font-mono" placeholder="رقم الـ RIP المكون من 20 رقم" />
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -27,6 +27,13 @@ export interface Profile {
   store_category: string;
   store_logo: string | null;
   commercial_register: string;
+  ccp_number: string;
+  ccp_name: string;
+  baridimob_id: string;
+  seller_rating: number;
+  seller_reviews_count: number;
+  buyer_rating: number;
+  buyer_reviews_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -155,9 +162,15 @@ export interface Review {
   user: number;
   user_name: string;
   user_photo: string | null;
-  rating: 1 | 2 | 3 | 4 | 5;
+  rating: number;
   comment: string;
   verified: boolean;
+  is_visible: boolean;
+  official_reply?: {
+    user_name: string;
+    content: string;
+    created_at: string;
+  };
   created_at: string;
 }
 
@@ -185,8 +198,19 @@ export interface Cart {
 
 // ===== ORDER TYPES =====
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
-export type PaymentMethod = 'cod' | 'card' | 'ccp' | 'apple_pay';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentMethod = 'cod' | 'card' | 'ccp' | 'baridimob' | 'apple_pay';
+export type PaymentStatus = 'pending' | 'proof_uploaded' | 'paid' | 'rejected' | 'failed' | 'refunded' | 'cancelled';
+
+export interface PaymentProof {
+  id: number;
+  image: string;
+  transaction_id: string;
+  amount: number | null;
+  status: 'pending' | 'approved' | 'rejected';
+  rejection_reason: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface OrderItem {
   id: number;
@@ -216,12 +240,11 @@ export interface Order {
   discount: number;
   total_amount: number;
   tracking_number: string;
-  receipt_image?: string;
-  transaction_id?: string;
   user: number | User;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
+  proofs: PaymentProof[];
 }
 
 export interface CheckoutData {

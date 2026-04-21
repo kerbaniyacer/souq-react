@@ -25,6 +25,9 @@ export const registerSchema = z.object({
   store_name: z.string().optional().default(''),
   store_description: z.string().optional().default(''),
   store_category: z.string().optional().default(''),
+  ccp_number: z.string().optional().default(''),
+  ccp_name: z.string().optional().default(''),
+  baridimob_id: z.string().optional().default(''),
 }).refine((data) => data.password === data.password2, {
   message: 'كلمتا المرور غير متطابقتان',
   path: ['password2'],

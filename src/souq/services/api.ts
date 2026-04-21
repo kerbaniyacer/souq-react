@@ -117,9 +117,23 @@ export const ordersApi = {
     const res = await api.get('/merchant/orders/'); 
     return { data: res.data.results ?? res.data }; 
   },
-  merchantDetail: async (id: number | string) => { const res = await api.get(`/orders/${id}/`); return { data: res.data }; },
+  merchantDetail: async (id: number | string) => { const res = await api.get(`/merchant/orders/${id}/`); return { data: res.data }; },
   updateStatus: async (id: number | string, status: string) => {
     const res = await api.patch(`/merchant/orders/${id}/status/`, { status });
+    return { data: res.data };
+  },
+  uploadProof: async (orderId: number | string, formData: FormData) => {
+    const res = await api.post(`/orders/${orderId}/proof/upload/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return { data: res.data };
+  },
+  approveProof: async (proofId: number) => {
+    const res = await api.post(`/merchant/payments/${proofId}/approve/`);
+    return { data: res.data };
+  },
+  rejectProof: async (proofId: number, reason: string) => {
+    const res = await api.post(`/merchant/payments/${proofId}/reject/`, { reason });
     return { data: res.data };
   },
 };
@@ -127,8 +141,6 @@ export const ordersApi = {
 // ---- Wishlist (Django backend) ----
 export const wishlistApi = {
   get: async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return { data: [] };
     const res = await api.get('/wishlist/');
     return { data: res.data.results ?? res.data };
   },

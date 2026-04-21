@@ -69,7 +69,7 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.display(description='الإجمالي', ordering='total_amount')
     def formatted_total(self, obj):
-        return format_html('<strong>{:,.0f} دج</strong>', obj.total_amount)
+        return format_html('<strong>{} دج</strong>', f"{obj.total_amount:,.0f}")
 
 
 @admin.register(OrderItem)

@@ -9,6 +9,12 @@ import { useToast } from '@souq/stores/toastStore';
 import { useAuthStore } from '@souq/stores/authStore';
 import api from '@souq/services/authService';
 
+// Review Components
+import StarRating from '@souq/components/reviews/StarRating';
+import ReviewCard from '@souq/components/reviews/ReviewCard';
+import ReviewForm from '@souq/components/reviews/ReviewForm';
+import RatingSummary from '@souq/components/reviews/RatingSummary';
+
 const COLOR_MAP: Record<string, string> = {
   'أحمر': '#ef4444',
   'أزرق': '#3b82f6',
@@ -75,23 +81,29 @@ export default function ProductDetail() {
     }
   };
 
+  const fetchReviews = async (id: number) => {
+    try {
+      const res = await reviewsApi.list(id);
+      setReviews((res?.data as any)?.results ?? res?.data ?? []);
+    } catch {
+       setReviews([]);
+    }
+  };
+
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
-    Promise.all([
-      productsApi.detail(slug),
-      reviewsApi.list(0), // will refetch with real id below
-    ]).then(([pRes]) => {
-      const p: Product = pRes.data;
-      setProduct(p);
-      const main = p.variants?.find((v) => v.is_main) ?? p.variants?.[0];
-      setSelectedVariant(main ?? null);
-      setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? p.main_image ?? p.images?.[0]?.image ?? null);
-      // now fetch reviews with real id
-      return reviewsApi.list(p.id);
-    }).then((rRes) => {
-      setReviews((rRes?.data as any)?.results ?? rRes?.data ?? []);
-    }).catch(() => { }).finally(() => setLoading(false));
+    productsApi.detail(slug)
+      .then((pRes) => {
+        const p: Product = pRes.data;
+        setProduct(p);
+        const main = p.variants?.find((v) => v.is_main) ?? p.variants?.[0];
+        setSelectedVariant(main ?? null);
+        setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? p.main_image ?? p.images?.[0]?.image ?? null);
+        return fetchReviews(p.id);
+      })
+      .catch(() => { })
+      .finally(() => setLoading(false));
   }, [slug]);
 
   const handleAddToCart = async () => {
@@ -299,11 +311,7 @@ export default function ProductDetail() {
             <span className="text-gray-400">|</span>
             <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">({product.reviews_count} تقييم)</span>
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{Number(product.rating || 0).toFixed(1)}</span>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="w-3.5 h-3.5" fill={s <= Math.round(Number(product.rating || 0)) ? '#eab308' : 'none'} color={s <= Math.round(Number(product.rating || 0)) ? '#eab308' : '#eab308'} />
-              ))}
-            </div>
+            <StarRating rating={Number(product.rating || 0)} size={14} />
           </div>
 
           {/* Price Box */}
@@ -552,38 +560,49 @@ export default function ProductDetail() {
           })()}
 
           {activeTab === 'reviews' && (
-            reviews.length === 0 ? (
-              <p className="text-gray-400 dark:text-gray-500 font-arabic text-center py-6">لا توجد تقييمات بعد</p>
-            ) : (
-              <div className="space-y-4">
-                {reviews.map((r) => (
-                  <div key={r.id} className="p-4 border border-gray-100 dark:border-[#2E2E2E] rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/20 rounded-full overflow-hidden flex items-center justify-center text-primary-600 font-bold text-sm">
-                          {r.user_photo
-                            ? <img src={r.user_photo} alt="" className="w-full h-full object-cover" />
-                            : (r.user_name?.[0]?.toUpperCase() ?? '؟')}
-                        </div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 font-arabic">{r.user_name}</span>
-                        {r.verified && (
-                          <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded-full font-arabic">مشتري موثّق</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className="w-3.5 h-3.5" fill={s <= r.rating ? '#f59e0b' : 'none'} color={s <= r.rating ? '#f59e0b' : '#d1d5db'} />
-                        ))}
-                      </div>
+            <div className="space-y-10">
+              {/* Summary Stats */}
+              <RatingSummary reviews={reviews} averageRating={Number(product.rating || 0)} />
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                {/* Review Form - Left Side on Desktop */}
+                <div className="lg:col-span-1">
+                  {isAuthenticated ? (
+                    <ReviewForm 
+                      productId={String(product.id)} 
+                      onSuccess={() => {
+                        fetchReviews(product.id);
+                        // refresh product for new rating
+                        productsApi.detail(slug!).then(res => setProduct(res.data));
+                      }} 
+                    />
+                  ) : (
+                    <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-800 text-center">
+                      <p className="text-sm text-gray-500 font-arabic mb-4">يجب عليك تسجيل الدخول لإضافة تقييم</p>
+                      <Link to="/login" className="text-primary-600 font-bold font-arabic hover:underline">سجل الدخول الآن ←</Link>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 font-arabic leading-relaxed">{r.comment}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mt-2">
-                      {new Date(r.created_at).toLocaleDateString('ar-DZ')}
-                    </p>
-                  </div>
-                ))}
+                  )}
+                </div>
+
+                {/* Reviews List - Right Side on Desktop */}
+                <div className="lg:col-span-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-6 px-2">
+                    آراء العملاء ({reviews.length})
+                  </h3>
+                  {reviews.length === 0 ? (
+                    <div className="text-center py-10 bg-gray-50/50 dark:bg-gray-800/10 rounded-3xl">
+                      <p className="text-gray-400 dark:text-gray-500 font-arabic">لا توجد تقييمات لهذا المنتج بعد. كن أول من يقيمه!</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {reviews.map((r) => (
+                        <ReviewCard key={r.id} review={r as any} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            )
+            </div>
           )}
         </div>
       </div>

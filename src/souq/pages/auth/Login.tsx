@@ -10,10 +10,13 @@ import OtpModal from '@souq/components/common/OtpModal';
 import { verifyIpOtpDjango, saveTokens } from '@souq/services/authService';
 import { loginSchema, type LoginFormData } from '@souq/lib/schemas';
 import type { User } from '@souq/types';
+import SuspensionModal from '@souq/components/auth/SuspensionModal';
 
 export default function Login() {
   const [showPass, setShowPass] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [otpModalData, setOtpModalData] = useState<{ isOpen: boolean; email: string }>({ isOpen: false, email: '' });
+  const [suspensionData, setSuspensionData] = useState<{ isOpen: boolean; userId: number }>({ isOpen: false, userId: 0 });
 
   const { login, loginSocial } = useAuthStore();
   const toast = useToast();
@@ -31,16 +34,25 @@ export default function Login() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password);
+      await login(data.email, data.password, rememberMe);
       toast.success('تم تسجيل الدخول بنجاح! 👋');
       navigate(from, { replace: true });
     } catch (err: any) {
-      console.log('Login error caught:', err);
+      if (err?.type === 'ONBOARDING_REQUIRED') {
+        toast.info('يرجى إكمال ملفك الشخصي أولاً.');
+        navigate('/complete-profile', { replace: true });
+        return;
+      }
       if (err?.type === 'VERIFICATION_REQUIRED') {
-        console.log('Verification required for:', err.email);
         setOtpModalData({ isOpen: true, email: err.email });
         return;
       }
+      if (err?.type === 'ACCOUNT_SUSPENDED') {
+        navigate(`/account-suspended?email=${encodeURIComponent(err.email)}&reason=${encodeURIComponent(err.reason)}`);
+        return;
+      }
+      
+      const errorMessage = err.response?.data?.detail ?? '';
       console.error('Login failed with error:', err);
       toast.error(err.message ?? err.response?.data?.detail ?? 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
     }
@@ -49,7 +61,7 @@ export default function Login() {
   const handleVerifyOtp = async (otp: string) => {
     const tokens = await verifyIpOtpDjango(otpModalData.email, otp);
     saveTokens(tokens);
-    await loginSocial(tokens.user as unknown as User, tokens.access);
+    await loginSocial(tokens.user as unknown as User, tokens.access, tokens.refresh);
     setOtpModalData({ isOpen: false, email: '' });
     toast.success('تم التحقق وتسجيل الدخول بنجاح!');
     navigate(from, { replace: true });
@@ -125,6 +137,34 @@ export default function Login() {
               )}
             </div>
 
+            {/* Remember Me row */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer group" htmlFor="remember-me">
+                <div
+                  onClick={() => setRememberMe(v => !v)}
+                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${
+                    rememberMe
+                      ? 'bg-primary-400 border-primary-400'
+                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E1E1E] group-hover:border-primary-300'
+                  }`}
+                >
+                  {rememberMe && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <input
+                  type="checkbox"
+                  id="remember-me"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="sr-only"
+                />
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-arabic select-none">تذكرني</span>
+              </label>
+            </div>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -151,6 +191,11 @@ export default function Login() {
         email={otpModalData.email} 
         onVerify={handleVerifyOtp} 
         onCancel={() => setOtpModalData({ isOpen: false, email: '' })} 
+      />
+      <SuspensionModal 
+        isOpen={suspensionData.isOpen}
+        userId={suspensionData.userId}
+        onClose={() => setSuspensionData({ isOpen: false, userId: 0 })}
       />
     </div>
   );

@@ -135,6 +135,23 @@ export default function ProductCard({ product }: Props) {
             <span className="text-xs text-gray-400 dark:text-gray-500 mr-1">({product.reviews_count})</span>
           </div>
 
+          {/* Stock badge — same logic as ProductDetail.tsx */}
+          {mainVariant && (() => {
+            const status = (mainVariant as any).stock_status || (mainVariant.is_in_stock ? 'high' : 'out_of_stock');
+            const config: Record<string, { text: string; classes: string }> = {
+              high:          { text: 'متوفر في المخزن',                                           classes: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
+              medium:        { text: 'كمية محدودة',                                               classes: 'text-orange-600 bg-orange-50 dark:bg-orange-900/10' },
+              low:           { text: `على وشك النفاذ - بقي ${mainVariant.stock} فقط`,             classes: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+              out_of_stock:  { text: 'غير متوفر',                                                 classes: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+            };
+            const { text, classes } = config[status] || config.out_of_stock;
+            return (
+              <span className={`inline-block text-xs font-arabic px-2.5 py-1 rounded-md font-bold ${classes}`}>
+                {text}
+              </span>
+            );
+          })()}
+
           {/* Price */}
           {mainVariant ? (
             <div className="flex items-center gap-2">

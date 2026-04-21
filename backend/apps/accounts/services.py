@@ -43,7 +43,10 @@ class AdminService:
             before_state = cls._get_item_snapshot(item)
             
             item.status = 'suspended'
-            item.is_active = False # Deactivate so it doesn't show up in listings
+            # Only deactivate products, not users, so users can still see why they are suspended and appeal.
+            if not isinstance(item, User):
+                item.is_active = False 
+            
             item.suspended_at = timezone.now()
             item.appeal_deadline = timezone.now() + timedelta(days=14)
             item.suspension_reason = reason
@@ -53,12 +56,12 @@ class AdminService:
             cls._create_log(admin, AdminActionLog.Action.SUSPEND, item, reason, before_state, after_state)
 
     @classmethod
-    def restore_item(cls, admin, item_type, item_id, log_id=None):
+    def restore_item(cls, admin_user, target_type, target_id, reason=None):
         with transaction.atomic():
-            if item_type == 'User':
-                item = User.objects.get(id=item_id)
+            if target_type.lower() in ['user', 'account']:
+                item = User.objects.get(id=target_id)
             else:
-                item = Product.objects.get(id=item_id)
+                item = Product.objects.get(id=target_id)
             
             before_state = cls._get_item_snapshot(item)
             
@@ -69,8 +72,8 @@ class AdminService:
             item.suspension_reason = None
             item.save()
             
-            after_state = cls._get_item_snapshot(item)
-            cls._create_log(admin, AdminActionLog.Action.RESTORE, item, 'إلغاء التجميد من قبل المسؤول', before_state, after_state)
+            # Note: We stopped creating a new card for 'Restore' per user request to avoid redundancy.
+            # The original suspension card will be marked as processed instead.
 
     @classmethod
     def finalize_delete(cls, admin, item_type, item_id):
@@ -82,14 +85,8 @@ class AdminService:
             
             before_state = cls._get_item_snapshot(item)
             
-            # Physical deletion or terminal status
-            # For now, we set status to 'deleted' and is_active to False. 
-            # In a real SaaS, we keep it for 30 more days then hard delete.
-            item.status = 'deleted'
-            item.is_active = False
-            item.save()
+            # Physical deletion
+            item.delete()
             
-            cls._create_log(admin, AdminActionLog.Action.PERMANENT_DELETE, item, 'حذف نهائي بعد مراجعة المسؤول', before_state, {'status': 'deleted'})
-            
-            # If the user wants a hard delete:
-            # item.delete() 
+            # Note: We stopped creating a new card for 'Permanent Delete' per user request to avoid redundancy.
+            # The original suspension card will be marked as processed instead.
