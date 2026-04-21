@@ -166,8 +166,8 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
       await addItem(activeVariant.id, quantity);
       toast.success('تمت الإضافة إلى السلة ✓');
       onClose();
-    } catch {
-      toast.error('تعذّر إضافة المنتج');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'تعذّر إضافة المنتج');
     } finally {
       setIsAdding(false);
     }

@@ -152,10 +152,10 @@ export default function Home() {
           productsApi.list({ page_size: 200 }),
         ]);
 
-        if (featuredRes.status === 'fulfilled') setFeaturedProducts(featuredRes.value.data.results ?? featuredRes.value.data);
-        if (newRes.status === 'fulfilled') setNewProducts(newRes.value.data.results ?? newRes.value.data);
-        if (catRes.status === 'fulfilled') setCategories(catRes.value.data.results ?? catRes.value.data);
-        if (allRes.status === 'fulfilled') setAllProducts(allRes.value.data.results ?? allRes.value.data);
+        if (featuredRes.status === 'fulfilled') setFeaturedProducts(featuredRes.value.data);
+        if (newRes.status === 'fulfilled') setNewProducts(newRes.value.data);
+        if (catRes.status === 'fulfilled') setCategories(catRes.value.data);
+        if (allRes.status === 'fulfilled') setAllProducts(allRes.value.data);
       } finally {
         setLoading(false);
       }
@@ -165,10 +165,12 @@ export default function Home() {
 
   const categoriesWithCount = useMemo(() => {
     const countMap: Record<string, number> = {};
-    allProducts.forEach((p) => {
-      const catSlug = p.category?.slug;
-      if (catSlug) countMap[catSlug] = (countMap[catSlug] || 0) + 1;
-    });
+    if (Array.isArray(allProducts)) {
+      allProducts.forEach((p) => {
+        const catSlug = p.category?.slug;
+        if (catSlug) countMap[catSlug] = (countMap[catSlug] || 0) + 1;
+      });
+    }
     return categories
       .filter((c) => !c.parent)
       .map((c) => ({ ...c, products_count: countMap[c.slug] || 0 }));

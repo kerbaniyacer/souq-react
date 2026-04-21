@@ -95,13 +95,18 @@ export default function ProductDetail() {
   const loading = productLoading;
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      toast.info('يرجى تسجيل الدخول لإضافة المنتجات إلى السلة');
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
     const target = matchedVariant ?? selectedVariant;
     if (!target) return;
     try {
       await addToCart(target.id, quantity);
       toast.success('تمت الإضافة إلى السلة');
-    } catch {
-      toast.error('تعذّر إضافة المنتج');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'تعذّر إضافة المنتج');
     }
   };
 

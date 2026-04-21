@@ -125,11 +125,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # We accept 'email' or 'username' keys, whichever the frontend sends
         raw_identifier = attrs.get('email') or attrs.get('username') or attrs.get(username_field) or ''
         identifier = raw_identifier.strip()
-        
-        # Also strip password just in case of trailing spaces during copy-paste
-        password = (attrs.get('password') or '').strip()
-        if password:
-            attrs['password'] = password
 
         if identifier:
             from django.contrib.auth import get_user_model
@@ -145,19 +140,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 # Still set it so authenticate() gets the attempt with the stripped value
                 attrs[username_field] = identifier
 
-        # 2. Call super().validate which performs authenticaton
+        # 2. Call super().validate which performs authentication
         try:
             data = super().validate(attrs)
         except Exception as e:
-            # If standard authentication failed, let's try to find out WHY to help the user
+            # If standard authentication failed, let's find out WHY to help the user
             if identifier:
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
                 user_check = User.objects.filter(Q(email__iexact=identifier) | Q(username__iexact=identifier)).first()
+                
                 if user_check:
-                    if not user_check.is_active:
-                        from rest_framework.exceptions import AuthenticationFailed
-                        raise AuthenticationFailed({"detail": "الحساب غير نشط. يرجى مراجعة البريد الإلكتروني لتفعيله.", "code": "user_inactive"})
+                    # 1. Check if the account is suspended (highest priority)
                     if user_check.status == User.Status.SUSPENDED:
                         from rest_framework.exceptions import PermissionDenied
                         raise PermissionDenied({
@@ -166,7 +160,28 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                             "reason": user_check.suspension_reason or "مخالفة شروط الاستخدام",
                             "email": user_check.email
                         })
-            raise e
+                    
+                    # 2. Check if the account is inactive
+                    if not user_check.is_active:
+                        from rest_framework.exceptions import AuthenticationFailed
+                        raise AuthenticationFailed({
+                            "detail": "الحساب غير نشط. يرجى مراجعة البريد الإلكتروني لتفعيله.", 
+                            "code": "user_inactive"
+                        })
+                    
+                    # 3. If user exists, is active, and NOT suspended, then it must be a wrong password
+                    from rest_framework.exceptions import AuthenticationFailed
+                    raise AuthenticationFailed({
+                        "detail": "كلمة المرور غير صحيحة. يرجى التأكد والمحاولة مرة أخرى.",
+                        "code": "invalid_password"
+                    })
+            
+            # If we couldn't find the user at all
+            from rest_framework.exceptions import AuthenticationFailed
+            raise AuthenticationFailed({
+                "detail": "لا يوجد حساب مرتبط بهذه البيانات. يرجى التأكد من البريد الإلكتروني.",
+                "code": "user_not_found"
+            })
 
         user = self.user
         request = self.context.get('request')

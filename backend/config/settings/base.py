@@ -232,3 +232,6 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@souq.dz')
 
 
+
+# -- Frontend --------------------------------------------------------------
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')

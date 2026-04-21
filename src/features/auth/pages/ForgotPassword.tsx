@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, KeyRound, ArrowRight, ShoppingBag, CheckCircle } from 'lucide-react';
-import axios from 'axios';
+import djangoApi from '@features/auth/services/authService';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -14,8 +14,8 @@ export default function ForgotPassword() {
     setError('');
     setLoading(true);
     try {
-      // In a real Django setup, we'd call a reset endpoint
-      await axios.post('/api/auth/password-reset/', { email: email.trim() });
+      // Use djangoApi which has the correct baseURL (/api)
+      await djangoApi.post('/auth/password-reset/', { email: email.trim() });
       setSent(true);
     } catch (err: any) {
       if (err.response?.status === 404) {

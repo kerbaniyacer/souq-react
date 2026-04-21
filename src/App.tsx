@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { refreshAccessToken } from '@features/auth/services/authService';
 import Layout from '@shared/components/layout/Layout';
 
 /** Scrolls to top on every route change */
@@ -93,23 +94,34 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  // Use specific selectors to avoid re-rendering on every store change
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const fetchProfile = useAuthStore((s) => s.fetchProfile);
+  const logout = useAuthStore((s) => s.logout);
   const { fetchCart, resetCart } = useCartStore();
   const { fetchWishlist, resetWishlist } = useWishlistStore();
 
+  // 1. Boot effect: If we think we're authenticated but have no token, try refreshing once.
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !accessToken) {
+      refreshAccessToken().catch(() => {
+        // If refresh fails at boot, the user session is truly dead
+        logout();
+      });
+    }
+  }, [isAuthenticated, accessToken, logout]);
+
+  // 2. Data fetching effect: only when we have a token (or if we are totally logged out to reset)
+  useEffect(() => {
+    if (isAuthenticated && accessToken) {
       fetchProfile();
       fetchCart();
       fetchWishlist();
-    } else {
+    } else if (!isAuthenticated) {
       resetCart();
       resetWishlist();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]); // Only isAuthenticated should trigger this — functions are stable
+  }, [isAuthenticated, accessToken, fetchProfile, fetchCart, fetchWishlist, resetCart, resetWishlist]);
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

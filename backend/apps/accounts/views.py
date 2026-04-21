@@ -13,6 +13,7 @@ import base64
 from django.core.files.base import ContentFile
 import uuid
 from django.core.mail import send_mail
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -152,8 +153,8 @@ def password_reset_request(request):
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # In production, use the real domain. For now, localhost:5173
-        reset_url = f"http://localhost:5173/reset-password?uid={uid}&token={token}"
+        # Use the configured frontend URL
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
         
         email_html = get_password_reset_email_html(reset_url)
         send_mail(
@@ -198,14 +199,12 @@ def password_reset_confirm(request):
 
 
 from .serializers import CustomTokenObtainPairSerializer
-from django.conf import settings
 
 def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = False, request=None):
     """
     Sets the Refresh Token as a secure HttpOnly cookie.
     Access Tokens are handled in-memory by the frontend (Zustand).
     """
-    from django.conf import settings
     
     # Secure detection for production/ngrok stability
     is_secure = False

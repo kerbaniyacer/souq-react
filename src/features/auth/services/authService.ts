@@ -34,12 +34,21 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+export async function refreshAccessToken() {
+  const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
+    withCredentials: true,
+    headers: { 'ngrok-skip-browser-warning': 'true' }
+  });
+  const newAccessToken = res.data.access;
+  useAuthStore.getState().setAccessToken(newAccessToken);
+  return newAccessToken;
+}
+
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // If 401 and not already retried
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -56,30 +65,14 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh endpoint
-        // Browser automatically sends the refresh_token HttpOnly cookie
-        const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
-          withCredentials: true,
-          headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-
-        const newAccessToken = res.data.access;
-        
-        // Update store
-        useAuthStore.getState().setAccessToken(newAccessToken);
-        
-        // Process queue
+        const newAccessToken = await refreshAccessToken();
         processQueue(null, newAccessToken);
         isRefreshing = false;
-
-        // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         isRefreshing = false;
-        
-        // If refresh fails, session is dead — force logout
         useAuthStore.getState().logout();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

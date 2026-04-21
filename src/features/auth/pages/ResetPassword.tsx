@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { KeyRound, Lock, Eye, EyeOff, ShoppingBag, CheckCircle, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import djangoApi from '@features/auth/services/authService';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -39,7 +39,7 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      await axios.post('/api/auth/password-reset/confirm/', {
+      await djangoApi.post('/auth/password-reset/confirm/', {
         uid,
         token,
         new_password: newPassword
