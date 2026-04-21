@@ -5,6 +5,8 @@ import { useAuthStore } from '@souq/stores/authStore';
 import { useToast } from '@souq/stores/toastStore';
 import AddressFields from '@souq/components/common/AddressFields';
 import axios from 'axios';
+import { env } from '@souq/lib/env';
+
 
 export default function CompleteProfile() {
   const { profile, user, fetchProfile, finalizeLogin, isAuthenticated } = useAuthStore();
@@ -61,7 +63,7 @@ export default function CompleteProfile() {
         : { Authorization: `Bearer ${localStorage.getItem('access_token')}` };
 
       await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api/auth/complete-profile/`,
+        `${env.apiBaseUrl}/api/auth/complete-profile/`,
         {
           is_seller: isSeller,
           phone: form.phone,

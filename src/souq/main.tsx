@@ -14,7 +14,10 @@ const queryClient = new QueryClient({
   },
 })
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string ?? ''
+import { env } from '@souq/lib/env'
+
+const GOOGLE_CLIENT_ID = env.googleClientId
+
 
 // تطبيق الوضع الداكن فوراً قبل تحميل React لمنع الوميض
 const savedTheme = localStorage.getItem('theme-storage');

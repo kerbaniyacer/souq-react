@@ -7,6 +7,8 @@ import { saveTokens, loginSocialDjango } from '@souq/services/authService';
 import type { User } from '@souq/types';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { env } from '@souq/lib/env';
+
 
 /* ───── أيقونة Google ───── */
 function GoogleIcon({ spinning }: { spinning?: boolean }) {
@@ -121,7 +123,7 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
   });
 
   const handleGoogleClick = () => {
-    const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+    const clientId = env.googleClientId;
     if (!clientId || clientId.startsWith('your-') || !clientId.includes('.apps.googleusercontent.com')) {
       toast.error('الـ Client ID لـ Google غير صحيح — يجب أن ينتهي بـ .apps.googleusercontent.com');
       return;
@@ -134,9 +136,9 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
      Facebook
   ────────────────────────────────────────── */
   const handleFacebookClick = async () => {
-    const appId = (import.meta.env.VITE_FACEBOOK_APP_ID as string) || '';
+    const appId = env.facebookAppId;
     if (!appId || appId.startsWith('your-')) {
-      toast.error('يرجى إعداد NEXT_PUBLIC_FACEBOOK_APP_ID في ملف .env');
+      toast.error('يرجى إعداد VITE_FACEBOOK_APP_ID في ملف .env');
       return;
     }
     if (!isSdkLoaded) {

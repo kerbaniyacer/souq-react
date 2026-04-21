@@ -210,7 +210,8 @@ export default function InteractiveHero() {
           const angle = (Math.PI / 3) * i - Math.PI / 6;
           const px = Math.cos(angle) * s;
           const py = Math.sin(angle) * s;
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         }
         ctx.closePath();
         ctx.stroke();

@@ -209,13 +209,13 @@ export default function Cart() {
                         )}
 
                         {/* Attribute chips */}
-                        {attrEntries.length > 0 && (
+                        {attrEntries.length > 0 ? (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {attrEntries.map(([k, v]) => (
                               <AttrChip key={k} attrKey={k} value={v} />
                             ))}
                           </div>
-                        )}
+                        ) : null}
 
                         {/* SKU */}
                         <p className="text-[11px] text-gray-400 dark:text-gray-600 font-mono mt-1.5 flex items-center gap-1">

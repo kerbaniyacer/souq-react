@@ -324,7 +324,8 @@ export default function MerchantProductForm() {
   const toggleSelectVariant = (idx: number) => {
     setSelectedVariants((p) => {
       const next = new Set(p);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
       return next;
     });
   };

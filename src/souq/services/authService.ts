@@ -5,9 +5,11 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@souq/stores/authStore';
+import { env } from '@souq/lib/env';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: env.apiUrl,
+
   withCredentials: true,
   headers: {
     'ngrok-skip-browser-warning': 'true',
@@ -56,7 +58,7 @@ api.interceptors.response.use(
       try {
         // Call refresh endpoint
         // Browser automatically sends the refresh_token HttpOnly cookie
-        const res = await axios.post('/api/auth/refresh/', {}, { 
+        const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
           withCredentials: true,
           headers: { 'ngrok-skip-browser-warning': 'true' }
         });
@@ -130,7 +132,7 @@ export interface DjangoProfile {
 
 export async function loginDjango(email: string, password: string, rememberMe = false): Promise<AuthTokens> {
   try {
-    const res = await axios.post('/api/auth/login/', 
+    const res = await axios.post(`${env.apiUrl}/auth/login/`, 
       { email, password, remember_me: rememberMe }, 
       { 
         withCredentials: true,
@@ -170,15 +172,40 @@ export async function loginSocialDjango(data: {
   last_name: string;
   photo?: string;
 }): Promise<AuthTokens & { user: DjangoUser }> {
-  const res = await axios.post('/api/auth/social/', data, { 
-    withCredentials: true,
-    headers: { 'ngrok-skip-browser-warning': 'true' }
-  });
-  return res.data;
+  try {
+    const res = await axios.post(`${env.apiUrl}/auth/social/`, data, { 
+      withCredentials: true,
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    return res.data;
+  } catch (err: any) {
+    const status = err.response?.status;
+    const responseData = err.response?.data;
+    const detail = Array.isArray(responseData?.detail) ? responseData.detail[0] : (responseData?.detail || '');
+    const stringDetail = String(detail).toLowerCase();
+
+    // Mapping for common auth issues:
+    if (status === 403 && responseData?.code === 'ACCOUNT_SUSPENDED') {
+      throw {
+        type: 'ACCOUNT_SUSPENDED',
+        reason: responseData.reason || 'مخالفة شروط الاستخدام',
+        email: responseData.email || data.email
+      };
+    }
+
+    if (status === 400 && stringDetail.includes('verification_required')) {
+      throw {
+        type: 'VERIFICATION_REQUIRED',
+        email: responseData.email || data.email
+      };
+    }
+
+    throw err;
+  }
 }
 
 export async function verifyIpOtpDjango(email: string, otp: string): Promise<AuthTokens & { user: DjangoUser }> {
-  const res = await axios.post('/api/auth/verify-ip/', { email, otp }, { 
+  const res = await axios.post(`${env.apiUrl}/auth/verify-ip/`, { email, otp }, { 
     withCredentials: true,
     headers: { 'ngrok-skip-browser-warning': 'true' }
   });
@@ -186,7 +213,7 @@ export async function verifyIpOtpDjango(email: string, otp: string): Promise<Aut
 }
 
 export async function registerDjango(data: any) {
-  const res = await axios.post('/api/auth/register/', data, {
+  const res = await axios.post(`${env.apiUrl}/auth/register/`, data, {
     headers: { 'ngrok-skip-browser-warning': 'true' }
   });
   return res.data;
@@ -194,7 +221,7 @@ export async function registerDjango(data: any) {
 
 export async function logoutDjango() {
   try {
-    await axios.post('/api/auth/logout/', {}, { 
+    await axios.post(`${env.apiUrl}/auth/logout/`, {}, { 
       withCredentials: true,
       headers: { 'ngrok-skip-browser-warning': 'true' }
     });

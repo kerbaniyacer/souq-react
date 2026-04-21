@@ -324,11 +324,11 @@ export default function ProductDetail() {
                       -{activeVariant.discount}%
                     </span>
                   )}
-                  {hasDiscount && (
+                  {hasDiscount ? (
                     <span className="text-lg text-gray-500 line-through font-mono">
                       {Number(activeVariant.old_price).toLocaleString('ar-DZ')} د.ج
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <span className="text-3xl font-bold text-primary-600 dark:text-[#6dbf8b] font-mono">
                   {Number(activeVariant.price).toLocaleString('ar-DZ')} د.ج

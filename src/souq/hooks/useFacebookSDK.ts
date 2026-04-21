@@ -27,11 +27,13 @@ export interface FacebookUserData {
   picture?: { data: { url: string } };
 }
 
+import { env } from '@souq/lib/env';
+
 export function useFacebookSDK() {
   const [isSdkLoaded, setIsSdkLoaded] = useState(false);
 
   useEffect(() => {
-    const appId = (import.meta.env.VITE_FACEBOOK_APP_ID as string) || '';
+    const appId = env.facebookAppId;
     if (!appId || appId === 'your-facebook-app-id') {
       setIsSdkLoaded(false);
       return;

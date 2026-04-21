@@ -1,0 +1,170 @@
+﻿
+> souq-react@0.1.0 lint
+> eslint .
+
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\auth\OnboardingGuard.tsx
+  26:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\common\FloatingHelpButton.tsx
+  81:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  81:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\common\InteractiveHero.tsx
+  213:11  error    Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  262:9   warning  'time' is assigned a value but never used                              @typescript-eslint/no-unused-vars
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\common\OtpModal.tsx
+  29:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\common\SocialAuthButtons.tsx
+   75:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\layout\Navbar.tsx
+  41:107  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\reviews\ReviewForm.tsx
+  36:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\store\ProductCard.tsx
+  140:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\components\store\VariantSelectorModal.tsx
+    2:74  warning  'PackageX' is defined but never used      @typescript-eslint/no-unused-vars
+  399:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\OrderDetail.tsx
+    3:31  warning  'Star' is defined but never used                            @typescript-eslint/no-unused-vars
+    5:8   warning  'api' is defined but never used                             @typescript-eslint/no-unused-vars
+    6:10  warning  'useAuthStore' is defined but never used                    @typescript-eslint/no-unused-vars
+   35:10  warning  'activeUploadSeller' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   35:30  warning  'setActiveUploadSeller' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  114:30  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  115:28  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  116:32  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  122:27  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  174:50  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  176:17  warning  'needsProof' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  201:43  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+  352:29  warning  Unexpected any. Specify a different type                    @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\ProductDetail.tsx
+    3:10  warning  'Star' is defined but never used          @typescript-eslint/no-unused-vars
+   87:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  214:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  230:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  231:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  533:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  534:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  599:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\admin\AdminAppeals.tsx
+   2:50  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
+   2:65  warning  'Send' is defined but never used           @typescript-eslint/no-unused-vars
+   7:42  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   9:56  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  38:14  warning  'err' is defined but never used            @typescript-eslint/no-unused-vars
+  38:19  warning  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\admin\AdminDashboard.tsx
+    3:17   warning  'ShoppingBag' is defined but never used              @typescript-eslint/no-unused-vars
+    3:39   warning  'TrendingUp' is defined but never used               @typescript-eslint/no-unused-vars
+    3:103  warning  'Globe' is defined but never used                    @typescript-eslint/no-unused-vars
+   75:17   warning  'currentUser' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   83:10   warning  'historyLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  258:99   warning  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\admin\AdminUserDetail.tsx
+   12:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   13:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   14:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   15:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   68:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:81  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\AccountSuspended.tsx
+   1:20  warning  'useEffect' is defined but never used          @typescript-eslint/no-unused-vars
+   9:9   warning  'navigate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  36:19  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\AppealForm.tsx
+   1:20  warning  'useEffect' is defined but never used     @typescript-eslint/no-unused-vars
+  37:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\ForgotPassword.tsx
+   5:10  warning  'sendPasswordResetEmail' is defined but never used  @typescript-eslint/no-unused-vars
+  21:19  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\Login.tsx
+  40:19  warning  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  55:13  warning  'errorMessage' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\MyAppeals.tsx
+  2:39  warning  'ChevronLeft' is defined but never used   @typescript-eslint/no-unused-vars
+  4:15  warning  'Appeal' is defined but never used        @typescript-eslint/no-unused-vars
+  7:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\Profile.tsx
+    2:97   warning  'ShieldCheck' is defined but never used               @typescript-eslint/no-unused-vars
+    2:110  warning  'Monitor' is defined but never used                   @typescript-eslint/no-unused-vars
+    2:119  warning  'Globe' is defined but never used                     @typescript-eslint/no-unused-vars
+    2:126  warning  'Clock' is defined but never used                     @typescript-eslint/no-unused-vars
+    7:10   warning  'sendPasswordChangedEmail' is defined but never used  @typescript-eslint/no-unused-vars
+    8:10   warning  'getLoginHistory' is defined but never used           @typescript-eslint/no-unused-vars
+   89:19   warning  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  116:21   warning  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\RegistrationSuccess.tsx
+  34:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\auth\ResetPassword.tsx
+  50:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\merchant\MerchantDashboard.tsx
+  173:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\merchant\MerchantOrderDetail.tsx
+   6:35  warning  'PaymentProof' is defined but never used                                                                  @typescript-eslint/no-unused-vars
+  50:6   warning  React Hook useEffect has a missing dependency: 'toast'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\merchant\MerchantOrders.tsx
+  30:6  warning  React Hook useEffect has a missing dependency: 'toast'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\merchant\MerchantProductForm.tsx
+  153:30  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  179:42  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  327:7   error    Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\WIN 11\projects\souq-react\src\souq\pages\merchant\MerchantProducts.tsx
+  28:41  warning  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\WIN 11\projects\souq-react\src\souq\services\authService.ts
+   30:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   30:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   32:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  181:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  215:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  247:28  warning  'tokens' is defined but never used        @typescript-eslint/no-unused-vars
+
+C:\Users\WIN 11\projects\souq-react\src\souq\stores\authStore.ts
+   62:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  184:18  warning  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  184:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  205:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 105 problems (2 errors, 103 warnings)
+
