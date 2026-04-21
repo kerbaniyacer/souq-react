@@ -60,8 +60,8 @@ export default function CompleteProfile() {
         ? { Authorization: `Bearer ${pendingToken}` }
         : { Authorization: `Bearer ${localStorage.getItem('access_token')}` };
 
-      await axios.patch(
-        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api/auth/profile/`,
+      await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api/auth/complete-profile/`,
         {
           is_seller: isSeller,
           phone: form.phone,

@@ -5,7 +5,8 @@ from .views import (
     admin_report_list, create_report, admin_user_detail, admin_action_log,
     admin_manage_action, submit_appeal, user_appeal_list, admin_appeal_list,
     admin_manage_appeal, password_reset_request, password_reset_confirm,
-    public_submit_appeal, CustomTokenRefreshView, CustomLogoutView
+    public_submit_appeal, CustomTokenRefreshView, CustomLogoutView,
+    complete_profile
 )
 
 urlpatterns = [
@@ -16,6 +17,7 @@ urlpatterns = [
     path('social/', social_login, name='auth-social'),
     path('refresh/', CustomTokenRefreshView.as_view(), name='auth-refresh'),
     path('logout/', CustomLogoutView.as_view(), name='auth-logout'),
+    path('complete-profile/', complete_profile, name='auth-complete-profile'),
 
     # Profile
     path('profile/', profile, name='auth-profile'),

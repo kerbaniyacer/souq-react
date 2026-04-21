@@ -163,12 +163,12 @@ export default function App() {
             <Route path="/appeals/list" element={<PrivateRoute><OnboardingGuard><MyAppeals /></OnboardingGuard></PrivateRoute>} />
 
             {/* Merchant (lazy) */}
-            <Route path="/merchant/dashboard" element={<MerchantRoute><MerchantDashboard /></MerchantRoute>} />
-            <Route path="/merchant/products" element={<MerchantRoute><MerchantProducts /></MerchantRoute>} />
-            <Route path="/merchant/products/add" element={<MerchantRoute><MerchantProductForm /></MerchantRoute>} />
-            <Route path="/merchant/products/:id/edit" element={<MerchantRoute><MerchantProductForm /></MerchantRoute>} />
-            <Route path="/merchant/orders" element={<MerchantRoute><MerchantOrders /></MerchantRoute>} />
-            <Route path="/merchant/orders/:id" element={<MerchantRoute><MerchantOrderDetail /></MerchantRoute>} />
+            <Route path="/merchant/dashboard" element={<MerchantRoute><OnboardingGuard><MerchantDashboard /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products" element={<MerchantRoute><OnboardingGuard><MerchantProducts /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/add" element={<MerchantRoute><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/:id/edit" element={<MerchantRoute><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders" element={<MerchantRoute><OnboardingGuard><MerchantOrders /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders/:id" element={<MerchantRoute><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
 
             {/* Admin (lazy) */}
             <Route path="/admin-panel" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

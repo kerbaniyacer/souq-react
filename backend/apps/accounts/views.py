@@ -869,3 +869,48 @@ def create_report(request):
             
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def complete_profile(request):
+    """
+    Dedicated endpoint for mandatory onboarding.
+    Accepts: phone, wilaya, store_name, is_seller, etc.
+    Returns: Updated profile info and onboarding status.
+    """
+    user = request.user
+    profile, _ = Profile.objects.get_or_create(user=user)
+    
+    data = request.data
+    
+    # Update profile fields
+    profile.phone = data.get('phone', profile.phone)
+    profile.wilaya = data.get('wilaya', profile.wilaya)
+    profile.baladia = data.get('baladia', profile.baladia)
+    profile.address = data.get('address', profile.address)
+    
+    # Optional/conditional store fields
+    if 'is_seller' in data:
+        profile.is_seller = data.get('is_seller')
+    
+    profile.store_name = data.get('store_name', profile.store_name)
+    profile.store_description = data.get('store_description', profile.store_description)
+    profile.store_category = data.get('store_category', profile.store_category)
+    
+    profile.save()
+    
+    # Also update user fields if provided (first_name, last_name)
+    if 'first_name' in data:
+        user.first_name = data.get('first_name')
+    if 'last_name' in data:
+        user.last_name = data.get('last_name')
+    if 'first_name' in data or 'last_name' in data:
+        user.save()
+
+    from .serializers import UserSerializer
+    return Response({
+        "message": "تم تحديث الملف الشخصي بنجاح",
+        "is_onboarded": profile.is_onboarded,
+        "user": UserSerializer(user).data
+    })

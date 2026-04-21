@@ -2,10 +2,16 @@ from django.http import JsonResponse
 
 
 ALLOWED_PATH_PREFIXES = [
-    '/api/auth/',       # Login, Register, Social Login, OTP verify, and Profile fetch
-    '/admin/',          # Django admin panel
-    '/api/media/',      # Media file access
-    '/api/docs/',       # API docs
+    '/api/auth/login/',
+    '/api/auth/register/',
+    '/api/auth/social/',
+    '/api/auth/verify-ip/',
+    '/api/auth/complete-profile/', # <--- Important!
+    '/api/auth/refresh/',
+    '/api/auth/profile/', # Allow profile fetch
+    '/admin/',
+    '/api/media/',
+    '/api/docs/',
     '/api/schema/',
     '/api/health/',
     '/static/',
