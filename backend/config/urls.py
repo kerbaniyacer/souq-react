@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/', include('apps.orders.urls')),
     path('api/', include('apps.wishlist.urls')),
     path('api/chat/', include('apps.chat.urls')),
+    path('api/', include('apps.notifications.urls')),
 ]
 
 if settings.DEBUG:

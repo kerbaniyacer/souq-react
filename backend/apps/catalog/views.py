@@ -164,6 +164,20 @@ def merchant_product_list(request):
     serializer = ProductWriteSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         product = serializer.save(seller=request.user)
+        
+        # Notify followers
+        try:
+            from apps.notifications.utils import notify_followers
+            notify_followers(
+                seller=request.user,
+                title='منتج جديد',
+                message=f'تم إضافة منتج جديد: {product.name} من قبل {request.user.username}',
+                related_id=product.id,
+                related_type='product'
+            )
+        except Exception as e:
+            print(f"Error notifying followers: {e}")
+
         return Response(
             ProductDetailSerializer(product, context={'request': request}).data,
             status=status.HTTP_201_CREATED,

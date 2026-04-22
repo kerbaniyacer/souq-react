@@ -71,7 +71,23 @@ class MessageViewSet(viewsets.ModelViewSet):
         if self.request.user not in [conversation.customer, conversation.seller]:
             raise permissions.PermissionDenied("You are not part of this conversation")
             
-        serializer.save(sender=self.request.user)
+        message = serializer.save(sender=self.request.user)
         
+        # Notify receiver
+        try:
+            receiver = conversation.seller if self.request.user == conversation.customer else conversation.customer
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            create_notification(
+                user=receiver,
+                n_type=Notification.Type.NEW_MESSAGE,
+                title='رسالة جديدة',
+                message=f'لديك رسالة جديدة من {self.request.user.username}',
+                related_id=conversation.id,
+                related_type='chat'
+            )
+        except Exception as e:
+            print(f"Error notifying receiver of new message: {e}")
+
         # Update conversation timestamp for sorting
         conversation.save()

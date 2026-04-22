@@ -4,6 +4,7 @@ import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, Log
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -128,6 +129,9 @@ export default function Navbar() {
                 <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-primary-400 transition-colors" />
               </Link>
             )}
+
+            {/* Notifications */}
+            {isAuthenticated && <NotificationBell />}
 
             {/* User menu */}
             {isAuthenticated ? (

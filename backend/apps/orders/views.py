@@ -214,12 +214,27 @@ def order_create(request):
             ci.variant.save()
 
         # Create SubOrders for each merchant
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+
         for seller, amount in merchant_subtotals.items():
-            SubOrder.objects.create(
+            sub_order = SubOrder.objects.create(
                 order=order,
                 seller=seller,
                 subtotal=amount
             )
+            # Notify Merchant
+            try:
+                create_notification(
+                    user=seller,
+                    n_type=Notification.Type.NEW_ORDER,
+                    title='طلب جديد',
+                    message=f'لقد استلمت طلباً جديداً #{order.order_number}',
+                    related_id=order.id,
+                    related_type='order'
+                )
+            except Exception as e:
+                print(f"Error notifying merchant: {e}")
             
         # Link items to suborders
         for item in order.items.all():
@@ -338,12 +353,12 @@ def merchant_stats(request):
 
     products_qs = Product.objects.filter(seller=request.user)
     order_items_qs = OrderItem.objects.filter(
-        variant__product__seller=request.user,
-        order__status__in=[
-            Order.Status.CONFIRMED,
-            Order.Status.PROCESSING,
-            Order.Status.SHIPPED,
-            Order.Status.DELIVERED,
+        sub_order__seller=request.user,
+        sub_order__status__in=[
+            SubOrder.Status.CONFIRMED,
+            SubOrder.Status.PROCESSING,
+            SubOrder.Status.SHIPPED,
+            SubOrder.Status.DELIVERED,
         ],
     )
     sub_orders_qs = SubOrder.objects.filter(seller=request.user)
@@ -416,6 +431,21 @@ def sub_order_update_status(request, pk):
 
     sub_order.status = new_status
     sub_order.save(update_fields=['status', 'updated_at'])
+    
+    # Notify User
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        create_notification(
+            user=sub_order.order.user,
+            n_type=Notification.Type.ORDER_STATUS_UPDATE,
+            title='تحديث حالة الطلب',
+            message=f'تم تحديث حالة طلبك #{sub_order.order.order_number} إلى "{sub_order.get_status_display()}"',
+            related_id=sub_order.order.id,
+            related_type='order'
+        )
+    except Exception as e:
+        print(f"Error notifying user about status update: {e}")
     
     # Aggregate main order status
     main_order = sub_order.order

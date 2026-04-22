@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag, MessageSquare } from 'lucide-react';
+import { FollowButton } from '@features/notifications/components/FollowButton';
 import { queryKeys } from '@shared/lib/queryKeys';
 import type { ProductVariant } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
@@ -20,19 +21,19 @@ import ReviewForm from '@features/products/components/ReviewForm';
 import RatingSummary from '@features/products/components/RatingSummary';
 
 const COLOR_MAP: Record<string, string> = {
-  'أحمر': '#ef4444',
-  'أزرق': '#3b82f6',
-  'أخضر': '#22c55e',
-  'أسود': '#171717',
-  'أبيض': '#ffffff',
-  'رمادي': '#6b7280',
-  'ذهبي': '#eab308',
-  'فضي': '#d1d5db',
-  'بني': '#92400e',
-  'برتقالي': '#f97316',
-  'وردي': '#ec4899',
-  'بنفسجي': '#a855f7',
-  'أصفر': '#facc15'
+  'Ø£Ø­Ù…Ø±': '#ef4444',
+  'Ø£Ø²Ø±Ù‚': '#3b82f6',
+  'Ø£Ø®Ø¶Ø±': '#22c55e',
+  'Ø£Ø³ÙˆØ¯': '#171717',
+  'Ø£Ø¨ÙŠØ¶': '#ffffff',
+  'Ø±Ù…Ø§Ø¯ÙŠ': '#6b7280',
+  'Ø°Ù‡Ø¨ÙŠ': '#eab308',
+  'ÙØ¶ÙŠ': '#d1d5db',
+  'Ø¨Ù†ÙŠ': '#92400e',
+  'Ø¨Ø±ØªÙ‚Ø§Ù„ÙŠ': '#f97316',
+  'ÙˆØ±Ø¯ÙŠ': '#ec4899',
+  'Ø¨Ù†ÙØ³Ø¬ÙŠ': '#a855f7',
+  'Ø£ØµÙØ±': '#facc15'
 };
 
 export default function ProductDetail() {
@@ -61,12 +62,12 @@ export default function ProductDetail() {
 
   const handleReportSubmit = async () => {
     if (!isAuthenticated) {
-      toast.info('يرجى تسجيل الدخول لتقديم بلاغ');
+      toast.info('ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„ØªÙ‚Ø¯ÙŠÙ… Ø¨Ù„Ø§Øº');
       navigate('/login');
       return;
     }
     if (!reportReason) {
-      toast.error('يرجى اختيار سبب التبليغ');
+      toast.error('ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ø³Ø¨Ø¨ Ø§Ù„ØªØ¨Ù„ÙŠØº');
       return;
     }
     setSubmittingReport(true);
@@ -77,12 +78,12 @@ export default function ProductDetail() {
         reason: reportReason,
         description: reportDescription
       });
-      toast.success('تم إرسال بلاغك بنجاح. سنقوم بمراجعته');
+      toast.success('ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø¨Ù„Ø§ØºÙƒ Ø¨Ù†Ø¬Ø§Ø­. Ø³Ù†Ù‚ÙˆÙ… Ø¨Ù…Ø±Ø§Ø¬Ø¹ØªÙ‡');
       setIsReportModalOpen(false);
       setReportReason('');
       setReportDescription('');
     } catch {
-      toast.error('تعذّر إرسال البلاغ حالياً');
+      toast.error('ØªØ¹Ø°Ù‘Ø± Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¨Ù„Ø§Øº Ø­Ø§Ù„ÙŠØ§Ù‹');
     } finally {
       setSubmittingReport(false);
     }
@@ -100,57 +101,57 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      toast.info('يرجى تسجيل الدخول لإضافة المنتجات إلى السلة');
+      toast.info('ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ø¥Ù„Ù‰ Ø§Ù„Ø³Ù„Ø©');
       navigate('/login', { state: { from: window.location.pathname } });
       return;
     }
     if (canManageProduct) {
-      toast.info('لا يمكنك إضافة منتجك إلى السلة');
+      toast.info('Ù„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬Ùƒ Ø¥Ù„Ù‰ Ø§Ù„Ø³Ù„Ø©');
       return;
     }
     const target = matchedVariant ?? selectedVariant;
     if (!target) return;
     try {
       await addToCart(target.id, quantity, product.seller?.id);
-      toast.success('تمت الإضافة إلى السلة');
+      toast.success('ØªÙ…Øª Ø§Ù„Ø¥Ø¶Ø§ÙØ© Ø¥Ù„Ù‰ Ø§Ù„Ø³Ù„Ø©');
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'تعذّر إضافة المنتج');
+      toast.error(err.response?.data?.detail || 'ØªØ¹Ø°Ù‘Ø± Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ù†ØªØ¬');
     }
   };
 
   const handleToggleWishlist = async () => {
     if (!product) return;
     if (!isAuthenticated) {
-      toast.info('سجّل دخولك لإضافة المنتجات إلى المفضلة');
+      toast.info('Ø³Ø¬Ù‘Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ù„Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª Ø¥Ù„Ù‰ Ø§Ù„Ù…ÙØ¶Ù„Ø©');
       navigate('/login');
       return;
     }
     if (canManageProduct) {
-      toast.info('لا يمكنك إضافة منتجك إلى المفضلة');
+      toast.info('Ù„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬Ùƒ Ø¥Ù„Ù‰ Ø§Ù„Ù…ÙØ¶Ù„Ø©');
       return;
     }
     try {
       if (isInWishlist(product.id)) {
         await removeFromWishlist(product.id);
-        toast.info('تمت الإزالة من المفضلة');
+        toast.info('ØªÙ…Øª Ø§Ù„Ø¥Ø²Ø§Ù„Ø© Ù…Ù† Ø§Ù„Ù…ÙØ¶Ù„Ø©');
       } else {
         await addToWishlist(product.id, product.seller?.id);
-        toast.success('تمت الإضافة إلى المفضلة');
+        toast.success('ØªÙ…Øª Ø§Ù„Ø¥Ø¶Ø§ÙØ© Ø¥Ù„Ù‰ Ø§Ù„Ù…ÙØ¶Ù„Ø©');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || err?.message || 'لا يمكن إضافة هذا المنتج إلى المفضلة');
+      toast.error(err?.response?.data?.detail || err?.message || 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø¥Ø¶Ø§ÙØ© Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ Ø¥Ù„Ù‰ Ø§Ù„Ù…ÙØ¶Ù„Ø©');
     }
   };
 
   const handleContactSeller = async () => {
     if (!isAuthenticated) {
-      toast.info('يرجى تسجيل الدخول للتواصل مع التاجر');
+      toast.info('ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ù„ØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø§Ù„ØªØ§Ø¬Ø±');
       navigate('/login', { state: { from: window.location.pathname } });
       return;
     }
     
     if (isOwner) {
-      toast.info('لا يمكنك مراسلة نفسك');
+      toast.info('Ù„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ù…Ø±Ø§Ø³Ù„Ø© Ù†ÙØ³Ùƒ');
       return;
     }
 
@@ -161,7 +162,7 @@ export default function ProductDetail() {
       });
       navigate(`/chat?conversationId=${conversation.id}`);
     } catch (err) {
-      toast.error('تعذّر بدء المحادثة حالياً');
+      toast.error('ØªØ¹Ø°Ù‘Ø± Ø¨Ø¯Ø¡ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø© Ø­Ø§Ù„ÙŠØ§Ù‹');
     }
   };
 
@@ -183,8 +184,8 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500 dark:text-gray-400 font-arabic">المنتج غير موجود</p>
-        <Link to="/products" className="mt-4 inline-block text-primary-600 font-arabic">← العودة للمنتجات</Link>
+        <p className="text-gray-500 dark:text-gray-400 font-arabic">Ø§Ù„Ù…Ù†ØªØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯</p>
+        <Link to="/products" className="mt-4 inline-block text-primary-600 font-arabic">â† Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„Ù…Ù†ØªØ¬Ø§Øª</Link>
       </div>
     );
   }
@@ -194,7 +195,7 @@ export default function ProductDetail() {
   const previewAsCustomer = searchParams.get('preview') === 'customer';
   const canManageProduct = isOwner && !previewAsCustomer;
 
-  // ── استخراج خصائص المتغيرات المنفصلة (اللون، المقاس...) ──
+  // â”€â”€ Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…ØªØºÙŠØ±Ø§Øª Ø§Ù„Ù…Ù†ÙØµÙ„Ø© (Ø§Ù„Ù„ÙˆÙ†ØŒ Ø§Ù„Ù…Ù‚Ø§Ø³...) â”€â”€
   const attrKeys: string[] = [];
   (product.variants ?? []).forEach((v) => {
     Object.keys(v.attributes ?? {}).forEach((k) => {
@@ -202,24 +203,24 @@ export default function ProductDetail() {
     });
   });
 
-  // تهيئة الخصائص المختارة من المتغير الرئيسي
+  // ØªÙ‡ÙŠØ¦Ø© Ø§Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…Ø®ØªØ§Ø±Ø© Ù…Ù† Ø§Ù„Ù…ØªØºÙŠØ± Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ
   const mainAttrs = (() => {
     const init: Record<string, string> = {};
     const mainV = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
     if (mainV?.attributes) Object.entries(mainV.attributes).forEach(([k, v]) => { init[k] = v; });
     return init;
   })();
-  // تطبيق القيم الأولية إن كانت selectedAttrs فارغة
+  // ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ø£ÙˆÙ„ÙŠØ© Ø¥Ù† ÙƒØ§Ù†Øª selectedAttrs ÙØ§Ø±ØºØ©
   const effectiveAttrs = Object.keys(selectedAttrs).length > 0 ? selectedAttrs : mainAttrs;
 
-  // إيجاد المتغير المطابق للخصائص المختارة
+  // Ø¥ÙŠØ¬Ø§Ø¯ Ø§Ù„Ù…ØªØºÙŠØ± Ø§Ù„Ù…Ø·Ø§Ø¨Ù‚ Ù„Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…Ø®ØªØ§Ø±Ø©
   const matchedVariant = attrKeys.length > 0
     ? (product.variants ?? []).find((v) =>
       attrKeys.every((k) => v.attributes?.[k] === effectiveAttrs[k])
     ) ?? null
     : selectedVariant;
 
-  // القيم المتاحة لكل خاصية
+  // Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ù…ØªØ§Ø­Ø© Ù„ÙƒÙ„ Ø®Ø§ØµÙŠØ©
   function getAvailableValues(key: string): { value: string; available: boolean }[] {
     const allValues = [...new Set(
       (product!.variants ?? []).map((v) => v.attributes?.[key]).filter(Boolean) as string[]
@@ -246,7 +247,7 @@ export default function ProductDetail() {
     }
   };
 
-  // هل جميع الخصائص محددة؟
+  // Ù‡Ù„ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø®ØµØ§Ø¦Øµ Ù…Ø­Ø¯Ø¯Ø©ØŸ
   const allAttrsSelected = attrKeys.length === 0 || attrKeys.every((k) => !!effectiveAttrs[k]);
 
   const activeVariant = matchedVariant ?? selectedVariant;
@@ -266,9 +267,9 @@ export default function ProductDetail() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-arabic mb-8">
-        <Link to="/" className="hover:text-primary-600 transition-colors">الرئيسية</Link>
+        <Link to="/" className="hover:text-primary-600 transition-colors">Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©</Link>
         <ArrowRight className="w-3 h-3" />
-        <Link to="/products" className="hover:text-primary-600 transition-colors">المنتجات</Link>
+        <Link to="/products" className="hover:text-primary-600 transition-colors">Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª</Link>
         {product.category && (
           <>
             <ArrowRight className="w-3 h-3" />
@@ -332,16 +333,19 @@ export default function ProductDetail() {
             <button 
               onClick={() => setIsReportModalOpen(true)}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors font-arabic"
-              title="تبليغ عن منتج مخالف"
+              title="ØªØ¨Ù„ÙŠØº Ø¹Ù† Ù…Ù†ØªØ¬ Ù…Ø®Ø§Ù„Ù"
             >
               <Flag className="w-3.5 h-3.5" />
-              تبليغ
+              ØªØ¨Ù„ÙŠØº
             </button>
             {product.seller && (
-              <p className="text-sm font-arabic flex items-center gap-2 text-gray-500 border-r border-gray-200 dark:border-gray-700 pr-4">
-                البائع: <Link to={`/profile/${product.seller.username}`} className="font-bold text-gray-700 dark:text-gray-200 hover:text-primary-600 transition-colors">{product.seller.store_name || product.seller.username}</Link>
-                <Store className="w-4 h-4 text-orange-300" />
-              </p>
+              <div className="flex items-center gap-3 border-r border-gray-200 dark:border-gray-700 pr-4">
+                <FollowButton sellerId={product.seller.id} />
+                <p className="text-sm font-arabic flex items-center gap-2 text-gray-500">
+                  البائع: <Link to={`/profile/${product.seller.username}`} className="font-bold text-gray-700 dark:text-gray-200 hover:text-primary-600 transition-colors">{product.seller.store_name || product.seller.username}</Link>
+                  <Store className="w-4 h-4 text-orange-300" />
+                </p>
+              </div>
             )}
           </div>
           {/* French name in LTR and left-aligned */}
@@ -351,9 +355,9 @@ export default function ProductDetail() {
 
           {/* Rating - Stays Right as it blends with sold_count */}
           <div className="flex items-center justify-end gap-3 mb-8">
-            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">{product.sold_count} مبيع</span>
+            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">{product.sold_count} Ù…Ø¨ÙŠØ¹</span>
             <span className="text-gray-400">|</span>
-            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">({product.reviews_count} تقييم)</span>
+            <span className="text-sm font-arabic text-gray-500 dark:text-gray-400">({product.reviews_count} ØªÙ‚ÙŠÙŠÙ…)</span>
             <span className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{Number(product.rating || 0).toFixed(1)}</span>
             <StarRating rating={Number(product.rating || 0)} size={14} />
           </div>
@@ -370,16 +374,16 @@ export default function ProductDetail() {
                   )}
                   {hasDiscount ? (
                     <span className="text-lg text-gray-500 line-through font-mono">
-                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} د.ج
+                      {Number(activeVariant.old_price).toLocaleString('ar-DZ')} Ø¯.Ø¬
                     </span>
                   ) : null}
                 </div>
                 <span className="text-3xl font-bold text-primary-600 dark:text-[#6dbf8b] font-mono">
-                  {Number(activeVariant.price).toLocaleString('ar-DZ')} د.ج
+                  {Number(activeVariant.price).toLocaleString('ar-DZ')} Ø¯.Ø¬
                 </span>
               </div>
             ) : (
-              <span className="text-gray-500 dark:text-gray-400 font-arabic w-full text-right">السعر غير متوفر</span>
+              <span className="text-gray-500 dark:text-gray-400 font-arabic w-full text-right">Ø§Ù„Ø³Ø¹Ø± ØºÙŠØ± Ù…ØªÙˆÙØ±</span>
             )}
           </div>
 
@@ -388,8 +392,8 @@ export default function ProductDetail() {
             <div className="mb-8 space-y-5">
               {attrKeys.map((key) => {
                 const values = getAvailableValues(key);
-                const isColor = key.includes('لون') || key.includes('Color') || key === 'اللون';
-                const isLatin = key.toLowerCase().includes('size') || key.includes('مقاس') || key.includes('Size');
+                const isColor = key.includes('Ù„ÙˆÙ†') || key.includes('Color') || key === 'Ø§Ù„Ù„ÙˆÙ†';
+                const isLatin = key.toLowerCase().includes('size') || key.includes('Ù…Ù‚Ø§Ø³') || key.includes('Size');
                 
                 return (
                   <div key={key} className="flex flex-col items-end">
@@ -453,10 +457,10 @@ export default function ProductDetail() {
               {(() => {
                 const status = activeVariant?.stock_status || (product.total_stock > 0 ? 'high' : 'out_of_stock');
                 const config: Record<string, { text: string; classes: string }> = {
-                  high: { text: 'متوفر في المخزن', classes: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
-                  medium: { text: 'كمية محدودة', classes: 'text-orange-600 bg-orange-50 dark:bg-orange-900/10' },
-                  low: { text: `على وشك النفاذ - بقي ${activeVariant?.stock} فقط`, classes: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
-                  out_of_stock: { text: 'غير متوفر', classes: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
+                  high: { text: 'Ù…ØªÙˆÙØ± ÙÙŠ Ø§Ù„Ù…Ø®Ø²Ù†', classes: 'text-green-600 bg-green-50 dark:bg-green-900/20' },
+                  medium: { text: 'ÙƒÙ…ÙŠØ© Ù…Ø­Ø¯ÙˆØ¯Ø©', classes: 'text-orange-600 bg-orange-50 dark:bg-orange-900/10' },
+                  low: { text: `Ø¹Ù„Ù‰ ÙˆØ´Ùƒ Ø§Ù„Ù†ÙØ§Ø° - Ø¨Ù‚ÙŠ ${activeVariant?.stock} ÙÙ‚Ø·`, classes: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
+                  out_of_stock: { text: 'ØºÙŠØ± Ù…ØªÙˆÙØ±', classes: 'text-gray-500 bg-gray-100 dark:bg-gray-800' },
                 };
                 const { text, classes } = config[status] || config.out_of_stock;
                 return (
@@ -465,7 +469,7 @@ export default function ProductDetail() {
                   </span>
                 );
               })()}
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic text-right">الكمية:</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic text-right">Ø§Ù„ÙƒÙ…ÙŠØ©:</p>
             </div>
 
             {/* Stock Progress Bar */}
@@ -506,7 +510,7 @@ export default function ProductDetail() {
                   to={`/merchant/products/${product.id}/edit`}
                   className="flex-1 py-4 bg-primary-400 text-white font-bold rounded-2xl hover:bg-primary-500 transition-all font-arabic flex items-center justify-center gap-2"
                 >
-                  <Settings className="w-5 h-5" /> إدارة المنتج
+                  <Settings className="w-5 h-5" /> Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù†ØªØ¬
                 </Link>
             ) : (
                 <button
@@ -516,10 +520,10 @@ export default function ProductDetail() {
                 >
                   <ShoppingCart className="w-5 h-5" />
                   {!allAttrsSelected
-                    ? `اختر ${attrKeys.filter((k) => !effectiveAttrs[k]).join(' و ')}`
+                    ? `Ø§Ø®ØªØ± ${attrKeys.filter((k) => !effectiveAttrs[k]).join(' Ùˆ ')}`
                     : (matchedVariant ?? selectedVariant)?.is_in_stock
-                      ? 'أضف إلى السلة'
-                      : 'غير متوفر'}
+                      ? 'Ø£Ø¶Ù Ø¥Ù„Ù‰ Ø§Ù„Ø³Ù„Ø©'
+                      : 'ØºÙŠØ± Ù…ØªÙˆÙØ±'}
                 </button>
             )}
             <button
@@ -532,7 +536,7 @@ export default function ProductDetail() {
               }`}
             >
               <Heart className="w-5 h-5" fill={inWishlist ? 'currentColor' : 'none'} />
-              <span className="font-arabic text-sm">المفضلة</span>
+              <span className="font-arabic text-sm">Ø§Ù„Ù…ÙØ¶Ù„Ø©</span>
             </button>
             </div>
 
@@ -542,7 +546,7 @@ export default function ProductDetail() {
                 className="w-full py-4 bg-white dark:bg-[#1A1A1A] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 font-bold rounded-2xl hover:bg-gray-50 dark:hover:bg-[#222222] transition-all font-arabic flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
               >
                 <MessageSquare className="w-5 h-5 text-primary-500" />
-                تواصل مع التاجر
+                ØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø§Ù„ØªØ§Ø¬Ø±
               </button>
             )}
           </div>
@@ -554,9 +558,9 @@ export default function ProductDetail() {
       <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
         <div className="flex border-b border-gray-100 dark:border-[#2E2E2E]">
           {[
-            { key: 'desc', label: 'الوصف' },
-            { key: 'specs', label: 'المواصفات' },
-            { key: 'reviews', label: `التقييمات (${reviews.length})` },
+            { key: 'desc', label: 'Ø§Ù„ÙˆØµÙ' },
+            { key: 'specs', label: 'Ø§Ù„Ù…ÙˆØ§ØµÙØ§Øª' },
+            { key: 'reviews', label: `Ø§Ù„ØªÙ‚ÙŠÙŠÙ…Ø§Øª (${reviews.length})` },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -574,30 +578,30 @@ export default function ProductDetail() {
         <div className="p-6">
           {activeTab === 'desc' && (
             <p className="text-gray-700 dark:text-gray-300 font-arabic leading-relaxed whitespace-pre-line">
-              {product.description || 'لا يوجد وصف متاح'}
+              {product.description || 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ ÙˆØµÙ Ù…ØªØ§Ø­'}
             </p>
           )}
 
           {activeTab === 'specs' && (() => {
-            // بيانات ثابتة من المنتج
+            // Ø¨ÙŠØ§Ù†Ø§Øª Ø«Ø§Ø¨ØªØ© Ù…Ù† Ø§Ù„Ù…Ù†ØªØ¬
             const fixedRows: { label: string; value: string }[] = [];
-            if (product.brand?.name) fixedRows.push({ label: 'العلامة التجارية', value: product.brand.name });
-            if (product.category?.name) fixedRows.push({ label: 'الفئة', value: product.category.name });
-            if (product.sku) fixedRows.push({ label: 'رمز المنتج (SKU)', value: product.sku });
+            if (product.brand?.name) fixedRows.push({ label: 'Ø§Ù„Ø¹Ù„Ø§Ù…Ø© Ø§Ù„ØªØ¬Ø§Ø±ÙŠØ©', value: product.brand.name });
+            if (product.category?.name) fixedRows.push({ label: 'Ø§Ù„ÙØ¦Ø©', value: product.category.name });
+            if (product.sku) fixedRows.push({ label: 'Ø±Ù…Ø² Ø§Ù„Ù…Ù†ØªØ¬ (SKU)', value: product.sku });
 
-            // المواصفات الفنية المدخلة يدوياً (specifications)
+            // Ø§Ù„Ù…ÙˆØ§ØµÙØ§Øª Ø§Ù„ÙÙ†ÙŠØ© Ø§Ù„Ù…Ø¯Ø®Ù„Ø© ÙŠØ¯ÙˆÙŠØ§Ù‹ (specifications)
             const specRows: { label: string; value: string }[] = (
               (product as any).specifications ?? []
             ).map((s: any) => ({ label: s.key, value: s.value }));
 
-            // الخصائص القديمة (attributes)
+            // Ø§Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù‚Ø¯ÙŠÙ…Ø© (attributes)
             const attrRows: { label: string; value: string }[] = (product.attributes ?? [])
               .map((a) => ({ label: a.name, value: a.value }));
 
             const allRows = [...fixedRows, ...specRows, ...attrRows];
 
             if (allRows.length === 0) {
-              return <p className="text-gray-400 dark:text-gray-500 font-arabic text-center py-6">لا توجد مواصفات مدرجة</p>;
+              return <p className="text-gray-400 dark:text-gray-500 font-arabic text-center py-6">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…ÙˆØ§ØµÙØ§Øª Ù…Ø¯Ø±Ø¬Ø©</p>;
             }
 
             return (
@@ -634,8 +638,8 @@ export default function ProductDetail() {
                     />
                   ) : (
                     <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-3xl p-8 border border-dashed border-gray-200 dark:border-gray-800 text-center">
-                      <p className="text-sm text-gray-500 font-arabic mb-4">يجب عليك تسجيل الدخول لإضافة تقييم</p>
-                      <Link to="/login" className="text-primary-600 font-bold font-arabic hover:underline">سجل الدخول الآن ←</Link>
+                      <p className="text-sm text-gray-500 font-arabic mb-4">ÙŠØ¬Ø¨ Ø¹Ù„ÙŠÙƒ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ø¥Ø¶Ø§ÙØ© ØªÙ‚ÙŠÙŠÙ…</p>
+                      <Link to="/login" className="text-primary-600 font-bold font-arabic hover:underline">Ø³Ø¬Ù„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø§Ù„Ø¢Ù† â†</Link>
                     </div>
                   )}
                 </div>
@@ -643,11 +647,11 @@ export default function ProductDetail() {
                 {/* Reviews List - Right Side on Desktop */}
                 <div className="lg:col-span-2">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-6 px-2">
-                    آراء العملاء ({reviews.length})
+                    Ø¢Ø±Ø§Ø¡ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ ({reviews.length})
                   </h3>
                   {reviews.length === 0 ? (
                     <div className="text-center py-10 bg-gray-50/50 dark:bg-gray-800/10 rounded-3xl">
-                      <p className="text-gray-400 dark:text-gray-500 font-arabic">لا توجد تقييمات لهذا المنتج بعد. كن أول من يقيمه!</p>
+                      <p className="text-gray-400 dark:text-gray-500 font-arabic">Ù„Ø§ ØªÙˆØ¬Ø¯ ØªÙ‚ÙŠÙŠÙ…Ø§Øª Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ Ø¨Ø¹Ø¯. ÙƒÙ† Ø£ÙˆÙ„ Ù…Ù† ÙŠÙ‚ÙŠÙ…Ù‡!</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -667,34 +671,34 @@ export default function ProductDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
            <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl border border-gray-100 dark:border-[#2E2E2E] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
              <div className="p-6">
-               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-2">التبليغ عن منتج</h3>
+               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-2">Ø§Ù„ØªØ¨Ù„ÙŠØº Ø¹Ù† Ù…Ù†ØªØ¬</h3>
                <p className="text-gray-500 dark:text-gray-400 font-arabic text-sm mb-6">
-                 هل لاحظت مخالفة في هذا المنتج؟ ساعدنا في الحفاظ على أمان المنصة.
+                 Ù‡Ù„ Ù„Ø§Ø­Ø¸Øª Ù…Ø®Ø§Ù„ÙØ© ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ØŸ Ø³Ø§Ø¹Ø¯Ù†Ø§ ÙÙŠ Ø§Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ Ø£Ù…Ø§Ù† Ø§Ù„Ù…Ù†ØµØ©.
                </p>
                
                <div className="space-y-4">
                  <div>
-                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">سبب التبليغ</label>
+                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">Ø³Ø¨Ø¨ Ø§Ù„ØªØ¨Ù„ÙŠØº</label>
                    <select 
                       value={reportReason}
                       onChange={(e) => setReportReason(e.target.value)}
                       className="w-full bg-gray-50 dark:bg-[#252525] border border-gray-100 dark:border-[#2E2E2E] rounded-xl p-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic text-sm"
                    >
-                     <option value="">اختر السبب...</option>
-                     <option value="معلومات مضللة">معلومات مضللة أو غير دقيقة</option>
-                     <option value="منتج مقلد">منتج مقلد أو غير أصلي</option>
-                     <option value="سعر غير منطقي">سعر غير منطقي أو تلاعب</option>
-                     <option value="محتوى غير لائق">محتوى غير لائق أو صور خادشة</option>
-                     <option value="أخرى">أسباب أخرى</option>
+                     <option value="">Ø§Ø®ØªØ± Ø§Ù„Ø³Ø¨Ø¨...</option>
+                     <option value="Ù…Ø¹Ù„ÙˆÙ…Ø§Øª Ù…Ø¶Ù„Ù„Ø©">Ù…Ø¹Ù„ÙˆÙ…Ø§Øª Ù…Ø¶Ù„Ù„Ø© Ø£Ùˆ ØºÙŠØ± Ø¯Ù‚ÙŠÙ‚Ø©</option>
+                     <option value="Ù…Ù†ØªØ¬ Ù…Ù‚Ù„Ø¯">Ù…Ù†ØªØ¬ Ù…Ù‚Ù„Ø¯ Ø£Ùˆ ØºÙŠØ± Ø£ØµÙ„ÙŠ</option>
+                     <option value="Ø³Ø¹Ø± ØºÙŠØ± Ù…Ù†Ø·Ù‚ÙŠ">Ø³Ø¹Ø± ØºÙŠØ± Ù…Ù†Ø·Ù‚ÙŠ Ø£Ùˆ ØªÙ„Ø§Ø¹Ø¨</option>
+                     <option value="Ù…Ø­ØªÙˆÙ‰ ØºÙŠØ± Ù„Ø§Ø¦Ù‚">Ù…Ø­ØªÙˆÙ‰ ØºÙŠØ± Ù„Ø§Ø¦Ù‚ Ø£Ùˆ ØµÙˆØ± Ø®Ø§Ø¯Ø´Ø©</option>
+                     <option value="Ø£Ø®Ø±Ù‰">Ø£Ø³Ø¨Ø§Ø¨ Ø£Ø®Ø±Ù‰</option>
                    </select>
                  </div>
                  
                  <div>
-                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">تفاصيل إضافية</label>
+                   <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 font-arabic mb-2 uppercase tracking-wider">ØªÙØ§ØµÙŠÙ„ Ø¥Ø¶Ø§ÙÙŠØ©</label>
                    <textarea 
                       value={reportDescription}
                       onChange={(e) => setReportDescription(e.target.value)}
-                      placeholder="اشرح لنا المشكلة بالتفصيل (اختياري)..."
+                      placeholder="Ø§Ø´Ø±Ø­ Ù„Ù†Ø§ Ø§Ù„Ù…Ø´ÙƒÙ„Ø© Ø¨Ø§Ù„ØªÙØµÙŠÙ„ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)..."
                       className="w-full h-24 bg-gray-50 dark:bg-[#252525] border border-gray-100 dark:border-[#2E2E2E] rounded-xl p-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic text-sm resize-none"
                    />
                  </div>
@@ -706,12 +710,12 @@ export default function ProductDetail() {
                   onClick={handleReportSubmit}
                   disabled={submittingReport}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-arabic font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50">
-                 {submittingReport ? 'جاري الإرسال...' : 'إرسال التبليغ'}
+                 {submittingReport ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„...' : 'Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØªØ¨Ù„ÙŠØº'}
                </button>
                <button 
                   onClick={() => setIsReportModalOpen(false)}
                   className="flex-1 bg-white dark:bg-[#1E1E1E] text-gray-600 dark:text-gray-400 py-3 rounded-xl font-arabic font-bold border border-gray-200 dark:border-[#2E2E2E] hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
-                 إلغاء
+                 Ø¥Ù„ØºØ§Ø¡
                </button>
              </div>
            </div>
