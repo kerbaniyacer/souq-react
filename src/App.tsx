@@ -40,6 +40,7 @@ const MerchantProductForm = lazy(() => import('@features/merchant/pages/Merchant
 const MerchantOrders = lazy(() => import('@features/merchant/pages/MerchantOrders'));
 const MerchantOrderDetail = lazy(() => import('@features/merchant/pages/MerchantOrderDetail'));
 const MerchantSuspendedProducts = lazy(() => import('@features/merchant/pages/MerchantSuspendedProducts'));
+const Chat = lazy(() => import('@features/chat/pages/Chat'));
 
 // Lazy-loaded (admin section)
 const AdminDashboard = lazy(() => import('@features/admin/pages/AdminDashboard'));
@@ -209,6 +210,7 @@ export default function App() {
             <Route path="/orders/:id/review" element={<PrivateRoute><OnboardingGuard><OrderReview /></OnboardingGuard></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
             <Route path="/profile/:username" element={<UserProfile />} />
+            <Route path="/chat" element={<PrivateRoute><OnboardingGuard><Chat /></OnboardingGuard></PrivateRoute>} />
             <Route path="/registration-success" element={<PrivateRoute><RegistrationSuccess /></PrivateRoute>} />
             
             {/* Appeals */}

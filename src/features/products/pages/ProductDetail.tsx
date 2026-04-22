@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag } from 'lucide-react';
+import { Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag, MessageSquare } from 'lucide-react';
 import { queryKeys } from '@shared/lib/queryKeys';
 import type { ProductVariant } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
@@ -8,6 +8,7 @@ import { useWishlistStore } from '@shared/stores/wishlistStore';
 import { useToast } from '@shared/stores/toastStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useProductDetail, useProductReviews } from '@features/merchant/hooks/useMerchantData';
+import { useGetOrCreateConversation } from '@features/chat/hooks/useChat';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@features/auth/services/authService';
 import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
@@ -56,6 +57,7 @@ export default function ProductDetail() {
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
+  const { mutateAsync: getOrCreateConversation } = useGetOrCreateConversation();
 
   const handleReportSubmit = async () => {
     if (!isAuthenticated) {
@@ -137,6 +139,29 @@ export default function ProductDetail() {
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || err?.message || 'لا يمكن إضافة هذا المنتج إلى المفضلة');
+    }
+  };
+
+  const handleContactSeller = async () => {
+    if (!isAuthenticated) {
+      toast.info('يرجى تسجيل الدخول للتواصل مع التاجر');
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+    
+    if (isOwner) {
+      toast.info('لا يمكنك مراسلة نفسك');
+      return;
+    }
+
+    try {
+      const conversation = await getOrCreateConversation({
+        sellerId: product!.seller?.id,
+        productId: product!.id
+      });
+      navigate(`/chat?conversationId=${conversation.id}`);
+    } catch (err) {
+      toast.error('تعذّر بدء المحادثة حالياً');
     }
   };
 
@@ -474,7 +499,8 @@ export default function ProductDetail() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-4 mt-auto">
+          <div className="flex flex-col gap-4 mt-auto">
+            <div className="flex gap-4">
             {canManageProduct ? (
                 <Link
                   to={`/merchant/products/${product.id}/edit`}
@@ -508,6 +534,17 @@ export default function ProductDetail() {
               <Heart className="w-5 h-5" fill={inWishlist ? 'currentColor' : 'none'} />
               <span className="font-arabic text-sm">المفضلة</span>
             </button>
+            </div>
+
+            {!isOwner && (
+              <button
+                onClick={handleContactSeller}
+                className="w-full py-4 bg-white dark:bg-[#1A1A1A] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800 font-bold rounded-2xl hover:bg-gray-50 dark:hover:bg-[#222222] transition-all font-arabic flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+              >
+                <MessageSquare className="w-5 h-5 text-primary-500" />
+                تواصل مع التاجر
+              </button>
+            )}
           </div>
         </div>
       </div>

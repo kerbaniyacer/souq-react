@@ -227,8 +227,33 @@ export const reviewsApi = {
 // ---- Newsletter (Migrated to Django) ----
 export const newsletterApi = {
   subscribe: async (email: string) => {
-    // Use health check as a temporary endpoint or point to a dedicated common/newsletter if it exists
     const res = await api.post('/newsletter/subscribe/', { email });
+    return { data: res.data };
+  },
+};
+
+// ---- Chat (Django backend) ----
+export const chatApi = {
+  getConversations: async () => {
+    const res = await api.get('/chat/conversations/');
+    return { data: res.data.results ?? res.data };
+  },
+  getOrCreateConversation: async (sellerId: number, productId?: number) => {
+    const res = await api.post('/chat/conversations/get-or-create/', { 
+      seller_id: sellerId, 
+      product_id: productId 
+    });
+    return { data: res.data };
+  },
+  getMessages: async (conversationId: number) => {
+    const res = await api.get(`/chat/conversations/${conversationId}/messages/`);
+    return { data: res.data };
+  },
+  sendMessage: async (conversationId: number, content: string) => {
+    const res = await api.post('/chat/messages/', { 
+      conversation: conversationId, 
+      content 
+    });
     return { data: res.data };
   },
 };

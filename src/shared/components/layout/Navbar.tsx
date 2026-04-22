@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList, ShoppingBag, ShieldAlert } from 'lucide-react';
+import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList, ShoppingBag, ShieldAlert, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
@@ -118,6 +118,16 @@ export default function Navbar() {
             >
               <Heart className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-rose-500 transition-colors" />
             </Link>
+
+            {/* Chat */}
+            {isAuthenticated && (
+              <Link
+                to="/chat"
+                className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+              >
+                <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-primary-400 transition-colors" />
+              </Link>
+            )}
 
             {/* User menu */}
             {isAuthenticated ? (
@@ -342,6 +352,9 @@ export default function Navbar() {
                 <MobileNavLink to="/products" icon={Package}>جميع المنتجات</MobileNavLink>
                 <MobileNavLink to="/cart" icon={ShoppingCart} count={cartCount}>سلة المشتريات</MobileNavLink>
                 <MobileNavLink to="/wishlist" icon={Heart} color="text-rose-500">المفضلة</MobileNavLink>
+                {isAuthenticated && (
+                  <MobileNavLink to="/chat" icon={MessageSquare} color="text-primary-500">المحادثات</MobileNavLink>
+                )}
               </div>
             </div>
 

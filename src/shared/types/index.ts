@@ -363,3 +363,27 @@ export interface MerchantStats {
   sales_history: { date: string; revenue: number; orders: number }[];
   top_products: { id: number; name: string; sales: number; revenue: number }[];
 }
+
+export interface Message {
+  id: number;
+  conversation: number;
+  sender: number;
+  sender_name: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: number;
+  customer: number;
+  seller: number;
+  product: number | null;
+  customer_details: User;
+  seller_details: User;
+  product_details: Product | null;
+  last_message: Message | null;
+  unread_count: number;
+  created_at: string;
+  updated_at: string;
+}
