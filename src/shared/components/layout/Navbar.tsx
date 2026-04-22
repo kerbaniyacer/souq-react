@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList } from 'lucide-react';
+import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
@@ -157,8 +157,8 @@ export default function Navbar() {
                         onClick={() => setUserMenuOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 font-arabic transition-colors"
                       >
-                        <Store className="w-4 h-4" />
-                        طلباتي
+                        <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                        طلباتي (كمشتري)
                       </Link>
                       {profile?.is_seller && (
                         <>
@@ -344,7 +344,7 @@ export default function Navbar() {
                 {isAuthenticated ? (
                   <>
                     <MobileNavLink to="/profile" icon={User}>الملف الشخصي</MobileNavLink>
-                    <MobileNavLink to="/orders" icon={ClipboardList}>طلباتي</MobileNavLink>
+                    <MobileNavLink to="/orders" icon={ShoppingBag} color="text-emerald-500">طلباتي (كمشتري)</MobileNavLink>
                     
                     {profile?.is_seller && (
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-1">

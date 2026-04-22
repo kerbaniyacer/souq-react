@@ -20,18 +20,17 @@ from .serializers import OrderSerializer, OrderCreateSerializer, PaymentProofSer
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def order_list(request):
-    if request.user.is_staff:
+    user_id = request.query_params.get('user')
+    seller_id = request.query_params.get('seller')
+
+    if request.user.is_staff and (user_id or seller_id):
         orders = Order.objects.all().prefetch_related('items').order_by('-created_at')
-        
-        user_id = request.query_params.get('user')
         if user_id:
             orders = orders.filter(user_id=user_id)
-            
-        seller_id = request.query_params.get('seller')
         if seller_id:
-            # Filter orders containing at least one item from this seller
             orders = orders.filter(items__variant__product__seller_id=seller_id).distinct()
     else:
+        # Standard user (or staff viewing their own orders)
         orders = Order.objects.filter(user=request.user).prefetch_related('items').order_by('-created_at')
     return Response(OrderSerializer(orders, many=True).data)
 
@@ -297,7 +296,7 @@ def merchant_order_list(request):
     orders = Order.objects.filter(
         items__variant__product__seller=request.user
     ).distinct().prefetch_related('items', 'proofs')
-    return Response(OrderSerializer(orders, many=True).data)
+    return Response(OrderSerializer(orders, many=True, context={'merchant': request.user}).data)
 
 
 @extend_schema(tags=['merchant'], summary='تحديث حالة الطلب')
@@ -331,16 +330,10 @@ def merchant_order_detail(request, pk):
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        # Check if the order contains at least one item from this seller
         order = Order.objects.prefetch_related('items', 'proofs').get(
             pk=pk, items__variant__product__seller=request.user
         )
     except Order.DoesNotExist:
         return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Filter items and proofs to only show those belonging to this merchant
-    data = OrderSerializer(order).data
-    data['items'] = [i for i in data['items'] if i['seller_id'] == request.user.id]
-    data['proofs'] = [p for p in data['proofs'] if p['seller'] == request.user.id]
-    
-    return Response(data)
+    return Response(OrderSerializer(order, context={'merchant': request.user}).data)

@@ -12,7 +12,6 @@ const ERROR_TYPES = [
 ];
 
 export default function FloatingHelpButton() {
-  const { getErrors } = useErrorCollector();
   const [isOpen, setIsOpen] = useState(false);
   const [errorType, setErrorType] = useState('');
   const [message, setMessage] = useState('');
@@ -23,6 +22,7 @@ export default function FloatingHelpButton() {
 
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const { getErrors } = useErrorCollector();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -64,6 +64,8 @@ export default function FloatingHelpButton() {
     if (!errorType || !message.trim()) return;
 
     setIsSending(true);
+
+    // جمع الأخطاء تلقائياً
     const { js_errors, network_errors } = getErrors();
 
     try {

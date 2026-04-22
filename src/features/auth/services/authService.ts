@@ -50,7 +50,10 @@ api.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.warn(`[API] 401 Unauthorized on ${originalRequest.url}. Attempting refresh...`);
+      
       if (isRefreshing) {
+        console.log('[API] Already refreshing, queuing request...');
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -66,11 +69,13 @@ api.interceptors.response.use(
 
       try {
         const newAccessToken = await refreshAccessToken();
+        console.log('[API] Refresh successful, retrying original request...');
         processQueue(null, newAccessToken);
         isRefreshing = false;
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('[API] Refresh failed, logging out:', refreshError);
         processQueue(refreshError, null);
         isRefreshing = false;
         useAuthStore.getState().logout();

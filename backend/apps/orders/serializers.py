@@ -42,7 +42,6 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'id', 'order_number', 'status', 'payment_method', 'payment_status',
-            # frontend-friendly aliases
             'full_name', 'phone', 'wilaya', 'baladia', 'address',
             'subtotal', 'shipping_cost', 'discount', 'total_amount',
             'tracking_number', 'notes', 'items', 'proofs', 'created_at', 'updated_at',
@@ -52,6 +51,18 @@ class OrderSerializer(serializers.ModelSerializer):
             'subtotal', 'shipping_cost', 'total_amount',
             'tracking_number', 'items', 'proofs', 'created_at', 'updated_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        merchant = self.context.get('merchant')
+        
+        if merchant:
+            # Filter items to only show those from this merchant
+            data['items'] = [i for i in data['items'] if i['seller_id'] == merchant.id]
+            # Filter proofs to only show those for this merchant
+            data['proofs'] = [p for p in data['proofs'] if p['seller'] == merchant.id]
+            
+        return data
 
 
 class OrderCreateSerializer(serializers.Serializer):

@@ -103,12 +103,26 @@ export default function App() {
 
   // 1. Boot effect: If we think we're authenticated but have no token, try refreshing once.
   useEffect(() => {
-    if (isAuthenticated && !accessToken) {
-      refreshAccessToken().catch(() => {
-        // If refresh fails at boot, the user session is truly dead
-        logout();
-      });
-    }
+    let isMounted = true;
+    
+    const bootAuth = async () => {
+      if (isAuthenticated && !accessToken) {
+        console.log('[AuthBoot] Authenticated but no token. Attempting silent refresh...');
+        try {
+          await refreshAccessToken();
+          console.log('[AuthBoot] Silent refresh successful.');
+        } catch (err) {
+          console.error('[AuthBoot] Silent refresh failed:', err);
+          if (isMounted) {
+            // If refresh fails at boot, the user session is truly dead
+            logout();
+          }
+        }
+      }
+    };
+
+    bootAuth();
+    return () => { isMounted = false; };
   }, [isAuthenticated, accessToken, logout]);
 
   // 2. Data fetching effect: only when we have a token (or if we are totally logged out to reset)
