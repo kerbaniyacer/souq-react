@@ -83,6 +83,37 @@ class Order(models.Model):
         super().save(*args, **kwargs)
 
 
+class SubOrder(models.Model):
+    """
+    Represents each merchant's share of a main order.
+    One Order can have multiple SubOrders (one for each merchant).
+    """
+    class Status(models.TextChoices):
+        PENDING    = 'pending',    'قيد الانتظار'
+        CONFIRMED  = 'confirmed',  'مؤكد'
+        PROCESSING = 'processing', 'قيد المعالجة'
+        SHIPPED    = 'shipped',    'تم الشحن'
+        DELIVERED  = 'delivered',  'تم التوصيل'
+        CANCELLED  = 'cancelled',  'ملغى'
+        REFUNDED   = 'refunded',   'مسترجع'
+
+    order  = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='sub_orders')
+    seller = models.ForeignKey(User,  on_delete=models.CASCADE, related_name='sub_orders')
+    status = models.CharField(max_length=20, choices=Status, default=Status.PENDING)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = 'طلب فرعي'
+        verbose_name_plural = 'الطلبات الفرعية'
+        unique_together     = ('order', 'seller')
+
+    def __str__(self):
+        return f'SubOrder #{self.order.order_number} — {self.seller.username}'
+
+
 class PaymentProof(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'قيد الانتظار'
@@ -90,6 +121,7 @@ class PaymentProof(models.Model):
         REJECTED = 'rejected', 'مرفوض'
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='proofs')
+    sub_order = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='proofs', null=True, blank=True)
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_proofs', null=True)
     image = models.ImageField(upload_to='orders/receipts/')
     transaction_id = models.CharField(max_length=100, blank=True, default='')
@@ -111,6 +143,7 @@ class PaymentProof(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    sub_order = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='items', null=True, blank=True)
     variant = models.ForeignKey(ProductVariant, null=True, on_delete=models.SET_NULL)
 
     # Snapshot at order time

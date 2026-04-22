@@ -2,6 +2,15 @@ from rest_framework import serializers
 from .models import Category, Brand, Product, ProductVariant, ProductAttribute, VariantImage
 
 
+DEFAULT_PRODUCT_IMAGE = '/static/images/default-product.jpg'
+
+
+def build_default_product_image(request):
+    if request:
+        return request.build_absolute_uri(DEFAULT_PRODUCT_IMAGE)
+    return DEFAULT_PRODUCT_IMAGE
+
+
 # ── Category ──────────────────────────────────────────────────────────────────
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -73,7 +82,10 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         """Return main image URL for this variant (from VariantImage table)."""
         url = obj.get_image  # @property on model
-        return url
+        if url:
+            return url
+        request = self.context.get('request')
+        return build_default_product_image(request)
 
 
 # ── Product List ──────────────────────────────────────────────────────────────
@@ -85,6 +97,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     main_image = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
     max_price = serializers.SerializerMethodField()
+    seller_name = serializers.CharField(source='seller.get_full_name', read_only=True)
+    seller_username = serializers.CharField(source='seller.username', read_only=True)
 
     class Meta:
         model = Product
@@ -92,6 +106,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             'id', 'name', 'slug', 'main_image', 'category', 'brand',
             'variants', 'min_price', 'max_price', 'rating', 'reviews_count', 
             'sold_count', 'is_featured', 'is_active', 'created_at', 'stock_status',
+            'seller_name', 'seller_username',
         ]
 
     def get_main_image(self, obj):
@@ -102,7 +117,8 @@ class ProductListSerializer(serializers.ModelSerializer):
                 return img_file.url
             except Exception:
                 pass
-        return None
+        request = self.context.get('request')
+        return build_default_product_image(request)
 
     def get_min_price(self, obj):
         # Already calculated via annotate in views.py for performance
@@ -140,7 +156,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                 return img_file.url
             except Exception:
                 pass
-        return None
+        request = self.context.get('request')
+        return build_default_product_image(request)
 
     def get_seller(self, obj):
         return {

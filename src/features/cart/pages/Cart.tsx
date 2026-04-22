@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useCartStore } from '@shared/stores/cartStore';
 import { useToast } from '@shared/stores/toastStore';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 /* ── colour detection helper ───────────────────────────────────── */
 const COLOR_MAP: Record<string, string> = {
@@ -171,11 +172,11 @@ export default function Cart() {
                   <div className="relative w-32 sm:w-40 shrink-0">
                     <Link to={`/products/${variant?.product_slug ?? '#'}`}>
                       <img
-                        src={image || '/images/default-product.jpg'}
+                        src={image || DEFAULT_PRODUCT_IMAGE}
                         alt={variant?.product_name ?? ''}
                         className="w-full h-full object-cover aspect-square"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/default-product.jpg';
+                          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                         }}
                       />
                     </Link>

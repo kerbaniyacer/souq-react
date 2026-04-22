@@ -36,9 +36,10 @@ function FacebookIcon({ spinning }: { spinning?: boolean }) {
 interface Props {
   mode: 'login' | 'register';
   onVerificationRequired?: (email: string) => void;
+  rememberMe?: boolean;
 }
 
-export default function SocialAuthButtons({ mode, onVerificationRequired }: Props) {
+export default function SocialAuthButtons({ mode, onVerificationRequired, rememberMe = false }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [fbLoading, setFbLoading] = useState(false);
 
@@ -71,14 +72,15 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
           email: googleUser.email,
           first_name: googleUser.given_name || googleUser.name?.split(' ')[0] || '',
           last_name: googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '',
-          photo: googleUser.picture
+          photo: googleUser.picture,
+          remember_me: rememberMe
         };
         const tokens = await loginSocialDjango(payload);
         const isOnboarded = tokens.user?.is_onboarded ?? true;
 
         if (!isOnboarded) {
           // Store tokens temporarily — user remains a guest until profile is complete
-          sessionStorage.setItem('pending_auth', JSON.stringify({
+          localStorage.setItem('pending_auth', JSON.stringify({
             access: tokens.access,
             refresh: tokens.refresh,
             user: tokens.user,
@@ -167,14 +169,15 @@ export default function SocialAuthButtons({ mode, onVerificationRequired }: Prop
         email: email,
         first_name: name.split(' ')[0] || '',
         last_name: name.split(' ').slice(1).join(' ') || '',
-        photo: picture
+        photo: picture,
+        remember_me: rememberMe
       };
       
       const tokens = await loginSocialDjango(payload);
       const isOnboarded = tokens.user?.is_onboarded ?? true;
 
       if (!isOnboarded) {
-        sessionStorage.setItem('pending_auth', JSON.stringify({
+        localStorage.setItem('pending_auth', JSON.stringify({
           access: tokens.access,
           refresh: tokens.refresh,
           user: tokens.user,

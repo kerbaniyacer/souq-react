@@ -59,7 +59,7 @@ export default function Login() {
   };
 
   const handleVerifyOtp = async (otp: string) => {
-    const tokens = await verifyIpOtpDjango(otpModalData.email, otp);
+    const tokens = await verifyIpOtpDjango(otpModalData.email, otp, rememberMe);
     saveTokens(tokens);
     await loginSocial(tokens.user as unknown as User, tokens.access, tokens.refresh);
     setOtpModalData({ isOpen: false, email: '' });
@@ -86,6 +86,7 @@ export default function Login() {
           <SocialAuthButtons 
             mode="login" 
             onVerificationRequired={(email) => setOtpModalData({ isOpen: true, email })} 
+            rememberMe={rememberMe}
           />
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-5" noValidate>

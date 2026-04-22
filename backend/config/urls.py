@@ -17,13 +17,13 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # App routes
+    path('api/reviews/', include('apps.reviews.urls')),
     path('api/', include('apps.common.urls')),
     path('api/auth/', include('apps.accounts.urls')),
     path('api/', include('apps.catalog.urls')),
     path('api/', include('apps.cart.urls')),
     path('api/', include('apps.orders.urls')),
     path('api/', include('apps.wishlist.urls')),
-    path('api/', include('apps.reviews.urls')),
 ]
 
 if settings.DEBUG:

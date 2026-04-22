@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@shared/services/api';
 import { queryKeys } from '@shared/lib/queryKeys';
-import { MerchantStats, Order, Product, Review } from '@shared/types';
+import { MerchantStats, Order, Product, Review, SubOrder } from '@shared/types';
 
 export const useMerchantStats = () => {
   return useQuery<MerchantStats>({
@@ -14,10 +14,10 @@ export const useMerchantStats = () => {
 };
 
 export const useMerchantOrders = () => {
-  return useQuery<Order[]>({
+  return useQuery<SubOrder[]>({
     queryKey: queryKeys.merchant.orders,
     queryFn: async () => {
-      const { data } = await api.get('/merchant/orders/');
+      const { data } = await api.get('/merchant/suborders/');
       return data.results ?? data;
     },
   });
@@ -28,7 +28,7 @@ export const useUpdateOrderStatus = () => {
   
   return useMutation({
     mutationFn: async ({ id, status }: { id: string | number; status: string }) => {
-      const { data } = await api.patch(`/merchant/orders/${id}/status/`, { status });
+      const { data } = await api.patch(`/merchant/suborders/${id}/status/`, { status });
       return data;
     },
     onSuccess: (_, variables) => {
@@ -54,7 +54,7 @@ export const useProductReviews = (productId: number | string) => {
   return useQuery<Review[]>({
     queryKey: queryKeys.reviews(productId),
     queryFn: async () => {
-      const { data } = await api.get('/reviews/', { params: { product: productId } });
+      const { data } = await api.get('/reviews/products/', { params: { product: productId } });
       return data.results ?? data;
     },
     enabled: !!productId,
@@ -62,10 +62,10 @@ export const useProductReviews = (productId: number | string) => {
 };
 
 export const useMerchantOrderDetail = (id: string | number) => {
-  return useQuery<Order>({
+  return useQuery<SubOrder>({
     queryKey: queryKeys.merchant.orderDetail(id),
     queryFn: async () => {
-      const { data } = await api.get(`/merchant/orders/${id}/`);
+      const { data } = await api.get(`/merchant/suborders/${id}/`);
       return data;
     },
     enabled: !!id,

@@ -113,7 +113,7 @@ export default function MerchantOrderDetail() {
   const pCfg = paymentStatusConfig[order.payment_status] ?? { label: order.payment_status, color: 'bg-gray-100 text-gray-700' };
   const nextStatus = statusConfig[order.status]?.next;
   const latestProof = order.proofs?.length > 0 ? order.proofs[0] : null;
-  const merchantSubtotal = order.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+  const merchantSubtotal = order.subtotal;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">

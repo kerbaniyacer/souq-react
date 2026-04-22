@@ -16,6 +16,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class PublicProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = [
+            'bio', 'wilaya', 'baladia', 'is_seller', 'store_name', 
+            'store_description', 'store_category', 'store_logo',
+            'seller_rating', 'seller_reviews_count',
+            'buyer_rating', 'buyer_reviews_count',
+            'created_at'
+        ]
+
+
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
     full_name = serializers.CharField(read_only=True)
@@ -34,6 +46,15 @@ class UserSerializer(serializers.ModelSerializer):
             'is_onboarded',
         ]
         read_only_fields = ['id', 'is_staff', 'date_joined', 'provider']
+
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    profile = PublicProfileSerializer(read_only=True)
+    full_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'full_name', 'photo', 'date_joined', 'profile']
 
 
 class AdminActionLogSerializer(serializers.ModelSerializer):
@@ -230,6 +251,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             
             LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
             
+        # 3. Handle 'Remember Me' logic for token lifetime
+        remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes') if request else False
+        
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from datetime import timedelta
+        
+        refresh = RefreshToken.for_user(user)
+        if remember_me:
+            refresh.set_exp(lifetime=timedelta(days=7))
+        else:
+            refresh.set_exp(lifetime=timedelta(days=1))
+            
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
+        
         return data
 
 

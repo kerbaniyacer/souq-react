@@ -2,10 +2,12 @@ import { CheckCircle, Reply } from 'lucide-react';
 import StarRating from './StarRating';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 
 interface Props {
   review: {
     user_name: string;
+    user_username: string;
     user_photo?: string;
     rating: number;
     comment: string;
@@ -26,7 +28,7 @@ export default function ReviewCard({ review }: Props) {
     <div className="py-6 border-b border-gray-100 dark:border-gray-800 last:border-0 group">
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-[#1A1A1A] border border-gray-100 dark:border-gray-800 overflow-hidden shrink-0">
+        <Link to={`/profile/${review.user_username}`} className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-[#1A1A1A] border border-gray-100 dark:border-gray-800 overflow-hidden shrink-0 hover:border-primary-400 transition-colors">
           {review.user_photo ? (
             <img src={review.user_photo} alt={review.user_name} className="w-full h-full object-cover" />
           ) : (
@@ -34,13 +36,15 @@ export default function ReviewCard({ review }: Props) {
               {review.user_name.charAt(0)}
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
             <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 font-arabic truncate">
-              {review.user_name}
+              <Link to={`/profile/${review.user_username}`} className="hover:text-primary-600 transition-colors">
+                {review.user_name}
+              </Link>
             </h4>
             <span className="text-[10px] text-gray-400 font-mono">
               {formattedDate}

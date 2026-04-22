@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowRight, Package, Upload, Trash2, Camera, CreditCard, Clock, Store } from 'lucide-react';
+import { ArrowRight, Package, Upload, Trash2, Camera, CreditCard, Clock, Store, CheckCircle, Star } from 'lucide-react';
 import { ordersApi } from '@shared/services/api';
 import { useToast } from '@shared/stores/toastStore';
 import type { Order } from '@shared/types';
@@ -99,13 +99,17 @@ export default function OrderDetail() {
     );
   }
 
-  // Group items by seller
+  // Group items by seller and include suborder status
   const sellerGroups = order.items.reduce((acc, item) => {
     const sId = item.seller_id;
     if (!acc[sId]) {
+      // Find corresponding suborder for status
+      const subOrder = order.sub_orders?.find(s => s.seller_username === item.seller_name);
+      
       acc[sId] = {
         id: sId,
         name: item.seller_name || 'بائع غير معروف',
+        status: subOrder?.status || 'pending',
         items: [],
         total: 0,
         ccp_number: (item as any).ccp_number,
@@ -138,9 +142,42 @@ export default function OrderDetail() {
               {new Date(order.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
-          <span className={`px-3 py-1.5 rounded-full text-sm font-medium font-arabic ${status.color}`}>
-            {status.label}
-          </span>
+          <div className="flex flex-col items-end gap-3">
+            <span className={`px-3 py-1.5 rounded-full text-sm font-medium font-arabic ${status.color}`}>
+              {status.label}
+            </span>
+            
+            <div className="flex gap-2">
+              {/* Confirm Receipt Button */}
+              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await ordersApi.confirmReceipt(order.id);
+                      toast.success('تم إرسال إشعار استلام الطلب إلى البائعين.');
+                    } catch {
+                      toast.error('حدث خطأ أثناء إرسال الإشعار.');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-primary-50 text-primary-600 border border-primary-100 rounded-lg text-xs font-arabic font-bold hover:bg-primary-100 transition-all flex items-center gap-2"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  تأكيد الاستلام
+                </button>
+              )}
+
+              {/* Rate Button */}
+              {order.status === 'delivered' && (
+                <Link
+                  to={`/orders/${order.id}/review`}
+                  className="px-3 py-1.5 bg-yellow-50 text-yellow-600 border border-yellow-100 rounded-lg text-xs font-arabic font-bold hover:bg-yellow-100 transition-all flex items-center gap-2"
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  التقييم
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 text-sm">
           <div>
@@ -181,7 +218,12 @@ export default function OrderDetail() {
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic">{group.name}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-arabic">منتجات من هذا التاجر</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                       <p className="text-xs text-gray-500 dark:text-gray-400 font-arabic">منتجات من هذا التاجر</p>
+                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-arabic ${statusLabels[group.status]?.color || 'bg-gray-100 text-gray-600'}`}>
+                          {statusLabels[group.status]?.label || group.status}
+                       </span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">

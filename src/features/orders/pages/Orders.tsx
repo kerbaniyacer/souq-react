@@ -54,40 +54,91 @@ export default function Orders() {
         {orders.map((order) => {
           const status = statusLabels[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-700' };
           return (
-            <Link
-              key={order.id}
-              to={`/orders/${order.id}`}
-              className="block bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:border-primary-200 hover:shadow-md transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 font-arabic">
-                    طلب #{order.order_number}
-                  </p>
-                  <p className="font-bold text-gray-900 dark:text-gray-100 font-arabic mt-1">
-                    {Number(order.total_amount).toLocaleString('ar-DZ')} دج
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mt-1">
-                    {new Date(order.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </p>
+            <div key={order.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-primary-200 hover:shadow-md transition-all">
+              <Link
+                to={`/orders/${order.id}`}
+                className="block p-5"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 font-arabic">
+                      طلب #{order.order_number}
+                    </p>
+                    <p className="font-bold text-gray-900 dark:text-gray-100 font-arabic mt-1">
+                      {Number(order.total_amount).toLocaleString('ar-DZ')} دج
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mt-1">
+                      {new Date(order.created_at).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium font-arabic ${status.color}`}>
+                      {status.label}
+                    </span>
+                    <ChevronLeft className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium font-arabic ${status.color}`}>
-                    {status.label}
-                  </span>
-                  <ChevronLeft className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                </div>
+                {order.items?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-800">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">
+                      {order.items.length} منتج
+                      {order.items[0]?.product_name && ` · ${order.items[0].product_name}`}
+                      {order.items.length > 1 && ` وآخرون`}
+                    </p>
+                  </div>
+                )}
+              </Link>
+              
+              {/* Quick Actions */}
+              <div className="px-5 pb-5 flex gap-3">
+                {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                  <>
+                    <button
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                          await ordersApi.confirmReceipt(order.id);
+                          alert('تم إرسال إشعار استلام الطلب إلى البائعين.');
+                        } catch {
+                          alert('حدث خطأ أثناء إرسال الإشعار.');
+                        }
+                      }}
+                      className="flex-1 px-3 py-2.5 bg-primary-50 text-primary-600 border border-primary-100 rounded-xl text-xs font-arabic font-bold hover:bg-primary-100 transition-all"
+                    >
+                      تأكيد الاستلام
+                    </button>
+                    <Link
+                      to={`/orders/${order.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 px-3 py-2.5 bg-gray-50 text-gray-600 border border-gray-100 rounded-xl text-xs font-arabic font-bold hover:bg-gray-100 transition-all flex items-center justify-center"
+                    >
+                      تتبع الطلبية
+                    </Link>
+                  </>
+                ) : order.status === 'delivered' ? (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = `/orders/${order.id}/review`;
+                      }}
+                      className="flex-1 px-3 py-2.5 bg-yellow-50 text-yellow-600 border border-yellow-100 rounded-xl text-xs font-arabic font-bold hover:bg-yellow-100 transition-all flex items-center justify-center"
+                    >
+                      التقييم
+                    </button>
+                    <Link
+                      to={`/orders/${order.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 px-3 py-2.5 bg-gray-50 text-gray-600 border border-gray-100 rounded-xl text-xs font-arabic font-bold hover:bg-gray-100 transition-all flex items-center justify-center"
+                    >
+                      تتبع الطلبية
+                    </Link>
+                  </>
+                ) : null}
               </div>
-              {order.items?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-50">
-                  <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">
-                    {order.items.length} منتج
-                    {order.items[0]?.product_name && ` · ${order.items[0].product_name}`}
-                    {order.items.length > 1 && ` وآخرون`}
-                  </p>
-                </div>
-              )}
-            </Link>
+            </div>
           );
         })}
       </div>

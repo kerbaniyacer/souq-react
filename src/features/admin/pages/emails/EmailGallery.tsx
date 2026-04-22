@@ -15,6 +15,9 @@ const EMAIL_TEMPLATES = [
   { id: 'product-deleted',         title: 'حذف منتج من المتجر',         icon: '🗑️', desc: 'إشعار للتاجر بحذف منتجه' },
   { id: 'account-deleted',         title: 'إغلاق الحساب',                icon: '👋', desc: 'إشعار بإغلاق حساب المستخدم' },
   { id: 'report-notification',     title: 'بلاغ جديد للإدارة',          icon: '🚩', desc: 'تنبيه للإدارة بوجود بلاغ جديد' },
+  { id: 'appeal-decision',         title: 'قرار الطعن الإداري',        icon: '⚖️', desc: 'إشعار بقبول أو رفض الطعن' },
+  { id: 'visibility-change',       title: 'تغيير حالة الظهور',          icon: '👁️', desc: 'إخفاء أو إظهار منتج يدوياً' },
+  { id: 'admin-action',            title: 'إشعار إجراء إداري',          icon: '🛠️', desc: 'استعادة أو حذف من سجل العمليات' },
 ];
 
 export default function EmailGallery() {

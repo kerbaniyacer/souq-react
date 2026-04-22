@@ -34,14 +34,28 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+let refreshPromise: Promise<string> | null = null;
+
 export async function refreshAccessToken() {
-  const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
-    withCredentials: true,
-    headers: { 'ngrok-skip-browser-warning': 'true' }
-  });
-  const newAccessToken = res.data.access;
-  useAuthStore.getState().setAccessToken(newAccessToken);
-  return newAccessToken;
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
+        withCredentials: true,
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+      const newAccessToken = res.data.access;
+      useAuthStore.getState().setAccessToken(newAccessToken);
+      return newAccessToken;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 api.interceptors.response.use(
@@ -175,6 +189,7 @@ export async function loginSocialDjango(data: {
   first_name: string;
   last_name: string;
   photo?: string;
+  remember_me?: boolean;
 }): Promise<AuthTokens & { user: DjangoUser }> {
   try {
     const res = await axios.post(`${env.apiUrl}/auth/social/`, data, { 
@@ -209,8 +224,8 @@ export async function loginSocialDjango(data: {
   }
 }
 
-export async function verifyIpOtpDjango(email: string, otp: string): Promise<AuthTokens & { user: DjangoUser }> {
-  const res = await axios.post(`${env.apiUrl}/auth/verify-ip/`, { email, otp }, { 
+export async function verifyIpOtpDjango(email: string, otp: string, rememberMe = false): Promise<AuthTokens & { user: DjangoUser }> {
+  const res = await axios.post(`${env.apiUrl}/auth/verify-ip/`, { email, otp, remember_me: rememberMe }, { 
     withCredentials: true,
     headers: { 'ngrok-skip-browser-warning': 'true' }
   });
@@ -235,6 +250,11 @@ export async function logoutDjango() {
 
 export async function fetchProfileDjango(): Promise<DjangoUser> {
   const res = await api.get<DjangoUser>('/auth/profile/');
+  return res.data;
+}
+
+export async function fetchPublicProfileDjango(username: string): Promise<any> {
+  const res = await api.get(`/auth/profile/${username}/`);
   return res.data;
 }
 

@@ -145,6 +145,10 @@ export interface Product {
   brand: Brand | null;
   is_active: boolean;
   is_featured: boolean;
+  status: 'active' | 'suspended' | 'pending_delete' | 'deleted';
+  suspended_at?: string;
+  appeal_deadline?: string;
+  suspension_reason?: string;
   rating: number;
   reviews_count: number;
   sold_count: number;
@@ -156,6 +160,8 @@ export interface Product {
   total_stock: number;
   stock_status: 'high' | 'medium' | 'low' | 'out_of_stock';
   main_image?: string;
+  seller_name?: string;
+  seller_username?: string;
 }
 
 export interface Review {
@@ -234,6 +240,9 @@ export interface Order {
   status: OrderStatus;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
+  buyer_name?: string;
+  buyer_username?: string;
+  buyer_email?: string;
   // Shipping info — matches OrderSerializer aliases
   full_name: string;
   phone: string;
@@ -251,6 +260,27 @@ export interface Order {
   updated_at: string;
   items: OrderItem[];
   proofs: PaymentProof[];
+  sub_orders?: SubOrder[];
+}
+
+export interface SubOrder {
+  id: number;
+  order_number: string;
+  status: OrderStatus;
+  subtotal: number;
+  total_amount: number;
+  seller_username: string;
+  payment_method: string;
+  payment_status: string;
+  full_name: string;
+  phone: string;
+  address: string;
+  wilaya: string;
+  baladia: string;
+  items: OrderItem[];
+  proofs: PaymentProof[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CheckoutData {
@@ -327,6 +357,8 @@ export interface MerchantStats {
   revenue: number;
   orders_count: number;
   products_count: number;
+  active_products: number;
+  suspended_products_count: number;
   pending_orders: number;
   sales_history: { date: string; revenue: number; orders: number }[];
   top_products: { id: number; name: string; sales: number; revenue: number }[];

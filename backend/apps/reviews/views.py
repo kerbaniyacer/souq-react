@@ -1,10 +1,10 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from apps.catalog.models import Product
-from apps.orders.models import Order
+from apps.orders.models import Order, SubOrder
 from .models import Review, SellerReview, BuyerReview
 from .serializers import ReviewSerializer, SellerReviewSerializer, BuyerReviewSerializer
 
@@ -13,27 +13,22 @@ from .serializers import ReviewSerializer, SellerReviewSerializer, BuyerReviewSe
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_seller_review(request):
-    """Buyers rate sellers. Must be tied to a DELIVERED order."""
-    order_id = request.data.get('order')
+    """Buyers rate sellers. Must be tied to a DELIVERED SubOrder."""
+    sub_order_id = request.data.get('sub_order')
     try:
-        order = Order.objects.get(pk=order_id, user=request.user, status=Order.Status.DELIVERED)
-    except Order.DoesNotExist:
-        return Response({'detail': 'لا يمكن التقييم إلا بعد استلام الطلب بنجاح.'}, status=status.HTTP_400_BAD_REQUEST)
+        sub_order = SubOrder.objects.get(pk=sub_order_id, order__user=request.user, status=SubOrder.Status.DELIVERED)
+    except SubOrder.DoesNotExist:
+        return Response({'detail': 'لا يمكن التقييم إلا لطلب فرعي مستلم.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    if SellerReview.objects.filter(order=order).exists():
+    if SellerReview.objects.filter(sub_order=sub_order).exists():
         return Response({'detail': 'لقد قمت بتقييم هذا التاجر بالفعل لهذا الطلب.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    first_item = order.items.first()
-    if not first_item:
-         return Response({'detail': 'الطلب فارغ.'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    seller = first_item.variant.product.seller
-    
     serializer = SellerReviewSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save(buyer=request.user, seller=seller, order=order)
+        seller = sub_order.seller
+        serializer.save(buyer=request.user, seller=seller, sub_order=sub_order)
         
-        # Update seller rating in real-time
+        # Update seller rating
         profile = seller.profile
         all_reviews = SellerReview.objects.filter(seller=seller, is_visible=True)
         count = all_reviews.count()
@@ -50,22 +45,21 @@ def create_seller_review(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_buyer_review(request):
-    """Sellers rate buyers. Must be tied to a DELIVERED order they fulfilled."""
-    order_id = request.data.get('order')
+    """Sellers rate buyers. Must be tied to a DELIVERED SubOrder they fulfilled."""
+    sub_order_id = request.data.get('sub_order')
     try:
-        # Check if the requesting user (seller) has a product in this delivered order
-        order = Order.objects.get(pk=order_id, status=Order.Status.DELIVERED, items__variant__product__seller=request.user)
-    except Order.DoesNotExist:
-        return Response({'detail': 'لا يمكن تقييم المشتري إلا لطلب مكتمل قمت بتنفيذه.'}, status=status.HTTP_400_BAD_REQUEST)
+        sub_order = SubOrder.objects.get(pk=sub_order_id, seller=request.user, status=SubOrder.Status.DELIVERED)
+    except SubOrder.DoesNotExist:
+        return Response({'detail': 'لا يمكن تقييم المشتري إلا لطلب فرعي مكتمل قمت بتنفيذه.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    if BuyerReview.objects.filter(order=order).exists():
+    if BuyerReview.objects.filter(sub_order=sub_order).exists():
         return Response({'detail': 'لقد قمت بتقييم هذا المشتري بالفعل لهذا الطلب.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    buyer = order.user
+    buyer = sub_order.order.user
     
     serializer = BuyerReviewSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save(seller=request.user, buyer=buyer, order=order)
+        serializer.save(seller=request.user, buyer=buyer, sub_order=sub_order)
         
         # Update buyer rating in real-time
         profile = buyer.profile
@@ -82,6 +76,7 @@ def create_buyer_review(request):
 
 @extend_schema(tags=['reviews'], summary='قائمة تقييمات منتج')
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def review_list(request):
     """GET /api/reviews/?product=<id>"""
     product_id = request.query_params.get('product')
@@ -93,6 +88,7 @@ def review_list(request):
 
 @extend_schema(tags=['reviews'], summary='قائمة تقييمات بائع')
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def seller_review_list(request, seller_id):
     reviews = SellerReview.objects.filter(seller_id=seller_id, is_visible=True).select_related('buyer').prefetch_related('official_reply')
     return Response(SellerReviewSerializer(reviews, many=True, context={'request': request}).data)
@@ -100,6 +96,7 @@ def seller_review_list(request, seller_id):
 
 @extend_schema(tags=['reviews'], summary='قائمة تقييمات مشتري')
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def buyer_review_list(request, buyer_id):
     reviews = BuyerReview.objects.filter(buyer_id=buyer_id, is_visible=True).select_related('seller').prefetch_related('official_reply')
     return Response(BuyerReviewSerializer(reviews, many=True, context={'request': request}).data)
@@ -131,6 +128,12 @@ def review_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     review = serializer.save(user=request.user, product=product, verified=verified)
+
+    # Handle images
+    images = request.FILES.getlist('images')
+    from .models import ReviewImage
+    for img in images:
+        ReviewImage.objects.create(review=review, image=img)
 
     # Update product rating & reviews_count
     all_reviews = Review.objects.filter(product=product)

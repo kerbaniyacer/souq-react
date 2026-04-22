@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, Package } from 'lucide-react';
+import { ChevronLeft, Package, Star, X, Send, Check } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
-import type { Order, OrderStatus } from '@shared/types';
+import type { OrderStatus, SubOrder } from '@shared/types';
+import { reviewsApi } from '@shared/services/api';
 
 const statusConfig: Record<string, { label: string; color: string; next?: OrderStatus }> = {
   pending:    { label: 'معلّق',         color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',  next: 'confirmed' },
@@ -15,14 +16,22 @@ const statusConfig: Record<string, { label: string; color: string; next?: OrderS
 };
 
 import { useMerchantOrders, useUpdateOrderStatus } from '../hooks/useMerchantData';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@shared/lib/queryKeys';
 
 export default function MerchantOrders() {
   const { data: orders = [], isLoading: loading } = useMerchantOrders();
   const updateStatus = useUpdateOrderStatus();
   const [statusFilter, setStatusFilter] = useState('all');
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  const handleNextStatus = async (order: Order) => {
+  const [ratingOrder, setRatingOrder] = useState<SubOrder | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleNextStatus = async (order: SubOrder) => {
     const nextStatus = statusConfig[order.status]?.next;
     if (!nextStatus) return;
     try {
@@ -33,13 +42,30 @@ export default function MerchantOrders() {
     }
   };
 
-  const handleCancel = async (order: Order) => {
+  const handleCancel = async (order: SubOrder) => {
     if (!confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) return;
     try {
       await updateStatus.mutateAsync({ id: order.id, status: 'cancelled' });
       toast.success('تم إلغاء الطلب');
     } catch {
       toast.error('تعذّر إلغاء الطلب');
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!ratingOrder) return;
+    setSubmitting(true);
+    try {
+      await reviewsApi.rateBuyer(ratingOrder.id, { rating, comment });
+      toast.success('تم تقييم المشتري بنجاح');
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.orders });
+      setRatingOrder(null);
+      setRating(5);
+      setComment('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'حدث خطأ أثناء التقييم');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -98,7 +124,9 @@ export default function MerchantOrders() {
                       <span className="font-bold text-gray-900 dark:text-gray-100 font-mono text-sm">#{order.order_number}</span>
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium font-arabic ${cfg.color}`}>{cfg.label}</span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-arabic mt-1">{order.full_name} · {order.phone}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 font-arabic mt-1">
+                      <Link to={`/profile/${order.buyer_username}`} className="font-bold hover:text-primary-600 transition-colors">{order.full_name}</Link> · {order.phone}
+                    </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic">{order.wilaya}{order.baladia && ` - ${order.baladia}`}</p>
                     {order.items?.length > 0 && (
                       <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mt-1">
@@ -107,7 +135,7 @@ export default function MerchantOrders() {
                     )}
                   </div>
                   <div className="text-left shrink-0">
-                    <p className="font-bold text-primary-600 font-mono">{Number(order.total_amount).toLocaleString('ar-DZ')} دج</p>
+                    <p className="font-bold text-primary-600 font-mono">{Number(order.subtotal).toLocaleString('ar-DZ')} دج</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{new Date(order.created_at).toLocaleDateString('ar-DZ')}</p>
                   </div>
                 </div>
@@ -130,6 +158,24 @@ export default function MerchantOrders() {
                     </button>
                   )}
 
+                  {order.status === 'delivered' && (
+                    <button 
+                      onClick={() => !order.is_rated_by_seller && setRatingOrder(order)}
+                      disabled={order.is_rated_by_seller}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-colors ${
+                        order.is_rated_by_seller
+                          ? 'bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800/40 cursor-default'
+                          : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800/40 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+                      }`}
+                    >
+                      {order.is_rated_by_seller ? (
+                        <><Check className="w-3 h-3" /> تم التقييم</>
+                      ) : (
+                        <><Star className="w-3 h-3 fill-current" /> تقييم المشتري</>
+                      )}
+                    </button>
+                  )}
+
                   {!['cancelled', 'delivered', 'returned'].includes(order.status) && (
                     <button onClick={() => handleCancel(order)} disabled={isUpdating}
                       className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-800/40 rounded-lg text-xs font-arabic hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50">
@@ -140,6 +186,45 @@ export default function MerchantOrders() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {ratingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <button onClick={() => setRatingOrder(null)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic">تقييم المشتري</h3>
+              <p className="text-sm text-gray-500 font-arabic mt-1">الطلب #{ratingOrder.order_number}</p>
+            </div>
+
+            <div className="flex justify-center gap-2 mb-8">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} onClick={() => setRating(s)} className={`p-1 transition-transform hover:scale-110 ${s <= rating ? 'text-yellow-400' : 'text-gray-200 dark:text-gray-700'}`}>
+                  <Star className={`w-10 h-10 ${s <= rating ? 'fill-current' : ''}`} />
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="أضف تعليقاً عن المشتري (اختياري)..."
+              className="w-full h-24 p-4 bg-gray-50 dark:bg-[#252525] border-none rounded-2xl text-sm font-arabic focus:ring-2 focus:ring-primary-400/20 resize-none dark:text-gray-200 mb-6"
+            />
+
+            <button
+              onClick={handleSubmitRating}
+              disabled={submitting}
+              className="w-full py-4 bg-primary-500 text-white rounded-2xl font-bold font-arabic hover:bg-primary-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-primary-500/20"
+            >
+              {submitting ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Send className="w-4 h-4" /> إرسال التقييم</>}
+            </button>
+          </div>
         </div>
       )}
     </div>

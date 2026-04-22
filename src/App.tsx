@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { refreshAccessToken } from '@features/auth/services/authService';
 import Layout from '@shared/components/layout/Layout';
@@ -18,6 +18,7 @@ import Cart from '@features/cart/pages/Cart';
 import Checkout from '@features/cart/pages/Checkout';
 import Orders from '@features/orders/pages/Orders';
 import OrderDetail from '@features/orders/pages/OrderDetail';
+import OrderReview from '@features/orders/pages/OrderReview';
 import Wishlist from '@features/products/pages/Wishlist';
 import TrackOrder from '@features/orders/pages/TrackOrder';
 import Login from '@features/auth/pages/Login';
@@ -30,6 +31,7 @@ import AccountSuspended from '@features/auth/pages/AccountSuspended';
 import RegistrationSuccess from '@features/auth/pages/RegistrationSuccess';
 import AppealForm from '@features/auth/pages/AppealForm';
 import MyAppeals from '@features/auth/pages/MyAppeals';
+import UserProfile from '@features/accounts/pages/UserProfile';
 
 // Lazy-loaded (merchant section)
 const MerchantDashboard = lazy(() => import('@features/merchant/pages/MerchantDashboard'));
@@ -37,6 +39,7 @@ const MerchantProducts = lazy(() => import('@features/merchant/pages/MerchantPro
 const MerchantProductForm = lazy(() => import('@features/merchant/pages/MerchantProductForm'));
 const MerchantOrders = lazy(() => import('@features/merchant/pages/MerchantOrders'));
 const MerchantOrderDetail = lazy(() => import('@features/merchant/pages/MerchantOrderDetail'));
+const MerchantSuspendedProducts = lazy(() => import('@features/merchant/pages/MerchantSuspendedProducts'));
 
 // Lazy-loaded (admin section)
 const AdminDashboard = lazy(() => import('@features/admin/pages/AdminDashboard'));
@@ -54,8 +57,11 @@ const NewsletterEmail = lazy(() => import('@features/admin/pages/emails/Newslett
 const SupportEmail = lazy(() => import('@features/admin/pages/emails/SupportEmail'));
 const BuyerOrderEmail = lazy(() => import('@features/admin/pages/emails/BuyerOrderEmail'));
 const ProductDeletedEmail = lazy(() => import('@features/admin/pages/emails/ProductDeletedEmail'));
-const AccountDeletedEmail = lazy(() => import('@features/admin/pages/emails/AccountDeletedEmail'));
-const ReportNotificationEmail = lazy(() => import('@features/admin/pages/emails/ReportNotificationEmail'));
+const AccountDeletedEmail = lazy(() => import('./features/admin/pages/emails/AccountDeletedEmail'));
+const ReportNotificationEmail = lazy(() => import('./features/admin/pages/emails/ReportNotificationEmail'));
+const AppealDecisionEmail = lazy(() => import('./features/admin/pages/emails/AppealDecisionEmail'));
+const VisibilityChangeEmail = lazy(() => import('./features/admin/pages/emails/VisibilityChangeEmail'));
+const AdminActionEmail = lazy(() => import('./features/admin/pages/emails/AdminActionEmail'));
 
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
@@ -100,33 +106,49 @@ export default function App() {
   const logout = useAuthStore((s) => s.logout);
   const { fetchCart, resetCart } = useCartStore();
   const { fetchWishlist, resetWishlist } = useWishlistStore();
+  const hasBootstrappedAuth = useRef(false);
+  const [authReady, setAuthReady] = useState(false);
 
-  // 1. Boot effect: If we think we're authenticated but have no token, try refreshing once.
+  // 1. Boot effect: hydrate auth once before protected bootstrap fetches.
   useEffect(() => {
     let isMounted = true;
-    
+
     const bootAuth = async () => {
-      if (isAuthenticated && !accessToken) {
-        console.log('[AuthBoot] Authenticated but no token. Attempting silent refresh...');
+      if (!isAuthenticated) {
+        hasBootstrappedAuth.current = true;
+        if (isMounted) setAuthReady(true);
+        return;
+      }
+
+      if (!hasBootstrappedAuth.current) {
+        if (isMounted) setAuthReady(false);
+        console.log('[AuthBoot] Attempting silent refresh before protected bootstrap...');
         try {
           await refreshAccessToken();
           console.log('[AuthBoot] Silent refresh successful.');
         } catch (err) {
           console.error('[AuthBoot] Silent refresh failed:', err);
           if (isMounted) {
-            // If refresh fails at boot, the user session is truly dead
-            logout();
+            await logout();
           }
+        } finally {
+          hasBootstrappedAuth.current = true;
+          if (isMounted) setAuthReady(true);
         }
+        return;
       }
+
+      if (isMounted) setAuthReady(true);
     };
 
-    bootAuth();
+    void bootAuth();
     return () => { isMounted = false; };
-  }, [isAuthenticated, accessToken, logout]);
+  }, [isAuthenticated, logout]);
 
-  // 2. Data fetching effect: only when we have a token (or if we are totally logged out to reset)
+  // 2. Data fetching effect: only after auth bootstrap completes.
   useEffect(() => {
+    if (!authReady) return;
+
     if (isAuthenticated && accessToken) {
       fetchProfile();
       fetchCart();
@@ -135,7 +157,7 @@ export default function App() {
       resetCart();
       resetWishlist();
     }
-  }, [isAuthenticated, accessToken, fetchProfile, fetchCart, fetchWishlist, resetCart, resetWishlist]);
+  }, [authReady, isAuthenticated, accessToken, fetchProfile, fetchCart, fetchWishlist, resetCart, resetWishlist]);
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -167,6 +189,9 @@ export default function App() {
           <Route path="/admin/emails/product-deleted" element={<AdminRoute><ProductDeletedEmail /></AdminRoute>} />
           <Route path="/admin/emails/account-deleted" element={<AdminRoute><AccountDeletedEmail /></AdminRoute>} />
           <Route path="/admin/emails/report-notification" element={<AdminRoute><ReportNotificationEmail /></AdminRoute>} />
+          <Route path="/admin/emails/appeal-decision" element={<AdminRoute><AppealDecisionEmail /></AdminRoute>} />
+          <Route path="/admin/emails/visibility-change" element={<AdminRoute><VisibilityChangeEmail /></AdminRoute>} />
+          <Route path="/admin/emails/admin-action" element={<AdminRoute><AdminActionEmail /></AdminRoute>} />
 
           {/* Main layout */}
           <Route element={<Layout />}>
@@ -181,7 +206,9 @@ export default function App() {
             <Route path="/checkout" element={<PrivateRoute><OnboardingGuard><Checkout /></OnboardingGuard></PrivateRoute>} />
             <Route path="/orders" element={<PrivateRoute><OnboardingGuard><Orders /></OnboardingGuard></PrivateRoute>} />
             <Route path="/orders/:id" element={<PrivateRoute><OnboardingGuard><OrderDetail /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders/:id/review" element={<PrivateRoute><OnboardingGuard><OrderReview /></OnboardingGuard></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/profile/:username" element={<UserProfile />} />
             <Route path="/registration-success" element={<PrivateRoute><RegistrationSuccess /></PrivateRoute>} />
             
             {/* Appeals */}
@@ -195,6 +222,7 @@ export default function App() {
             <Route path="/merchant/products/:id/edit" element={<MerchantRoute><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
             <Route path="/merchant/orders" element={<MerchantRoute><OnboardingGuard><MerchantOrders /></OnboardingGuard></MerchantRoute>} />
             <Route path="/merchant/orders/:id" element={<MerchantRoute><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/suspended" element={<MerchantRoute><OnboardingGuard><MerchantSuspendedProducts /></OnboardingGuard></MerchantRoute>} />
 
             {/* Admin (lazy) */}
             <Route path="/admin-panel" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

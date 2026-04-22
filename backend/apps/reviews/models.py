@@ -26,12 +26,23 @@ class Review(models.Model):
         return f'{self.user.email} → {self.product.name} ({self.rating}★)'
 
 
+class ReviewImage(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='reviews/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'صورة تقييم'
+        verbose_name_plural = 'صور التقييمات'
+
+
 class SellerReview(models.Model):
-    from apps.orders.models import Order
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='seller_review')
+    from apps.orders.models import SubOrder
+    sub_order = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='seller_reviews', null=True)
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_seller_reviews')
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='made_seller_reviews')
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    shipping_rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], default=5)
     comment = models.TextField(blank=True, default='')
     is_visible = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,8 +53,8 @@ class SellerReview(models.Model):
 
 
 class BuyerReview(models.Model):
-    from apps.orders.models import Order
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='buyer_review')
+    from apps.orders.models import SubOrder
+    sub_order = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='buyer_reviews', null=True)
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_buyer_reviews')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='made_buyer_reviews')
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])

@@ -30,6 +30,8 @@ interface AdminProduct {
   is_featured: boolean;
   seller_id: string;
   seller?: { id: string; username: string; first_name?: string };
+  seller_name?: string;
+  seller_username?: string;
   category?: { name: string };
   variants?: { price: number }[];
 }
@@ -71,6 +73,32 @@ interface AdminActionLogRecord {
   created_at: string;
 }
 
+const OrderStatusBadge = ({ status }: { status: string }) => {
+  const styles: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-700',
+    confirmed: 'bg-blue-100 text-blue-700',
+    processing: 'bg-indigo-100 text-indigo-700',
+    shipped: 'bg-purple-100 text-purple-700',
+    delivered: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+    refunded: 'bg-gray-100 text-gray-700',
+  };
+  const labels: Record<string, string> = {
+    pending: 'قيد الانتظار',
+    confirmed: 'مؤكد',
+    processing: 'قيد المعالجة',
+    shipped: 'تم الشحن',
+    delivered: 'تم التوصيل',
+    cancelled: 'ملغى',
+    refunded: 'مسترجع',
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-[10px] font-arabic font-bold ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
+      {labels[status] || status}
+    </span>
+  );
+};
+
 export default function AdminDashboard() {
   const toast = useToast();
   const { user: _currentUser } = useAuthStore();
@@ -85,8 +113,12 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<'overview' | 'users' | 'products' | 'orders' | 'reports' | 'appeals' | 'history' | 'actions'>('overview');
   const [search, setSearch] = useState('');
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'buyer' | 'seller'>('all');
+  const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'inactive' | 'suspended'>('all');
+  const [actionTypeFilter, setActionTypeFilter] = useState<'all' | 'User' | 'Product'>('all');
   const [historyDate, setHistoryDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [actionHistoryDate, setActionHistoryDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [ordersStartDate, setOrdersStartDate] = useState('');
+  const [ordersEndDate, setOrdersEndDate] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ id: string, type: 'user' | 'product', name: string } | null>(null);
   const [viewingReport, setViewingReport] = useState<AdminReport | null>(null);
@@ -97,8 +129,8 @@ export default function AdminDashboard() {
     try {
       const [u, p, o, r] = await Promise.all([
         api.get('/auth/profiles/'),
-        api.get('/products/'),
-        api.get('/orders/'),
+        api.get('/products/?include_inactive=true'),
+        api.get(`/orders/?start_date=${ordersStartDate}&end_date=${ordersEndDate}`),
         api.get('/auth/admin/reports/'),
       ]);
       setUsers(u.data.results ?? u.data);
@@ -114,7 +146,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [ordersStartDate, ordersEndDate]);
 
   useEffect(() => {
     if (tab === 'history') {
@@ -124,7 +156,9 @@ export default function AdminDashboard() {
       }).finally(() => setHistoryLoading(false));
     } else if (tab === 'actions') {
       setLoading(true);
-      api.get(`/auth/admin/action-log/?day=${actionHistoryDate}`)
+      const dayParam = actionHistoryDate ? `&day=${actionHistoryDate}` : '';
+      const typeParam = actionTypeFilter !== 'all' ? `&type=${actionTypeFilter}` : '';
+      api.get(`/auth/admin/action-log/?limit=100${dayParam}${typeParam}`)
         .then((res) => setAdminLogs(res.data))
         .finally(() => setLoading(false));
     }
@@ -204,7 +238,16 @@ export default function AdminDashboard() {
     return matchesSearch && matchesType;
   });
 
-  const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = 
+      productStatusFilter === 'all' || 
+      (productStatusFilter === 'active' && p.is_active && p.status === 'active') ||
+      (productStatusFilter === 'suspended' && p.status === 'suspended') ||
+      (productStatusFilter === 'inactive' && !p.is_active && p.status === 'active');
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -261,6 +304,23 @@ export default function AdminDashboard() {
                 <option value="all">الكل</option>
                 <option value="buyer">المشترون</option>
                 <option value="seller">التجار</option>
+              </select>
+            )}
+            {tab === 'products' && (
+              <select value={productStatusFilter} onChange={(e) => setProductStatusFilter(e.target.value as any)}
+                className="px-6 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic font-bold outline-none">
+                <option value="all">الحالة: الكل</option>
+                <option value="active">نشط</option>
+                <option value="inactive">مخفي</option>
+                <option value="suspended">مجمد</option>
+              </select>
+            )}
+            {tab === 'actions' && (
+              <select value={actionTypeFilter} onChange={(e) => setActionTypeFilter(e.target.value as any)}
+                className="px-6 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic font-bold outline-none">
+                <option value="all">النوع: الكل</option>
+                <option value="User">المستخدمون</option>
+                <option value="Product">المنتجات</option>
               </select>
             )}
             {(tab === 'history' || tab === 'actions') && (
@@ -393,7 +453,9 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-gray-400 font-mono">#{p.id}</p>
                         </td>
                         <td className="px-6 py-5">
-                          <span className="text-sm text-gray-600 dark:text-gray-400 font-arabic">{p.seller?.username || '—'}</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400 font-arabic">
+                            {p.seller_name || p.seller_username || p.seller?.username || '—'}
+                          </span>
                         </td>
                         <td className="px-6 py-5">
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold font-arabic ${
@@ -420,6 +482,96 @@ export default function AdminDashboard() {
                </table>
             </div>
           )}
+
+          {/* Orders List */}
+          {tab === 'orders' && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              {/* Date Filters */}
+              <div className="flex flex-wrap items-center gap-4 bg-white dark:bg-[#1A1A1A] p-4 rounded-2xl border border-gray-100 dark:border-[#2E2E2E]">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-500 font-arabic">من:</span>
+                  <input
+                    type="date"
+                    value={ordersStartDate}
+                    onChange={(e) => setOrdersStartDate(e.target.value)}
+                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-500 font-arabic">إلى:</span>
+                  <input
+                    type="date"
+                    value={ordersEndDate}
+                    onChange={(e) => setOrdersEndDate(e.target.value)}
+                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                {(ordersStartDate || ordersEndDate) && (
+                  <button
+                    onClick={() => { setOrdersStartDate(''); setOrdersEndDate(''); }}
+                    className="text-xs text-red-500 hover:text-red-600 font-bold font-arabic transition-colors"
+                  >
+                    إعادة تعيين
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-100 dark:border-[#2E2E2E]">
+                  <tr>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">رقم الطلب</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">الزبون</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">التاجر</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">المبلغ</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">الحالة</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 font-arabic">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-[#2E2E2E]">
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-20 text-center text-gray-400 font-arabic">
+                        لا توجد طلبات حالياً
+                      </td>
+                    </tr>
+                  ) : (
+                    orders.map((order) => {
+                      const sellers = [...new Set(order.items?.map(i => i.seller_name).filter(Boolean))];
+                      return (
+                        <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
+                          <td className="px-4 py-4 font-mono text-sm text-primary-600 font-bold">#{order.order_number}</td>
+                          <td className="px-4 py-4">
+                             <p className="text-sm font-arabic text-gray-700 dark:text-gray-300">{order.buyer_name || order.full_name}</p>
+                             <p className="text-[10px] text-gray-400 font-mono">{order.buyer_email}</p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-1">
+                               {sellers.length > 0 ? sellers.map((s, idx) => (
+                                 <span key={idx} className="text-[10px] bg-gray-50 dark:bg-gray-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-700 font-arabic">
+                                   {s}
+                                 </span>
+                               )) : <span className="text-gray-400">—</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-sm font-bold text-gray-900 dark:text-gray-100 font-mono">
+                            {Number(order.total_amount).toLocaleString('ar-DZ')} دج
+                          </td>
+                          <td className="px-4 py-4">
+                            <OrderStatusBadge status={order.status} />
+                          </td>
+                          <td className="px-4 py-4 text-xs text-gray-500 font-arabic">
+                            {new Date(order.created_at).toLocaleDateString('ar-DZ')}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
           {/* Action Log / Audit Trail */}
           {tab === 'actions' && (

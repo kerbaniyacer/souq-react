@@ -1,5 +1,12 @@
-import djangoApi from '@features/auth/services/authService';
+import djangoApi, { fetchPublicProfileDjango } from '@features/auth/services/authService';
 export { djangoApi };
+
+export const authApi = {
+  publicProfile: async (username: string) => {
+    const data = await fetchPublicProfileDjango(username);
+    return { data };
+  },
+};
 
 // Use djangoApi which handles JWT and 401 auto-refresh
 const api = djangoApi;
@@ -136,6 +143,10 @@ export const ordersApi = {
     const res = await api.post(`/merchant/payments/${proofId}/reject/`, { reason });
     return { data: res.data };
   },
+  confirmReceipt: async (id: number | string) => {
+    const res = await api.post(`/orders/${id}/confirm-receipt/`);
+    return { data: res.data };
+  },
 };
 
 // ---- Wishlist (Django backend) ----
@@ -158,17 +169,59 @@ export const wishlistApi = {
 export const reviewsApi = {
   list: async (productId: number | string) => {
     if (!productId) return { data: [] };
-    const res = await api.get('/reviews/', { params: { product: productId } });
+    const res = await api.get('/reviews/products/', { params: { product: productId } });
     return { data: res.data.results ?? res.data };
   },
-  create: async (productId: number | string, data: object) => {
-    const res = await api.post('/reviews/create/', { ...data, product: Number(productId) });
+  create: async (productId: number | string, data: any) => {
+    // Handle images via FormData if present
+    if (data.images && data.images.length > 0) {
+      const formData = new FormData();
+      formData.append('product', String(productId));
+      formData.append('rating', String(data.rating));
+      formData.append('comment', data.comment || '');
+      data.images.forEach((img: File) => {
+        formData.append('images', img);
+      });
+      const res = await api.post('/reviews/products/create/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return { data: res.data };
+    }
+    
+    const res = await api.post('/reviews/products/create/', { ...data, product: Number(productId) });
     return { data: res.data };
   },
   delete: async (reviewId: number) => {
-    await api.delete(`/reviews/${reviewId}/delete/`);
+    await api.delete(`/reviews/products/${reviewId}/delete/`);
     return { data: null };
   },
+  // Seller/Merchant Reviews
+  rateMerchant: async (subOrderId: number, data: { rating: number; shipping_rating?: number; comment?: string }) => {
+    const res = await api.post('/reviews/seller/create/', { 
+      sub_order: subOrderId, 
+      rating: data.rating, 
+      shipping_rating: data.shipping_rating ?? 5,
+      comment: data.comment || '' 
+    });
+    return { data: res.data };
+  },
+  sellerList: async (sellerId: number | string) => {
+    const res = await api.get(`/reviews/seller/${sellerId}/`);
+    return { data: res.data.results ?? res.data };
+  },
+  // Buyer Reviews
+  rateBuyer: async (subOrderId: number, data: { rating: number; comment?: string }) => {
+    const res = await api.post('/reviews/buyer/create/', { 
+      sub_order: subOrderId, 
+      rating: data.rating, 
+      comment: data.comment || '' 
+    });
+    return { data: res.data };
+  },
+  buyerList: async (buyerId: number | string) => {
+    const res = await api.get(`/reviews/buyer/${buyerId}/`);
+    return { data: res.data.results ?? res.data };
+  }
 };
 
 // ---- Newsletter (Migrated to Django) ----

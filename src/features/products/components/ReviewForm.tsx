@@ -13,6 +13,7 @@ export default function ReviewForm({ productId, onSuccess }: Props) {
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const toast = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,8 +31,7 @@ export default function ReviewForm({ productId, onSuccess }: Props) {
         comment
       });
       toast.success('شكرًا لك! تم إضافة تقييمك بنجاح.');
-      setRating(0);
-      setComment('');
+      setIsSubmitted(true);
       if (onSuccess) onSuccess();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'تعذر إضافة التقييم');
@@ -52,10 +52,11 @@ export default function ReviewForm({ productId, onSuccess }: Props) {
           <button
             key={star}
             type="button"
-            onClick={() => setRating(star)}
-            onMouseEnter={() => setHover(star)}
-            onMouseLeave={() => setHover(0)}
-            className="transition-transform active:scale-95"
+            onClick={() => !isSubmitted && setRating(star)}
+            onMouseEnter={() => !isSubmitted && setHover(star)}
+            onMouseLeave={() => !isSubmitted && setHover(0)}
+            disabled={isSubmitted}
+            className={`transition-transform active:scale-95 ${isSubmitted ? 'cursor-default' : ''}`}
           >
             <Star
               size={32}
@@ -76,18 +77,21 @@ export default function ReviewForm({ productId, onSuccess }: Props) {
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="اكتب تجربتك مع المنتج هنا..."
+          disabled={isSubmitted}
+          placeholder={isSubmitted ? "تم إرسال تقييمك بنجاح" : "اكتب تجربتك مع المنتج هنا..."}
           rows={3}
-          className="w-full px-4 py-3 bg-gray-50 dark:bg-[#252525] border border-transparent focus:border-primary-400 dark:focus:border-primary-500 rounded-2xl text-sm font-arabic outline-none transition-all resize-none"
+          className="w-full px-4 py-3 bg-gray-50 dark:bg-[#252525] border border-transparent focus:border-primary-400 dark:focus:border-primary-500 rounded-2xl text-sm font-arabic outline-none transition-all resize-none disabled:opacity-50"
         />
 
         <button
           type="submit"
-          disabled={isSubmitting || rating === 0}
+          disabled={isSubmitting || rating === 0 || isSubmitted}
           className="w-full flex items-center justify-center gap-2 bg-primary-400 hover:bg-primary-500 disabled:opacity-50 disabled:hover:bg-primary-400 text-white font-bold py-3 px-6 rounded-2xl transition-all font-arabic group"
         >
           {isSubmitting ? (
              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : isSubmitted ? (
+            'تم الإرسال ✓'
           ) : (
             <>
               أنشر التقييم

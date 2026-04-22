@@ -112,11 +112,11 @@ export const useAuthStore = create<AuthStore>()(
 
           if (!isOnboarded) {
             // Store tokens temporarily — user is NOT authenticated yet
-            sessionStorage.setItem('pending_auth', JSON.stringify({
-              access: tokens.access,
-              refresh: tokens.refresh,
-              user: tokens.user,
-            }));
+          localStorage.setItem('pending_auth', JSON.stringify({
+            access: tokens.access,
+            refresh: tokens.refresh,
+            user: tokens.user,
+          }));
             set({ isLoading: false });
             throw Object.assign(new Error('onboarding_required'), { type: 'ONBOARDING_REQUIRED' });
           }
@@ -143,11 +143,11 @@ export const useAuthStore = create<AuthStore>()(
 
       /** Finalizes login after profile completion (moves tokens from sessionStorage → authStore) */
       finalizeLogin: async () => {
-        const raw = sessionStorage.getItem('pending_auth');
+        const raw = localStorage.getItem('pending_auth');
         if (!raw) return;
         const pending = JSON.parse(raw);
         saveTokens(pending);
-        sessionStorage.removeItem('pending_auth');
+        localStorage.removeItem('pending_auth');
         set({
           accessToken: pending.access,
           isAuthenticated: true,
@@ -211,7 +211,7 @@ export const useAuthStore = create<AuthStore>()(
 
       clearAll: () => {
         clearTokens();
-        sessionStorage.removeItem('pending_auth');
+        localStorage.removeItem('pending_auth');
         set({
           user: null,
           profile: null,
@@ -228,6 +228,7 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         profile: state.profile,
         isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
       }),
     }
   )

@@ -43,6 +43,9 @@ def cart_add(request):
     except ProductVariant.DoesNotExist:
         return Response({'detail': 'النسخة غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
 
+    if variant.product.seller_id == request.user.id:
+        return Response({'detail': 'لا يمكنك إضافة منتجك إلى السلة'}, status=status.HTTP_400_BAD_REQUEST)
+
     if variant.stock < quantity:
         return Response({'detail': f'المخزون المتاح: {variant.stock}'}, status=status.HTTP_400_BAD_REQUEST)
 

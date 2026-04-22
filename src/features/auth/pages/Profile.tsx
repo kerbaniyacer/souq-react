@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Camera, Save, Lock, Store, ShoppingBag, LayoutDashboard, Package, ClipboardList, CreditCard } from 'lucide-react';
+import { User, Camera, Save, Lock, Store, ShoppingBag, LayoutDashboard, Package, ClipboardList, CreditCard, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
 import AddressFields from '@shared/components/common/AddressFields';
@@ -208,6 +208,11 @@ export default function Profile() {
                 className="flex items-center gap-1.5 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-xl text-sm font-arabic hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors border border-primary-200 dark:border-primary-800/40">
                 <ClipboardList className="w-4 h-4" />
                 إدارة الطلبات
+              </Link>
+              <Link to="/appeals/list"
+                className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 rounded-xl text-sm font-arabic hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors border border-amber-200 dark:border-amber-800/40">
+                <ShieldAlert className="w-4 h-4" />
+                الطعون
               </Link>
             </div>
           </div>

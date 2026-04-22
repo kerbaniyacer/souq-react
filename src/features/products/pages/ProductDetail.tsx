@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, ShoppingCart, ArrowRight, Minus, Plus, Store, Settings, Flag } from 'lucide-react';
 import { queryKeys } from '@shared/lib/queryKeys';
 import type { ProductVariant } from '@shared/types';
@@ -10,6 +10,7 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 import { useProductDetail, useProductReviews } from '@features/merchant/hooks/useMerchantData';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@features/auth/services/authService';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 // Review Components
 import StarRating from '@features/products/components/StarRating';
@@ -35,6 +36,7 @@ const COLOR_MAP: Record<string, string> = {
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const { data: product, isLoading: productLoading } = useProductDetail(slug || '');
   const { data: reviews = [], isLoading: _reviewsLoading } = useProductReviews(product?.id || '');
 
@@ -88,7 +90,7 @@ export default function ProductDetail() {
     if (product) {
       const main = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
       setSelectedVariant(main ?? null);
-      setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? product.main_image ?? product.images?.[0]?.image ?? null);
+      setSelectedImage((main as any)?.image ?? main?.images?.[0]?.image ?? product.main_image ?? product.images?.[0]?.image ?? DEFAULT_PRODUCT_IMAGE);
     }
   }, [product]);
 
@@ -100,10 +102,14 @@ export default function ProductDetail() {
       navigate('/login', { state: { from: window.location.pathname } });
       return;
     }
+    if (canManageProduct) {
+      toast.info('لا يمكنك إضافة منتجك إلى السلة');
+      return;
+    }
     const target = matchedVariant ?? selectedVariant;
     if (!target) return;
     try {
-      await addToCart(target.id, quantity);
+      await addToCart(target.id, quantity, product.seller?.id);
       toast.success('تمت الإضافة إلى السلة');
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'تعذّر إضافة المنتج');
@@ -117,16 +123,20 @@ export default function ProductDetail() {
       navigate('/login');
       return;
     }
+    if (canManageProduct) {
+      toast.info('لا يمكنك إضافة منتجك إلى المفضلة');
+      return;
+    }
     try {
       if (isInWishlist(product.id)) {
         await removeFromWishlist(product.id);
         toast.info('تمت الإزالة من المفضلة');
       } else {
-        await addToWishlist(product.id);
+        await addToWishlist(product.id, product.seller?.id);
         toast.success('تمت الإضافة إلى المفضلة');
       }
-    } catch {
-      toast.error('تعذّر تحديث المفضلة');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || 'لا يمكن إضافة هذا المنتج إلى المفضلة');
     }
   };
 
@@ -156,6 +166,8 @@ export default function ProductDetail() {
 
   const inWishlist = isInWishlist(product.id);
   const isOwner = !!(user && product.seller && String(product.seller.id) === String(user.id));
+  const previewAsCustomer = searchParams.get('preview') === 'customer';
+  const canManageProduct = isOwner && !previewAsCustomer;
 
   // ── استخراج خصائص المتغيرات المنفصلة (اللون، المقاس...) ──
   const attrKeys: string[] = [];
@@ -249,7 +261,14 @@ export default function ProductDetail() {
         <div className="flex flex-col gap-4">
           <div className="aspect-square bg-white dark:bg-[#1f1f1f] rounded-3xl overflow-hidden border border-gray-200 dark:border-[#2a2a2a]">
             {selectedImage ? (
-              <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
+              <img
+                src={selectedImage}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                }}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <ShoppingCart className="w-24 h-24 text-gray-300 dark:text-gray-700" />
@@ -268,7 +287,14 @@ export default function ProductDetail() {
                       : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
-                  <img src={img.image} alt="" className="w-full h-full object-cover opacity-80 hover:opacity-100" />
+                  <img
+                    src={img.image || DEFAULT_PRODUCT_IMAGE}
+                    alt=""
+                    className="w-full h-full object-cover opacity-80 hover:opacity-100"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                    }}
+                  />
                 </button>
               ))}
             </div>
@@ -286,9 +312,9 @@ export default function ProductDetail() {
               <Flag className="w-3.5 h-3.5" />
               تبليغ
             </button>
-            {product.brand && (
+            {product.seller && (
               <p className="text-sm font-arabic flex items-center gap-2 text-gray-500 border-r border-gray-200 dark:border-gray-700 pr-4">
-                البائع: {product.brand.name}
+                البائع: <Link to={`/profile/${product.seller.username}`} className="font-bold text-gray-700 dark:text-gray-200 hover:text-primary-600 transition-colors">{product.seller.store_name || product.seller.username}</Link>
                 <Store className="w-4 h-4 text-orange-300" />
               </p>
             )}
@@ -449,7 +475,7 @@ export default function ProductDetail() {
 
           {/* Actions */}
           <div className="flex gap-4 mt-auto">
-            {isOwner ? (
+            {canManageProduct ? (
                 <Link
                   to={`/merchant/products/${product.id}/edit`}
                   className="flex-1 py-4 bg-primary-400 text-white font-bold rounded-2xl hover:bg-primary-500 transition-all font-arabic flex items-center justify-center gap-2"
@@ -472,6 +498,7 @@ export default function ProductDetail() {
             )}
             <button
               onClick={handleToggleWishlist}
+              disabled={canManageProduct}
               className={`px-6 py-4 rounded-2xl border transition-all flex items-center gap-2 ${
                 inWishlist
                   ? 'border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-[#252525] text-red-500'

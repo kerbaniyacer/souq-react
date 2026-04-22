@@ -5,6 +5,7 @@ import { useWishlistStore } from '@shared/stores/wishlistStore';
 import { useToast } from '@shared/stores/toastStore';
 import VariantSelectorModal from '@features/products/components/VariantSelectorModal';
 import type { Product } from '@shared/types';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 export default function Wishlist() {
   const { items, isLoading, fetchWishlist, removeItem } = useWishlistStore();
@@ -76,11 +77,11 @@ export default function Wishlist() {
                 <Link to={`/products/${product.slug}`} className="block">
                   <div className="aspect-square bg-gray-50 dark:bg-gray-800 overflow-hidden relative">
                     <img
-                      src={mainImage || '/images/default-product.jpg'}
+                      src={mainImage || DEFAULT_PRODUCT_IMAGE}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/images/default-product.jpg';
+                        (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                       }}
                     />
                   </div>

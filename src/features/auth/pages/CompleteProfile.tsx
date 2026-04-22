@@ -18,9 +18,9 @@ export default function CompleteProfile() {
   const [saving, setSaving] = useState(false);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
 
-  // Read pending auth from sessionStorage (unauthenticated flow)
+  // Read pending auth from localStorage (unauthenticated flow)
   useEffect(() => {
-    const raw = sessionStorage.getItem('pending_auth');
+    const raw = localStorage.getItem('pending_auth');
     if (raw) {
       const pending = JSON.parse(raw);
       setPendingToken(pending.access);

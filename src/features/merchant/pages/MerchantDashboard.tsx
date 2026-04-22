@@ -86,6 +86,19 @@ export default function MerchantDashboard() {
             <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">مرحباً بك مجدداً! 👋</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">إليك نظرة سريعة على أداء متجرك اليوم.</p>
           </div>
+
+          {stats?.suspended_products_count && stats.suspended_products_count > 0 ? (
+            <div className="flex-1 max-w-md bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/20 rounded-2xl p-4 flex items-center gap-4 animate-in slide-in-from-top-2 duration-500">
+               <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
+                  <Package className="w-5 h-5" />
+               </div>
+               <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-900 dark:text-amber-100 font-arabic">لديك منتجات مجمدة إدارياً</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-arabic mt-0.5">تم تجميد {stats.suspended_products_count} منتج. يمكنك تقديم طعن لاستعادتها.</p>
+               </div>
+               <Link to="/merchant/products/suspended" className="px-4 py-2 bg-white dark:bg-[#1A1A1A] text-amber-600 rounded-xl text-xs font-bold font-arabic shadow-sm hover:shadow-md transition-all">إدارة الطعون</Link>
+            </div>
+          ) : null}
           
           <div className="flex items-center gap-3">
              <Link to="/merchant/products/add" 
@@ -129,10 +142,10 @@ export default function MerchantDashboard() {
         </div>
 
         {/* Charts & Table Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-w-0">
           
           {/* Main Chart */}
-          <div className="lg:col-span-2 bg-white dark:bg-[#1A1A1A] rounded-[2.5rem] p-8 border border-gray-50 dark:border-gray-800 shadow-sm">
+          <div className="lg:col-span-2 min-w-0 bg-white dark:bg-[#1A1A1A] rounded-[2.5rem] p-8 border border-gray-50 dark:border-gray-800 shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic">إحصائيات المبيعات</h3>
@@ -144,11 +157,11 @@ export default function MerchantDashboard() {
               </select>
             </div>
 
-            <div className="h-[300px] w-full">
+            <div className="h-[300px] min-h-[300px] min-w-0 w-full">
               {loading ? (
                 <div className="w-full h-full bg-gray-50 dark:bg-[#151515] rounded-2xl animate-pulse" />
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={stats?.sales_history ?? []}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">

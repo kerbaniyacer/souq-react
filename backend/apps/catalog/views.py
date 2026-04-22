@@ -78,7 +78,15 @@ def brand_detail(request, slug):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def product_list(request):
-    qs = Product.objects.filter(is_active=True).annotate(
+    # Staff can see all products if include_inactive is passed
+    include_inactive = request.query_params.get('include_inactive') == 'true'
+    
+    if request.user.is_staff and include_inactive:
+        qs = Product.objects.all()
+    else:
+        qs = Product.objects.filter(is_active=True)
+
+    qs = qs.annotate(
         min_price=Min('variants__price'),
         max_price=Max('variants__price')
     ).select_related(
@@ -180,10 +188,44 @@ def merchant_product_detail(request, pk):
         return Response(ProductDetailSerializer(product, context={'request': request}).data)
 
     if request.method == 'PATCH':
+        is_active_before = product.is_active
         # Merchants can edit their own, staff can edit any
         serializer = ProductWriteSerializer(product, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             updated = serializer.save()
+            
+            # If admin changed visibility, log and notify
+            is_active_after = updated.is_active
+            if is_active_before != is_active_after and request.user.is_staff:
+                from apps.accounts.services import AdminService
+                from apps.accounts.models import AdminActionLog
+                from apps.accounts.utils import get_product_visibility_email_html
+                from django.core.mail import send_mail
+
+                # 1. Log Action
+                AdminService._create_log(
+                    admin=request.user,
+                    action=AdminActionLog.Action.SUSPEND if not is_active_after else 'restore',
+                    target=updated,
+                    reason='تغيير حالة الظهور من قبل المسؤول.',
+                    before_state={'is_active': is_active_before},
+                    after_state={'is_active': is_active_after}
+                )
+
+                # 2. Notify Merchant
+                try:
+                    email_html = get_product_visibility_email_html(updated.seller.username, updated.name, is_active_after)
+                    send_mail(
+                        f"تحديث بخصوص ظهور منتجك: {updated.name}",
+                        f"تم {'تفعيل' if is_active_after else 'إخفاء'} منتجك من قبل الإدارة.",
+                        'noreply@souq.dz',
+                        [updated.seller.email],
+                        fail_silently=True,
+                        html_message=email_html
+                    )
+                except Exception as e:
+                    print(f"Error sending visibility email: {e}")
+
             return Response(ProductDetailSerializer(updated, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -238,6 +280,7 @@ def merchant_dashboard(request):
     return Response({
         'products_count':   products.count(),
         'active_products':  products.filter(is_active=True).count(),
+        'suspended_products_count': products.filter(status=Product.Status.SUSPENDED).count(),
         'total_orders':     orders.count(),
         'pending_orders':   orders.filter(status=Order.Status.PENDING).count(),
         'processing_orders': orders.filter(status__in=[

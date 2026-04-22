@@ -6,6 +6,7 @@ import { useWishlistStore } from '@shared/stores/wishlistStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
 import VariantSelectorModal from './VariantSelectorModal';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 interface Props {
   product: Product;
@@ -14,17 +15,22 @@ interface Props {
 export default function ProductCard({ product }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
 
   const mainVariant = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
   const mainImage = product.main_image ?? product.images?.[0]?.image;
   const inWishlist = isInWishlist(product.id);
+  const isOwner = !!(user && product.seller && String(product.seller.id) === String(user.id));
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isOwner) {
+      toast.info('لا يمكنك إضافة منتجك إلى السلة');
+      return;
+    }
     if (!mainVariant) return;
     setModalOpen(true);
   };
@@ -37,16 +43,20 @@ export default function ProductCard({ product }: Props) {
       navigate('/login');
       return;
     }
+    if (isOwner) {
+      toast.info('لا يمكنك إضافة منتجك إلى المفضلة');
+      return;
+    }
     try {
       if (inWishlist) {
         await removeFromWishlist(product.id);
         toast.info('تمت الإزالة من المفضلة');
       } else {
-        await addToWishlist(product.id);
+        await addToWishlist(product.id, product.seller?.id);
         toast.success('تمت الإضافة إلى المفضلة');
       }
-    } catch {
-      toast.error('تعذّر تحديث المفضلة');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || 'لا يمكن إضافة هذا المنتج إلى المفضلة');
     }
   };
 
@@ -65,12 +75,12 @@ export default function ProductCard({ product }: Props) {
         {/* Image */}
         <div className="relative aspect-[4/5] overflow-hidden bg-gray-100 dark:bg-gray-800">
           <img
-            src={mainImage || '/images/default-product.jpg'}
+            src={mainImage || DEFAULT_PRODUCT_IMAGE}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = '/images/default-product.jpg';
+              (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
             }}
           />
 
@@ -94,6 +104,7 @@ export default function ProductCard({ product }: Props) {
           {/* Wishlist button - always visible top left */}
           <button
             onClick={handleToggleWishlist}
+            disabled={isOwner}
             className={`absolute top-3 left-3 p-2 rounded-xl transition-all duration-200 z-10 ${
               inWishlist
                 ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30'
@@ -104,7 +115,7 @@ export default function ProductCard({ product }: Props) {
           </button>
 
           {/* Add to cart - appears on hover */}
-          {mainVariant?.is_in_stock && (
+          {mainVariant?.is_in_stock && !isOwner && (
             <button
               onClick={handleAddToCart}
               className="absolute bottom-3 inset-x-3 flex items-center justify-center gap-2 py-2.5 bg-primary-400 hover:bg-primary-500 text-white text-sm font-bold font-arabic rounded-xl transition-all duration-300 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 shadow-lg shadow-primary-400/30 whitespace-nowrap z-10"

@@ -120,6 +120,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
 CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'https://*.ngrok.io',
     'https://*.ngrok-free.app',
     'https://*.ngrok-free.dev',

@@ -138,21 +138,49 @@ def get_security_alert_email_html(ip):
 def get_product_deleted_email_html(seller_name, product_name, reason):
     body = f"""
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:64px;height:64px;background:#fff7ed;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">📦</div>
+        <div style="width:80px;height:80px;background:#f8f9fa;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+          <span style="font-size:40px;">📦</span>
+        </div>
+        <h2 style="color:#1f2937;font-size:24px;margin:0 0 8px;font-weight:800;">إشعار إداري</h2>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 auto;max-width:400px;">
+          نحيطك علماً بأنه تم حذف أحد منتجاتك بناءً على مراجعة الإدارة بسبب مخالفة شروط المنصة أو عدم مطابقة المواصفات. يرجى مراجعة القوانين.
+        </p>
       </div>
-      <h2 style="color:#c2410c;font-size:22px;margin:0 0 16px;text-align:center;">إشعار إداري: تجميد منتج</h2>
-      <p style="color:#4b5563;line-height:1.8;">عزيزي <strong>{seller_name}</strong>،</p>
-      <p style="color:#4b5563;line-height:1.8;">نحيطك علماً بأنه تقرر <strong>تجميد</strong> منتجك (<strong>{product_name}</strong>) مؤقتاً بناءً على مراجعة فريق الرقابة.</p>
-      <div style="background:#fffbeb;border-right:4px solid #f59e0b;padding:24px;margin:20px 0;border-radius:8px;">
-        <p style="margin:0 0 8px;color:#92400e;font-weight:700;">سبب الإجراء:</p>
-        <p style="margin:0;color:#92400e;line-height:1.6;">{reason}</p>
+
+      <div style="background:#FEF2F2;border-right:4px solid #EF4444;padding:20px;margin:32px 0;border-radius:8px;">
+        <p style="margin:0 0 4px;color:#991B1B;font-weight:800;font-size:14px;">المنتج المحذوف:</p>
+        <p style="margin:0;color:#B91C1C;font-size:16px;font-weight:600;">{product_name}</p>
       </div>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="mailto:souqsupport@gmail.com?subject=Appeal: Product Freeze - {product_name}" style="display:inline-block;background:#f59e0b;color:#fff;padding:14px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;">تقديم طعن إداري ←</a>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="mailto:souqsupport@gmail.com" style="display:inline-block;background:#EF4444;color:#ffffff;padding:16px 48px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;box-shadow:0 4px 12px rgba(239, 68, 68, 0.2);">تواصل مع الدعم</a>
       </div>
-      <p style="color:#9ca3af;font-size:13px;text-align:center;">لديك مهلة <strong>14 يوماً</strong> لتقديم طعن قبل الحذف النهائي للمنتج من قواعد البيانات.</p>
+      
+      <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:32px;">© 2026 سوق - جميع الحقوق محفوظة</p>
     """
-    return get_base_email_html('إشعار تجميد منتج', body)
+    # Using a specialized red base for this one
+    red_header = f"""
+        <tr>
+          <td style="background:#B91C1C;padding:40px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:32px;font-weight:900;letter-spacing:2px;">سوق</h1>
+          </td>
+        </tr>
+    """
+    base = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#F8F6F2;font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F6F2;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.1);">
+        {red_header}
+        <tr><td style="padding:48px 40px;">{body}</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    return base
 
 def get_account_deleted_email_html(username, reason):
     body = f"""
@@ -176,11 +204,14 @@ def get_account_deleted_email_html(username, reason):
       </div>
       
       <div style="text-align:center;margin:32px 0;">
-        <a href="mailto:souqsupport@gmail.com?subject=Appeal: Account Freeze - {username}" 
+        <a href="http://localhost:5173/appeals/new?target_type=account" 
            style="display:inline-block;background:#EF4444;color:#ffffff;padding:16px 40px;border-radius:12px;text-decoration:none;font-weight:700;font-size:16px;box-shadow:0 4px 12px rgba(239, 68, 68, 0.25);">
            تقديم طعن إداري الآن ←
         </a>
       </div>
+      <p style="text-align:center;margin-top:12px;">
+        <a href="mailto:souqsupport@gmail.com?subject=Appeal: Account Freeze - {username}" style="color:#9CA3AF;font-size:12px;text-decoration:underline;">أو تواصل معنا عبر البريد الإلكتروني</a>
+      </p>
       
       <div style="background:#F9FAFB;border-radius:12px;padding:24px;margin-top:32px;">
         <h3 style="margin:0 0 12px;color:#111827;font-size:15px;font-weight:700;">ماذا يعني هذا؟</h3>
@@ -267,3 +298,59 @@ def get_password_changed_email_html(username):
       <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">تم إرسال هذا الإشعار كإجراء أمني لحسابك في سوق.</p>
     """
     return get_base_email_html('تم تغيير كلمة المرور', body)
+
+def get_appeal_decision_email_html(username, target_name, status, admin_response):
+    is_approved = status == 'approved'
+    icon = "✅" if is_approved else "❌"
+    color = "#5C8A6E" if is_approved else "#dc2626"
+    title = "تم قبول طعنك" if is_approved else "تم رفض طعنك"
+    
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:{color}10;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">{icon}</div>
+      </div>
+      <h2 style="color:{color};font-size:22px;margin:0 0 16px;text-align:center;">{title}</h2>
+      <p style="color:#4b5563;line-height:1.8;">مرحباً <strong>{username}</strong>،</p>
+      <p style="color:#4b5563;line-height:1.8;">بخصوص الطعن المقدم بشأن (<strong>{target_name}</strong>)، فقد تمت مراجعته من قبل فريق الإدارة.</p>
+      <div style="background:#f8f6f2;border-radius:12px;padding:24px;margin:20px 0;border:1px solid #e8e3db;">
+        <p style="margin:0 0 8px;color:#1f2937;font-weight:700;">قرار الإدارة:</p>
+        <p style="margin:0;color:#4b5563;line-height:1.6;">{admin_response or 'تمت المعالجة وفقاً لسياسات المنصة.'}</p>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">شكراً لتفهمك وحرصك على الالتزام بشروط المنصة.</p>
+    """
+    return get_base_email_html(title, body)
+
+def get_action_notification_email_html(username, target_name, action_type):
+    is_restore = action_type == 'restore'
+    icon = "🔄" if is_restore else "🗑"
+    color = "#5C8A6E" if is_restore else "#dc2626"
+    title = "تمت استعادة عنصر" if is_restore else "تم حذف عنصر نهائياً"
+    desc = f"نحيطك علماً بأنه تمت استعادة (<strong>{target_name}</strong>) لحالته النشطة." if is_restore else f"نحيطك علماً بأنه تم حذف (<strong>{target_name}</strong>) نهائياً من النظام."
+    
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:{color}10;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">{icon}</div>
+      </div>
+      <h2 style="color:{color};font-size:22px;margin:0 0 16px;text-align:center;">{title}</h2>
+      <p style="color:#4b5563;line-height:1.8;">مرحباً <strong>{username}</strong>،</p>
+      <p style="color:#4b5563;line-height:1.8;">{desc}</p>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">تم إرسال هذا الإشعار تلقائياً من نظام الإدارة في سوق.</p>
+    """
+    return get_base_email_html(title, body)
+
+def get_product_visibility_email_html(username, product_name, is_active):
+    icon = "👁️" if is_active else "🚫"
+    color = "#5C8A6E" if is_active else "#6b7280"
+    title = "تم تفعيل المنتج" if is_active else "تم إخفاء المنتج"
+    status_text = "نشطاً" if is_active else "مخفياً"
+    
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:{color}10;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">{icon}</div>
+      </div>
+      <h2 style="color:{color};font-size:22px;margin:0 0 16px;text-align:center;">{title}</h2>
+      <p style="color:#4b5563;line-height:1.8;">مرحباً <strong>{username}</strong>،</p>
+      <p style="color:#4b5563;line-height:1.8;">نحيطك علماً بأن مسؤول النظام قام بتغيير حالة ظهور منتجك (<strong>{product_name}</strong>) ليصبح <strong>{status_text}</strong> في المتجر.</p>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;margin-top:24px;">يمكنك مراجعة تفاصيل منتجاتك عبر لوحة التاجر.</p>
+    """
+    return get_base_email_html(title, body)

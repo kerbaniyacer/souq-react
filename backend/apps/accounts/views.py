@@ -8,7 +8,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView
 from drf_spectacular.utils import extend_schema
 from .models import Profile, User, LoginHistory, OTPVerification, Report
-from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, ChangePasswordSerializer, ReportSerializer
+from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, ChangePasswordSerializer, ReportSerializer, PublicUserSerializer
 import base64
 from django.core.files.base import ContentFile
 import uuid
@@ -17,6 +17,7 @@ from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from datetime import timedelta
 from .utils import get_password_reset_email_html, get_password_changed_email_html
 
 def decode_base64_file(data):
@@ -67,6 +68,19 @@ def register(request):
             status=status.HTTP_201_CREATED,
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=['auth'], summary='جلب الملف الشخصي العام')
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_profile(request, username):
+    try:
+        user = User.objects.select_related('profile').get(username=username, status=User.Status.ACTIVE)
+    except User.DoesNotExist:
+        return Response({'detail': 'المستخدم غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = PublicUserSerializer(user, context={'request': request})
+    return Response(serializer.data)
 
 
 @extend_schema(tags=['auth'], summary='جلب وتحديث الملف الشخصي')
@@ -218,8 +232,12 @@ def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = F
     samesite = 'None' if is_secure else 'Lax'
     secure = is_secure
 
-    # Refresh token age: 7 days (standard) or 30 days if remember_me
-    refresh_max_age = (60 * 60 * 24 * 30) if remember_me else (60 * 60 * 24 * 7)
+    # Refresh token age: 7 days if remember_me, else session cookie (browser close)
+    if remember_me:
+        refresh_max_age = (60 * 60 * 24 * 7) # 7 days
+    else:
+        # None means it expires when the browser closes
+        refresh_max_age = None
 
     if refresh_token:
         response.set_cookie(
@@ -269,21 +287,38 @@ class CustomTokenRefreshView(APIView):
 
         try:
             from rest_framework_simplejwt.tokens import RefreshToken as RT
+            from django.utils import timezone
+            from datetime import datetime, timezone as dt_timezone, timedelta
+
             token = RT(refresh_token)
+            
+            # Detect if it was a persistent session (Remember Me)
+            # If remaining time is > 2 days, it was likely a 7-day token.
+            exp_timestamp = token['exp']
+            exp_dt = datetime.fromtimestamp(exp_timestamp, tz=dt_timezone.utc)
+            is_persistent = (exp_dt - timezone.now()) > timedelta(days=2)
+
             new_access = str(token.access_token)
 
             # Rotate refresh token if configured
             if settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS'):
                 if settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION'):
-                    token.blacklist()
+                    try:
+                        token.blacklist()
+                    except Exception:
+                        pass
                 token.set_jti()
-                token.set_exp()
+                # Set the new expiry based on previous state
+                if is_persistent:
+                    token.set_exp(lifetime=timedelta(days=7))
+                else:
+                    token.set_exp(lifetime=timedelta(days=1))
                 new_refresh = str(token)
             else:
                 new_refresh = refresh_token
 
             response = Response({'access': new_access, 'detail': 'تم تجديد الجلسة بنجاح.'})
-            _set_auth_cookies(response, refresh_token=new_refresh, request=request)
+            _set_auth_cookies(response, refresh_token=new_refresh, remember_me=is_persistent, request=request)
             return response
 
         except (TokenError, InvalidToken) as e:
@@ -414,7 +449,13 @@ def social_login(request):
     )
     
     # Issue JWT tokens
+    remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
     refresh = RefreshToken.for_user(user)
+    
+    if remember_me:
+        refresh.set_exp(lifetime=timedelta(days=7))
+    else:
+        refresh.set_exp(lifetime=timedelta(days=1))
     
     response = Response({
         'access': str(refresh.access_token),
@@ -423,7 +464,7 @@ def social_login(request):
         'is_new_social_user': is_new
     })
     
-    _set_auth_cookies(response, refresh_token=str(refresh), request=request)
+    _set_auth_cookies(response, refresh_token=str(refresh), remember_me=remember_me, request=request)
     return response
 
 
@@ -461,7 +502,13 @@ def verify_ip_login(request):
         LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
         otp_record.delete()
         
+        remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
         refresh = RefreshToken.for_user(user)
+        
+        if remember_me:
+            refresh.set_exp(lifetime=timedelta(days=7))
+        else:
+            refresh.set_exp(lifetime=timedelta(days=1))
         
         response = Response({
             'access': str(refresh.access_token),
@@ -469,7 +516,7 @@ def verify_ip_login(request):
             'user': UserSerializer(user).data
         })
         
-        _set_auth_cookies(response, refresh_token=str(refresh), request=request)
+        _set_auth_cookies(response, refresh_token=str(refresh), remember_me=remember_me, request=request)
         return response
     except User.DoesNotExist:
         return Response({'detail': 'حساب غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
@@ -592,8 +639,12 @@ def admin_action_log(request):
     from .serializers import AdminActionLogSerializer
     
     day = request.query_params.get('day')
+    target_type = request.query_params.get('type') # 'User' or 'Product'
     logs = AdminActionLog.objects.all().order_by('-created_at')
     
+    if target_type:
+        logs = logs.filter(target_model__iexact=target_type)
+
     if day:
         from datetime import datetime as dt
         try:
@@ -626,15 +677,72 @@ def admin_manage_action(request, pk):
     action_type = request.data.get('action') # 'restore' or 'finalize_delete'
     
     try:
+        # Get target name and user email for notification
+        user_email = None
+        user_name = None
+        target_name = f"{log.target_model} #{log.target_id}"
+
+        if log.target_model == 'User':
+            from django.contrib.auth import get_user_model
+            U = get_user_model()
+            try:
+                target_user = U.objects.get(pk=log.target_id)
+                user_email = target_user.email
+                user_name = target_user.username
+                target_name = f"حسابك ({target_user.username})"
+            except U.DoesNotExist: pass
+        elif log.target_model == 'Product':
+            from apps.catalog.models import Product
+            try:
+                target_product = Product.objects.get(pk=log.target_id)
+                user_email = target_product.seller.email
+                user_name = target_product.seller.username
+                target_name = f"منتجك ({target_product.name})"
+            except Product.DoesNotExist: pass
+
         if action_type == 'restore':
             AdminService.restore_item(request.user, log.target_model, log.target_id, log.id)
             log.is_processed = True
             log.save()
+            
+            # Send Notification
+            if user_email:
+                try:
+                    from .utils import get_action_notification_email_html
+                    from django.core.mail import send_mail
+                    email_html = get_action_notification_email_html(user_name, target_name, 'restore')
+                    send_mail(
+                        "تحديث بخصوص طلب الاستعادة",
+                        f"تمت استعادة {target_name} بنجاح.",
+                        'noreply@souq.dz',
+                        [user_email],
+                        fail_silently=True,
+                        html_message=email_html
+                    )
+                except: pass
+
             return Response({'detail': 'تمت استعادة العنصر بنجاح.'})
         elif action_type == 'finalize_delete':
             AdminService.finalize_delete(request.user, log.target_model, log.target_id)
             log.is_processed = True
             log.save()
+
+            # Send Notification
+            if user_email:
+                try:
+                    from .utils import get_action_notification_email_html
+                    from django.core.mail import send_mail
+                    email_html = get_action_notification_email_html(user_name, target_name, 'delete')
+                    send_mail(
+                        "إشعار بخصوص الحذف النهائي",
+                        f"تم حذف {target_name} نهائياً.",
+                        'noreply@souq.dz',
+                        [user_email],
+                        fail_silently=True,
+                        html_message=email_html
+                    )
+                except: pass
+
             return Response({'detail': 'تم الحذف النهائي بنجاح.'})
         else:
             return Response({'detail': 'عملية غير صالحة.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -823,6 +931,29 @@ def admin_manage_appeal(request, pk):
             action='suspend',
             is_processed=False
         ).update(is_processed=True)
+
+    # Send Notification Email
+    try:
+        from .utils import get_appeal_decision_email_html
+        from django.core.mail import send_mail
+        
+        email_html = get_appeal_decision_email_html(
+            appeal.user.username,
+            appeal.target_name or f"{appeal.target_type} #{appeal.target_id}",
+            decision,
+            admin_response
+        )
+        
+        send_mail(
+            f"قرار بخصوص طعنك: {appeal.appeal_id}",
+            f"تم { 'قبول' if decision == 'approved' else 'رفض' } طعنك.",
+            'noreply@souq.dz',
+            [appeal.user.email],
+            fail_silently=True,
+            html_message=email_html
+        )
+    except Exception as e:
+        print(f"Error sending appeal decision email: {e}")
 
     return Response({'detail': f'تم تحديث حالة الطعن إلى {decision}.'})
 

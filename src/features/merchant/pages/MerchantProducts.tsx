@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Eye, EyeOff, ShoppingBag, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, ShoppingBag, Search, ShieldAlert } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
 import { productsApi } from '@shared/services/api';
 import api from '@shared/services/api';
 import type { Product } from '@shared/types';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 export default function MerchantProducts() {
   const toast = useToast();
@@ -121,14 +122,20 @@ export default function MerchantProducts() {
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 dark:bg-[#252525] rounded-xl overflow-hidden shrink-0 flex items-center justify-center">
                           <img
-                            src={p.main_image || '/images/default-product.jpg'}
+                            src={p.main_image || DEFAULT_PRODUCT_IMAGE}
                             alt=""
                             className="w-full h-full object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/default-product.jpg'; }}
+                            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE; }}
                           />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-800 dark:text-gray-200 font-arabic text-sm line-clamp-1">{p.name}</p>
+                          <Link
+                            to={`/products/${p.slug}`}
+                            className="font-medium text-gray-800 dark:text-gray-200 font-arabic text-sm line-clamp-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                            title="عرض صفحة المنتج"
+                          >
+                            {p.name}
+                          </Link>
                           <p className="text-xs text-gray-400 dark:text-gray-500 font-mono mt-0.5">{mainVariant?.sku ?? '—'}</p>
                         </div>
                       </div>
@@ -142,20 +149,43 @@ export default function MerchantProducts() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <button onClick={() => handleToggleActive(p)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-arabic font-medium transition-colors ${
-                          p.is_active
-                            ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30'
-                            : 'bg-gray-100 dark:bg-[#252525] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2E2E2E]'
-                        }`}
-                      >
-                        {p.is_active ? <><Eye className="w-3 h-3" /> نشط</> : <><EyeOff className="w-3 h-3" /> مخفي</>}
-                      </button>
+                      {p.status === 'suspended' ? (
+                        <div className="flex flex-col gap-1.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-arabic font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                            <ShieldAlert className="w-3 h-3" /> مجمد من الإدارة
+                          </span>
+                          <Link 
+                            to={`/appeals/new?type=product&id=${p.id}`}
+                            className="text-[10px] text-primary-600 dark:text-primary-400 font-arabic font-bold hover:underline px-1"
+                          >
+                            تقديم طعن
+                          </Link>
+                        </div>
+                      ) : (
+                        <button onClick={() => handleToggleActive(p)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-arabic font-medium transition-colors ${
+                            p.is_active
+                              ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30'
+                              : 'bg-gray-100 dark:bg-[#252525] text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#2E2E2E]'
+                          }`}
+                        >
+                          {p.is_active ? <><Eye className="w-3 h-3" /> نشط</> : <><EyeOff className="w-3 h-3" /> مخفي</>}
+                        </button>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
+                        <Link
+                          to={`/products/${p.slug}?preview=customer`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-arabic text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                          title="معاينة صفحة المنتج كما تظهر للزبون"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span className="hidden lg:inline">معاينة</span>
+                        </Link>
                         <Link to={`/merchant/products/${p.id}/edit`}
                           className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                          title="تعديل المنتج"
                         >
                           <Pencil className="w-4 h-4" />
                         </Link>
@@ -163,6 +193,7 @@ export default function MerchantProducts() {
                           onClick={() => handleDelete(p.id)}
                           disabled={deleting === String(p.id)}
                           className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-40"
+                          title="حذف المنتج"
                         >
                           {deleting === String(p.id)
                             ? <span className="w-4 h-4 border-2 border-red-300 border-t-red-500 rounded-full animate-spin block" />

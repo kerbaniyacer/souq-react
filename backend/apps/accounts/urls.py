@@ -6,7 +6,7 @@ from .views import (
     admin_manage_action, submit_appeal, user_appeal_list, admin_appeal_list,
     admin_manage_appeal, password_reset_request, password_reset_confirm,
     public_submit_appeal, CustomTokenRefreshView, CustomLogoutView,
-    complete_profile
+    complete_profile, public_profile
 )
 
 urlpatterns = [
@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Profile
     path('profile/', profile, name='auth-profile'),
+    path('profile/<str:username>/', public_profile, name='auth-public-profile'),
     path('change-password/', change_password, name='auth-change-password'),
     path('password-reset/', password_reset_request, name='auth-password-reset'),
     path('password-reset/confirm/', password_reset_confirm, name='auth-password-reset-confirm'),

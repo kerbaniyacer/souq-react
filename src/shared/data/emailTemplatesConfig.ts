@@ -106,5 +106,29 @@ export const DEFAULT_EMAIL_CONTENT: Record<string, EmailContent> = {
     bodyText: 'يرجى مراجعة تفاصيل البلاغ في لوحة التحكم واتخاذ الإجراء اللازم.',
     buttonLabel: 'لوحة الإدارة',
     buttonLink: '/admin-panel'
+  },
+  'appeal-decision': {
+    subject: 'قرار بخصوص طعنك الإداري ⚖️',
+    header: 'مراجعة طلب الطعن',
+    subheader: 'تمت مراجعة الطعن المقدم من قبلك بشأن الإجراء الإداري الأخير.',
+    bodyText: 'يرجى مراجعة تفاصيل القرار في لوحة التحكم الخاصة بك أو تواصل معنا لمزيد من التوضيح.',
+    buttonLabel: 'عرض التفاصيل',
+    buttonLink: '/merchant/dashboard'
+  },
+  'visibility-change': {
+    subject: 'تحديث بخصوص ظهور منتجك 👁️',
+    header: 'تغيير حالة الظهور',
+    subheader: 'قام مسؤول النظام بتغيير حالة ظهور أحد منتجاتك في المتجر.',
+    bodyText: 'هذا الإجراء يهدف لضمان جودة المحتوى المعروض في المنصة وفقاً للمعايير المعتمدة.',
+    buttonLabel: 'لوحة التاجر',
+    buttonLink: '/merchant/products'
+  },
+  'admin-action': {
+    subject: 'إشعار بخصوص إجراء إداري 🛠️',
+    header: 'تحديث الحالة الإدارية',
+    subheader: 'تم اتخاذ إجراء إداري بخصوص العنصر المحدد (استعادة أو حذف نهائي).',
+    bodyText: 'نحرص دائماً على تطبيق القوانين بعدالة وشفافية لضمان تجربة آمنة لجميع المستخدمين.',
+    buttonLabel: 'التفاصيل',
+    buttonLink: '/profile'
   }
 };

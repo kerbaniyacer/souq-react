@@ -5,6 +5,7 @@ import { useCartStore } from '@shared/stores/cartStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
 import { useNavigate } from 'react-router-dom';
+import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 
 interface Props {
   product: Product | null;
@@ -45,7 +46,7 @@ function findMatchingVariant(
 
 export default function VariantSelectorModal({ product, isOpen, onClose }: Props) {
   const { addItem } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -75,6 +76,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
       : product?.images ?? [];
 
   const productFallbackImage = product?.main_image ?? product?.images?.[0]?.image;
+  const isOwner = !!(product?.seller && user && String(product.seller.id) === String(user.id));
 
   // ── Effects (Unconditional) ─────────────────────────────────────
   
@@ -148,6 +150,10 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
       navigate('/login');
       return;
     }
+    if (isOwner) {
+      toast.info('لا يمكنك إضافة منتجك إلى السلة');
+      return;
+    }
     if (!activeVariant) {
       toast.error('اختر المتغير المطلوب أولاً');
       return;
@@ -163,7 +169,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
 
     setIsAdding(true);
     try {
-      await addItem(activeVariant.id, quantity);
+      await addItem(activeVariant.id, quantity, product.seller?.id);
       toast.success('تمت الإضافة إلى السلة ✓');
       onClose();
     } catch (err: any) {
@@ -180,7 +186,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     setActiveImageIndex((i) => (i === variantImages.length - 1 ? 0 : i + 1));
 
   const currentImageSrc =
-    variantImages[activeImageIndex]?.image ?? productFallbackImage ?? '/images/default-product.jpg';
+    variantImages[activeImageIndex]?.image ?? productFallbackImage ?? DEFAULT_PRODUCT_IMAGE;
 
   if (!isOpen) return null;
 
@@ -228,7 +234,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                   alt={activeVariant?.name || product.name}
                   className="w-full h-full object-cover transition-all duration-300"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/default-product.jpg';
+                    (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                   }}
                 />
                 {variantImages.length > 1 && (
@@ -281,7 +287,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                         alt=""
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/default-product.jpg';
+                          (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
                         }}
                       />
                     </button>
@@ -449,6 +455,10 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
           {!activeVariant && hasAttributes ? (
             <p className="text-center text-sm font-arabic text-gray-400 dark:text-gray-500 py-2">
               اختر المتغيرات المطلوبة لإتمام الإضافة
+            </p>
+          ) : isOwner ? (
+            <p className="text-center text-sm font-arabic text-gray-400 dark:text-gray-500 py-2">
+              لا يمكنك إضافة منتجك إلى السلة
             </p>
           ) : (
             <button

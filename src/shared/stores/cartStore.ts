@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Cart, CartItem } from '@shared/types';
 import { cartApi } from '@shared/services/api';
+import { useAuthStore } from '@features/auth/stores/authStore';
 
 interface CartStore {
   cart: Cart | null;
@@ -8,7 +9,7 @@ interface CartStore {
   isOpen: boolean;
 
   fetchCart: () => Promise<void>;
-  addItem: (variantId: number, quantity?: number) => Promise<void>;
+  addItem: (variantId: number, quantity?: number, ownerId?: number | null) => Promise<void>;
   updateItem: (itemId: number, quantity: number) => Promise<void>;
   removeItem: (itemId: number) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -26,6 +27,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
   isOpen: false,
 
   fetchCart: async () => {
+    const { isAuthenticated, accessToken } = useAuthStore.getState();
+    if (!isAuthenticated || !accessToken) {
+      set({ cart: null, isLoading: false });
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const res = await cartApi.get();
@@ -35,7 +42,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  addItem: async (variantId, quantity = 1) => {
+  addItem: async (variantId, quantity = 1, ownerId) => {
+    const { user } = useAuthStore.getState();
+    if (user && ownerId && String(user.id) === String(ownerId)) {
+      throw new Error('لا يمكنك إضافة منتجك إلى السلة');
+    }
+
     await cartApi.add(variantId, quantity);
     await get().fetchCart();
   },
@@ -51,6 +63,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   clearCart: async () => {
+    const { isAuthenticated, accessToken } = useAuthStore.getState();
+    if (!isAuthenticated || !accessToken) {
+      set({ cart: null });
+      return;
+    }
+
     await cartApi.clear();
     set({ cart: null });
   },

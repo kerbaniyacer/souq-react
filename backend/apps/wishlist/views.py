@@ -28,6 +28,9 @@ def wishlist_add(request):
     except Product.DoesNotExist:
         return Response({'detail': 'المنتج غير موجود'}, status=status.HTTP_404_NOT_FOUND)
 
+    if product.seller_id == request.user.id:
+        return Response({'detail': 'لا يمكنك إضافة منتجك إلى المفضلة'}, status=status.HTTP_400_BAD_REQUEST)
+
     item, created = WishlistItem.objects.get_or_create(user=request.user, product=product)
     if not created:
         return Response({'detail': 'المنتج موجود في المفضلة بالفعل'}, status=status.HTTP_200_OK)
