@@ -331,14 +331,16 @@ export default function ProductDetail() {
         {/* Details Section (Now Second in code -> Left in RTL) */}
         <div className="flex flex-col">
           <div className="flex items-center justify-end gap-4 mb-3">
-            <button 
-              onClick={() => setIsReportModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors font-arabic"
-              title="تبليغ عن منتج مخالف"
-            >
-              <Flag className="w-3.5 h-3.5" />
-              تبليغ
-            </button>
+            {!isOwner && (
+              <button 
+                onClick={() => setIsReportModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors font-arabic"
+                title="تبليغ عن منتج مخالف"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                تبليغ
+              </button>
+            )}
             {product.seller && (
               <div className="flex items-center gap-3 border-r border-gray-200 dark:border-gray-700 pr-4">
                 <FollowButton sellerId={product.seller.id} />

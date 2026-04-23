@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Package, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Clock, ShieldCheck, CheckCircle2, AlertCircle, Gavel } from 'lucide-react';
+import { Users, Package, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Clock, ShieldCheck, CheckCircle2, AlertCircle, Gavel, X, Flag } from 'lucide-react';
 import api from '@features/auth/services/authService';
 import { getLoginHistory } from '@shared/services/ipService';
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -131,6 +131,19 @@ export default function AdminDashboard() {
   const [deleteModal, setDeleteModal] = useState<{ id: string, type: 'user' | 'product', name: string } | null>(null);
   const [viewingReport, setViewingReport] = useState<AdminReport | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+  const [reportTypeFilter, setReportTypeFilter] = useState<'all' | 'product' | 'user'>('all');
+
+  const deleteReport = async (reportId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا البلاغ نهائياً؟')) return;
+    try {
+      await api.delete(`/auth/admin/reports/${reportId}/`);
+      toast.success('تم حذف البلاغ بنجاح');
+      setViewingReport(null);
+      fetchData();
+    } catch {
+      toast.error('فشل حذف البلاغ');
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -154,7 +167,19 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [ordersStartDate, ordersEndDate]);
+    // Live update for all elements (polling every 30 seconds)
+    const interval = setInterval(() => {
+      fetchData();
+      if (tab === 'history') {
+        getLoginHistory(historyDate).then(setLoginHistory);
+      } else if (tab === 'actions') {
+        const dayParam = actionHistoryDate ? `&day=${actionHistoryDate}` : '';
+        const typeParam = actionTypeFilter !== 'all' ? `&type=${actionTypeFilter}` : '';
+        api.get(`/auth/admin/action-log/?limit=100${dayParam}${typeParam}`).then(res => setAdminLogs(res.data));
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [ordersStartDate, ordersEndDate, tab, historyDate, actionHistoryDate, actionTypeFilter]);
 
   useEffect(() => {
     if (tab === 'history') {
@@ -287,13 +312,19 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-gray-100 dark:bg-[#252525] rounded-2xl p-1.5 mb-8 w-fit overflow-x-auto no-scrollbar max-w-full">
-        {(['overview', 'users', 'products', 'orders', 'reports', 'appeals', 'history', 'actions'] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-arabic font-bold transition-all whitespace-nowrap ${tab === t ? 'bg-white dark:bg-[#1E1E1E] text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-            {t === 'overview' ? 'نظرة عامة' : t === 'users' ? 'المستخدمون' : t === 'products' ? 'المنتجات' : t === 'orders' ? 'الطلبات' : t === 'reports' ? 'البلاغات' : t === 'appeals' ? 'الطعون' : t === 'history' ? 'سجل الدخول' : 'العمليات'}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex gap-2 bg-gray-100 dark:bg-[#252525] rounded-2xl p-1.5 w-fit overflow-x-auto no-scrollbar max-w-full">
+          {(['overview', 'users', 'products', 'orders', 'reports', 'appeals', 'history', 'actions'] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-5 py-2.5 rounded-xl text-sm font-arabic font-bold transition-all whitespace-nowrap ${tab === t ? 'bg-white dark:bg-[#1E1E1E] text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              {t === 'overview' ? 'نظرة عامة' : t === 'users' ? 'المستخدمون' : t === 'products' ? 'المنتجات' : t === 'orders' ? 'الطلبات' : t === 'reports' ? 'البلاغات' : t === 'appeals' ? 'الطعون' : t === 'history' ? 'سجل الدخول' : 'العمليات'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/10 rounded-2xl border border-primary-100/50 dark:border-primary-800/20">
+           <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
+           <span className="text-[11px] text-primary-600 dark:text-primary-400 font-arabic font-bold">تحديث مباشر</span>
+        </div>
       </div>
 
       {(tab === 'users' || tab === 'products' || tab === 'history' || tab === 'actions') && (
@@ -401,6 +432,7 @@ export default function AdminDashboard() {
                   <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-100 dark:border-[#2E2E2E]">
                     <tr>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">المستخدم</th>
+                      <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">البلاغات</th>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">الحالة</th>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">الإجراء الإداري</th>
                     </tr>
@@ -417,6 +449,16 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </td>
+                        <td className="px-6 py-5">
+                           {(u as any).reports_count > 0 ? (
+                             <div className="flex items-center gap-1.5 text-red-600 font-bold">
+                               <Flag className="w-3.5 h-3.5" />
+                               <span className="text-xs">{(u as any).reports_count}</span>
+                             </div>
+                           ) : (
+                             <span className="text-xs text-gray-400">—</span>
+                           )}
+                         </td>
                         <td className="px-6 py-5">
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold font-arabic ${
                             u.status === 'suspended' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
@@ -586,7 +628,6 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic">سجل الرقابة الإدارية</h3>
-                <span className="text-[11px] px-3 py-1 bg-primary-50 text-primary-600 rounded-full font-arabic font-bold animate-pulse">تحديث مباشر</span>
               </div>
               {adminLogs.length === 0 ? (
                 <div className="p-20 bg-white dark:bg-[#1A1A1A] rounded-3xl border border-dashed border-gray-200 text-center text-gray-400 font-arabic">لا توجد سجلات حالياً</div>
@@ -655,7 +696,21 @@ export default function AdminDashboard() {
 
           {/* Reports */}
           {tab === 'reports' && (
-            <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
+            <div className="space-y-4">
+              <div className="flex gap-2 p-1 bg-gray-50 dark:bg-[#252525] rounded-2xl w-fit">
+                 {(['all', 'product', 'user'] as const).map((type) => (
+                    <button key={type} onClick={() => setReportTypeFilter(type)}
+                      className={`px-6 py-2 rounded-xl text-xs font-bold font-arabic transition-all ${
+                        reportTypeFilter === type 
+                        ? 'bg-white dark:bg-[#1A1A1A] text-primary-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                      }`}>
+                      {type === 'all' ? 'الكل' : type === 'product' ? 'بلاغات المنتجات' : 'بلاغات المستخدمين'}
+                    </button>
+                 ))}
+              </div>
+
+              <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-100 dark:border-[#2E2E2E]">
                     <tr>
@@ -666,33 +721,42 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reports.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50 dark:border-[#2E2E2E]">
+                    {reports
+                      .filter(r => reportTypeFilter === 'all' ? true : reportTypeFilter === 'product' ? r.report_type === 'product' : r.report_type !== 'product')
+                      .map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors border-b last:border-0 border-gray-50 dark:border-[#2E2E2E]">
                         <td className="px-6 py-5 text-sm font-bold text-gray-900 dark:text-gray-100">{r.reporter_name}</td>
                         <td className="px-6 py-5 text-sm text-primary-600 font-bold">
-                          {(r as any).target_name || r.target_product_name || r.target_user_name || '—'}
+                          {(r as any).target_name || 
+                           (r as any).target_product_name || 
+                           (r as any).target_user_name || 
+                           (r as any).target_username ||
+                           (r as any).target_product_details?.name ||
+                           (r as any).target_user_details?.username ||
+                           (r as any).target_details?.name ||
+                           (r as any).target_details?.username ||
+                           '—'}
                         </td>
                         <td className="px-6 py-5 text-xs text-gray-500 font-arabic truncate max-w-xs">
                           {reportReasonLabels[r.reason] || r.reason}
                         </td>
                         <td className="px-6 py-5">
-                          <button onClick={() => setViewingReport(r)} className="p-2 text-gray-400 hover:text-primary-600 transition-colors"><Search className="w-5 h-5" /></button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setViewingReport(r)} className="p-2 text-gray-400 hover:text-primary-600 transition-colors" title="تفاصيل"><Search className="w-5 h-5" /></button>
+                            <button onClick={() => deleteReport(r.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="حذف"><Trash2 className="w-5 h-5" /></button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
             </div>
           )}
 
           {/* Appeals List */}
           {tab === 'appeals' && (
              <div className="animate-in fade-in duration-300">
-               {/* 
-                  Since we have a dedicated page for AdminAppeals, 
-                  we can either import the same logic or just link to it.
-                  I'll add a simplified iframe-like call or just redirect for now.
-               */}
                <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] p-12 text-center">
                   <Gavel size={64} className="mx-auto mb-6 text-amber-500 opacity-50" />
                   <h3 className="text-xl font-bold font-arabic mb-4">إدارة طعون المستخدمين</h3>
@@ -755,7 +819,7 @@ export default function AdminDashboard() {
            <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-lg rounded-3xl p-8 border border-gray-100 dark:border-[#2E2E2E] shadow-2xl animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between mb-6">
                  <h3 className="text-xl font-bold font-arabic">تفاصيل البلاغ</h3>
-                 <button onClick={() => setViewingReport(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-all"><Trash2 className="w-5 h-5 text-gray-400" /></button>
+                 <button onClick={() => setViewingReport(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-all"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="space-y-4">
                  <div className="p-4 bg-gray-50 dark:bg-[#252525] rounded-2xl border border-gray-100">
@@ -770,8 +834,21 @@ export default function AdminDashboard() {
                     <button onClick={() => {
                         handleDeleteProduct({ id: viewingReport.target_product!, name: viewingReport.target_product_name!, slug: viewingReport.target_product_slug!, is_active: true, status: 'active', is_featured: false, seller_id: '' });
                         setViewingReport(null);
-                    }} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-bold font-arabic shadow-lg shadow-orange-600/20">تجميد المنتج فوراً</button>
+                    }} className="w-full py-4 bg-orange-600 text-white rounded-2xl font-bold font-arabic shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-colors">تجميد المنتج فوراً</button>
                  )}
+                 {viewingReport.report_type !== 'product' && viewingReport.target_user && (
+                    <button onClick={() => {
+                        setDeleteReason('');
+                        setDeleteModal({ id: viewingReport.target_user!.toString(), type: 'user', name: viewingReport.target_user_name || 'هذا المستخدم' });
+                        setViewingReport(null);
+                    }} className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold font-arabic shadow-lg shadow-red-600/20 hover:bg-red-700 transition-colors">تجميد المستخدم فوراً</button>
+                 )}
+                 <button 
+                   onClick={() => deleteReport(viewingReport.id.toString())}
+                   className="w-full py-3 text-red-500 hover:text-red-600 font-arabic text-sm transition-colors border border-dashed border-red-200 dark:border-red-900/30 rounded-2xl mt-2"
+                 >
+                   حذف هذا البلاغ من السجل
+                 </button>
               </div>
            </div>
          </div>

@@ -566,7 +566,8 @@ def profiles_list(request):
     if not request.user.is_staff:
         return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
     
-    users = User.objects.all().order_by('-date_joined')
+    from django.db.models import Count
+    users = User.objects.annotate(reports_count=Count('reports_received')).all().order_by('-date_joined')
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
 
@@ -762,6 +763,22 @@ def admin_report_list(request):
     from .serializers import ReportSerializer
     serializer = ReportSerializer(reports, many=True)
     return Response(serializer.data)
+
+
+@extend_schema(tags=['auth'], summary='حذف بلاغ (للمسؤولين فقط)')
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def admin_report_delete(request, pk):
+    """Deletes a single report. Restricted to staff."""
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        report = Report.objects.get(pk=pk)
+        report.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except Report.DoesNotExist:
+        return Response({'detail': 'البلاغ غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 @extend_schema(tags=['appeals'], summary='تقديم طعن على تجميد')

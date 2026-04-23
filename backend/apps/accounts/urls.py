@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     register, profile, change_password, CustomLoginView, social_login,
     verify_ip_login, login_history, profiles_list, admin_delete_user,
-    admin_report_list, create_report, admin_user_detail, admin_action_log,
+    admin_report_list, admin_report_delete, create_report, admin_user_detail, admin_action_log,
     admin_manage_action, submit_appeal, user_appeal_list, admin_appeal_list,
     admin_manage_appeal, password_reset_request, password_reset_confirm,
     public_submit_appeal, CustomTokenRefreshView, CustomLogoutView,
@@ -33,6 +33,7 @@ urlpatterns = [
     # Reports
     path('reports/', create_report, name='auth-create-report'),
     path('admin/reports/', admin_report_list, name='auth-admin-report-list'),
+    path('admin/reports/<int:pk>/', admin_report_delete, name='auth-admin-report-delete'),
     
     # Appeals
     path('appeals/', submit_appeal, name='auth-submit-appeal'),

@@ -32,6 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
     full_name = serializers.CharField(read_only=True)
     is_onboarded = serializers.SerializerMethodField()
+    reports_count = serializers.IntegerField(read_only=True)
 
     def get_is_onboarded(self, obj):
         profile = getattr(obj, 'profile', None)
@@ -43,7 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name',
             'full_name', 'photo', 'provider', 'is_staff', 'date_joined', 'role',
             'profile', 'status', 'suspended_at', 'appeal_deadline', 'suspension_reason',
-            'is_onboarded',
+            'is_onboarded', 'reports_count',
         ]
         read_only_fields = ['id', 'is_staff', 'date_joined', 'provider']
 
