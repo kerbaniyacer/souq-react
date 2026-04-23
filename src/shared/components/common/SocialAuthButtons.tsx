@@ -73,6 +73,7 @@ export default function SocialAuthButtons({ mode, onVerificationRequired, rememb
           first_name: googleUser.given_name || googleUser.name?.split(' ')[0] || '',
           last_name: googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '',
           photo: googleUser.picture,
+          access_token: tokenResponse.access_token,
           remember_me: rememberMe
         };
         const tokens = await loginSocialDjango(payload);
@@ -170,6 +171,7 @@ export default function SocialAuthButtons({ mode, onVerificationRequired, rememb
         first_name: name.split(' ')[0] || '',
         last_name: name.split(' ').slice(1).join(' ') || '',
         photo: picture,
+        access_token: accessToken,
         remember_me: rememberMe
       };
       

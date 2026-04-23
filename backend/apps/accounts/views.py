@@ -214,30 +214,37 @@ def password_reset_confirm(request):
 
 from .serializers import CustomTokenObtainPairSerializer
 
+_DAY  = 60 * 60 * 24        # 1 day in seconds
+_WEEK = 60 * 60 * 24 * 7   # 7 days in seconds
+
+
 def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = False, request=None):
     """
-    Sets the Refresh Token as a secure HttpOnly cookie.
-    Access Tokens are handled in-memory by the frontend (Zustand).
+    Sets two HttpOnly cookies:
+      - refresh_token  : the JWT refresh token
+      - persistent_session : '1' for Remember-Me (7 days), '0' for standard (1 day)
+
+    Both cookies share the same max_age so they expire together.
+    Using a dedicated cookie for the preference avoids fragile heuristics
+    when the refresh token is rotated (CustomTokenRefreshView reads this cookie).
     """
-    
+
     # Secure detection for production/ngrok stability
     is_secure = False
     if request:
-        is_secure = request.is_secure() or 'ngrok' in request.get_host().lower() or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https'
-    
-    # Fallback to settings
+        is_secure = (
+            request.is_secure()
+            or 'ngrok' in request.get_host().lower()
+            or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https'
+        )
     is_secure = is_secure or getattr(settings, 'SESSION_COOKIE_SECURE', True)
-    
-    # SameSite=None is required for cross-origin (ngrok on mobile) but REQUIRES Secure=True
+
     samesite = 'None' if is_secure else 'Lax'
     secure = is_secure
 
-    # Refresh token age: 7 days if remember_me, else session cookie (browser close)
-    if remember_me:
-        refresh_max_age = (60 * 60 * 24 * 7) # 7 days
-    else:
-        # None means it expires when the browser closes
-        refresh_max_age = None
+    # Remember-Me → 7 days persistent cookie
+    # Standard    → 1 day  persistent cookie (survives browser close)
+    refresh_max_age = _WEEK if remember_me else _DAY
 
     if refresh_token:
         response.set_cookie(
@@ -249,6 +256,17 @@ def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = F
             max_age=refresh_max_age,
             path='/',
         )
+
+    # Store the session preference so CustomTokenRefreshView can rotate correctly
+    response.set_cookie(
+        key='persistent_session',
+        value='1' if remember_me else '0',
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        max_age=refresh_max_age,
+        path='/',
+    )
 
 
 class CustomLoginView(TokenObtainPairView):
@@ -291,12 +309,22 @@ class CustomTokenRefreshView(APIView):
             from datetime import datetime, timezone as dt_timezone, timedelta
 
             token = RT(refresh_token)
-            
-            # Detect if it was a persistent session (Remember Me)
-            # If remaining time is > 2 days, it was likely a 7-day token.
-            exp_timestamp = token['exp']
-            exp_dt = datetime.fromtimestamp(exp_timestamp, tz=dt_timezone.utc)
-            is_persistent = (exp_dt - timezone.now()) > timedelta(days=2)
+
+            # Reject refresh for suspended users
+            user_id = token.get('user_id')
+            try:
+                token_user = User.objects.get(pk=user_id)
+                if token_user.status == 'suspended':
+                    return Response(
+                        {'detail': 'account_suspended', 'code': 'ACCOUNT_SUSPENDED'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except User.DoesNotExist:
+                return Response({'detail': 'المستخدم غير موجود.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Read the session-preference cookie set at login time.
+            # Avoids heuristics that break when remaining time crosses the threshold.
+            is_persistent = request.COOKIES.get('persistent_session') == '1'
 
             new_access = str(token.access_token)
 
@@ -308,11 +336,7 @@ class CustomTokenRefreshView(APIView):
                     except Exception:
                         pass
                 token.set_jti()
-                # Set the new expiry based on previous state
-                if is_persistent:
-                    token.set_exp(lifetime=timedelta(days=7))
-                else:
-                    token.set_exp(lifetime=timedelta(days=1))
+                token.set_exp(lifetime=timedelta(days=7) if is_persistent else timedelta(days=1))
                 new_refresh = str(token)
             else:
                 new_refresh = refresh_token
@@ -340,9 +364,9 @@ class CustomLogoutView(APIView):
                 pass  # Token already invalid — continue to clear cookies
 
         response = Response({'detail': 'تم تسجيل الخروج بنجاح.'})
-        # Clear cookies
         response.delete_cookie('access_token', path='/')
         response.delete_cookie('refresh_token', path='/')
+        response.delete_cookie('persistent_session', path='/')
         return response
 
 
@@ -350,6 +374,40 @@ class CustomLogoutView(APIView):
 
 from rest_framework_simplejwt.tokens import RefreshToken
 import uuid
+
+def _verify_google_token(access_token: str, expected_provider_id: str) -> bool:
+    """Verify Google access_token by calling Google's userinfo endpoint."""
+    import requests as req
+    try:
+        r = req.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=5,
+        )
+        if r.status_code != 200:
+            return False
+        data = r.json()
+        return str(data.get('sub', '')) == str(expected_provider_id)
+    except Exception:
+        return False
+
+
+def _verify_facebook_token(access_token: str, expected_provider_id: str) -> bool:
+    """Verify Facebook access_token by calling Graph API /me endpoint."""
+    import requests as req
+    try:
+        r = req.get(
+            'https://graph.facebook.com/me',
+            params={'fields': 'id', 'access_token': access_token},
+            timeout=5,
+        )
+        if r.status_code != 200:
+            return False
+        data = r.json()
+        return str(data.get('id', '')) == str(expected_provider_id)
+    except Exception:
+        return False
+
 
 @extend_schema(tags=['auth'], summary='الدخول عبر منصات التواصل (Google/Facebook)')
 @api_view(['POST'])
@@ -361,9 +419,23 @@ def social_login(request):
     provider_id = request.data.get('provider_id', '')
     first_name = request.data.get('first_name', '')
     last_name = request.data.get('last_name', '')
-    
+    access_token = request.data.get('access_token', '')
+
     if not email:
         return Response({'detail': 'Email is required for social login.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not access_token:
+        return Response({'detail': 'access_token is required for social login.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify OAuth token with the provider before trusting any user data
+    if provider == 'google':
+        if not _verify_google_token(access_token, provider_id):
+            return Response({'detail': 'رمز Google غير صالح أو منتهي الصلاحية.'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif provider == 'facebook':
+        if not _verify_facebook_token(access_token, provider_id):
+            return Response({'detail': 'رمز Facebook غير صالح أو منتهي الصلاحية.'}, status=status.HTTP_401_UNAUTHORIZED)
+    else:
+        return Response({'detail': 'مزود OAuth غير مدعوم.'}, status=status.HTTP_400_BAD_REQUEST)
         
     is_new = False
     try:
@@ -468,22 +540,43 @@ def social_login(request):
     return response
 
 
+OTP_MAX_ATTEMPTS = 5
+OTP_LOCKOUT_SECONDS = 3600  # 1 hour
+
+
 @extend_schema(tags=['auth'], summary='تأكيد تسجيل الدخول من IP جديد')
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_ip_login(request):
+    from django.core.cache import cache
+
     email = request.data.get('email')
     otp = request.data.get('otp')
-    
+
     if not email or not otp:
         return Response({'detail': 'يرجى توفير البريد الإلكتروني ورمز التحقق.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    cache_key = f'otp_attempts_{email.lower()}'
+    attempts = cache.get(cache_key, 0)
+    if attempts >= OTP_MAX_ATTEMPTS:
+        return Response(
+            {'detail': 'تجاوزت الحد المسموح من المحاولات. يرجى المحاولة بعد ساعة.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
     try:
         user = User.objects.get(email=email)
         otp_record = OTPVerification.objects.filter(user=user).first()
-        
+
         if not otp_record or otp_record.otp != otp:
-            return Response({'detail': 'الرمز غير صحيح أو منتهي الصلاحية.'}, status=status.HTTP_400_BAD_REQUEST)
+            cache.set(cache_key, attempts + 1, OTP_LOCKOUT_SECONDS)
+            remaining = OTP_MAX_ATTEMPTS - (attempts + 1)
+            detail = 'الرمز غير صحيح أو منتهي الصلاحية.'
+            if remaining > 0:
+                detail += f' لديك {remaining} محاولة متبقية.'
+            else:
+                detail = 'تم قفل الحساب مؤقتاً لمدة ساعة بسبب تجاوز محاولات التحقق.'
+            return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
             
         # Check if user was suspended AFTER the OTP was sent
         if user.status == 'suspended':
@@ -494,11 +587,12 @@ def verify_ip_login(request):
                 'email': user.email
             }, status=status.HTTP_403_FORBIDDEN)
             
-        # Success! Clear OTP, record login, issue tokens
+        # Success! Clear OTP, reset attempt counter, record login, issue tokens
+        cache.delete(cache_key)
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
         user_agent = request.META.get('HTTP_USER_AGENT', '')
-        
+
         LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
         otp_record.delete()
         

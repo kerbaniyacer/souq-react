@@ -9,7 +9,7 @@ from drf_spectacular.utils import extend_schema
 from .models import Order, OrderItem, PaymentProof, SubOrder
 from apps.cart.models import Cart
 from .serializers import OrderSerializer, OrderCreateSerializer, PaymentProofSerializer, SubOrderSerializer
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductVariant
 
 
 @extend_schema(tags=['orders'], summary='قائمة طلبات المستخدم')
@@ -60,12 +60,17 @@ def order_cancel(request, pk):
     if order.status not in [Order.Status.PENDING, Order.Status.CONFIRMED]:
         return Response({'detail': 'لا يمكن إلغاء الطلب في هذه المرحلة'}, status=status.HTTP_400_BAD_REQUEST)
         
-    order.status = Order.Status.CANCELLED
-    order.save()
-    
-    # Also cancel all suborders
-    order.sub_orders.all().update(status=SubOrder.Status.CANCELLED)
-    
+    with transaction.atomic():
+        order.status = Order.Status.CANCELLED
+        order.save()
+
+        # Also cancel all suborders
+        order.sub_orders.all().update(status=SubOrder.Status.CANCELLED)
+
+        # Restore stock for each cancelled item
+        for item in order.items.select_related('variant'):
+            ProductVariant.objects.filter(pk=item.variant_id).update(stock=F('stock') + item.quantity)
+
     return Response(OrderSerializer(order, context={'request': request}).data)
 
 
@@ -166,11 +171,19 @@ def order_create(request):
         return Response({'detail': 'السلة فارغة'}, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
-        # Check stock for all items before creating
+        # Lock variants for update to prevent race conditions (oversell)
+        variant_ids = [ci.variant_id for ci in cart_items]
+        locked_variants = {
+            v.pk: v
+            for v in ProductVariant.objects.select_for_update().filter(pk__in=variant_ids)
+        }
+
+        # Re-check stock using locked rows
         for ci in cart_items:
-            if ci.variant.stock < ci.quantity:
+            locked = locked_variants[ci.variant_id]
+            if locked.stock < ci.quantity:
                 return Response(
-                    {'detail': f'المخزون غير كافٍ لـ {ci.variant.product.name} ({ci.variant.name})'},
+                    {'detail': f'المخزون غير كافٍ لـ {ci.variant.product.name} ({locked.name})'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -209,9 +222,8 @@ def order_create(request):
                 quantity=ci.quantity,
                 subtotal=ci.subtotal
             )
-            # Update stock
-            ci.variant.stock -= ci.quantity
-            ci.variant.save()
+            # Update stock using F() to avoid race conditions
+            ProductVariant.objects.filter(pk=ci.variant_id).update(stock=F('stock') - ci.quantity)
 
         # Create SubOrders for each merchant
         from apps.notifications.utils import create_notification

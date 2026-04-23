@@ -102,7 +102,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       profileLoading: false,
 
-      setAccessToken: (token) => set({ accessToken: token }),
+      setAccessToken: (token) => set({ accessToken: token, isAuthenticated: token !== null }),
 
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
@@ -224,11 +224,12 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
+      // Only persist non-sensitive UI state (user profile data).
+      // isAuthenticated is derived from a valid session on boot (silent refresh).
+      // accessToken is kept in memory only — never persisted to localStorage.
       partialize: (state) => ({
         user: state.user,
         profile: state.profile,
-        isAuthenticated: state.isAuthenticated,
-        accessToken: state.accessToken,
       }),
     }
   )

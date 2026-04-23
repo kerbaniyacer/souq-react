@@ -83,20 +83,16 @@ api.interceptors.response.use(
 
       try {
         const newAccessToken = await refreshAccessToken();
-        console.log('[API] Refresh successful, retrying original request...');
         processQueue(null, newAccessToken);
-        isRefreshing = false;
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('[API] Refresh failed, logging out:', refreshError);
         processQueue(refreshError, null);
-        isRefreshing = false;
         useAuthStore.getState().logout();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        // PrivateRoute in App.tsx handles redirect to /login when isAuthenticated becomes false
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);
@@ -189,6 +185,7 @@ export async function loginSocialDjango(data: {
   first_name: string;
   last_name: string;
   photo?: string;
+  access_token: string;
   remember_me?: boolean;
 }): Promise<AuthTokens & { user: DjangoUser }> {
   try {

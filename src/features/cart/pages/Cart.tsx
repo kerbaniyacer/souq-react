@@ -133,7 +133,7 @@ export default function Cart() {
   }
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
-  const shipping = subtotal > 5000 ? 0 : 500;
+  const shipping = subtotal >= 5000 ? 0 : 500;
   const total = subtotal + shipping;
 
   return (

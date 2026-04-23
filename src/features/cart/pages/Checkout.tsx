@@ -66,7 +66,7 @@ export default function Checkout() {
 
   const items = cart?.items ?? [];
   const subtotal = items.reduce((s, i) => s + Number(i.subtotal || 0), 0);
-  const shipping = subtotal > 5000 ? 0 : 500;
+  const shipping = subtotal >= 5000 ? 0 : 500;
   const total = subtotal + shipping;
 
   if (!isAuthenticated) {

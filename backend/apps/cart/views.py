@@ -38,27 +38,36 @@ def cart_add(request):
     variant_id = request.data.get('variant_id')
     quantity = int(request.data.get('quantity', 1))
 
+    # Validate variant exists before acquiring lock
     try:
-        variant = ProductVariant.objects.get(pk=variant_id, is_active=True)
+        ProductVariant.objects.get(pk=variant_id, is_active=True)
     except ProductVariant.DoesNotExist:
         return Response({'detail': 'النسخة غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
 
-    if variant.product.seller_id == request.user.id:
-        return Response({'detail': 'لا يمكنك إضافة منتجك إلى السلة'}, status=status.HTTP_400_BAD_REQUEST)
+    with transaction.atomic():
+        # Lock the variant row to prevent concurrent oversell
+        try:
+            variant = ProductVariant.objects.select_for_update().get(pk=variant_id, is_active=True)
+        except ProductVariant.DoesNotExist:
+            return Response({'detail': 'النسخة غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
 
-    if variant.stock < quantity:
-        return Response({'detail': f'المخزون المتاح: {variant.stock}'}, status=status.HTTP_400_BAD_REQUEST)
+        if variant.product.seller_id == request.user.id:
+            return Response({'detail': 'لا يمكنك إضافة منتجك إلى السلة'}, status=status.HTTP_400_BAD_REQUEST)
 
-    cart = get_or_create_cart(request.user)
-    item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
-    if not created:
-        new_qty = item.quantity + quantity
-        if new_qty > variant.stock:
-            return Response({'detail': f'لا يمكن إضافة أكثر من {variant.stock} قطعة'}, status=status.HTTP_400_BAD_REQUEST)
-        item.quantity = new_qty
-    else:
-        item.quantity = quantity
-    item.save()
+        cart = get_or_create_cart(request.user)
+        item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
+
+        if not created:
+            new_qty = item.quantity + quantity
+            if new_qty > variant.stock:
+                return Response({'detail': f'لا يمكن إضافة أكثر من {variant.stock} قطعة'}, status=status.HTTP_400_BAD_REQUEST)
+            item.quantity = new_qty
+        else:
+            if variant.stock < quantity:
+                return Response({'detail': f'المخزون المتاح: {variant.stock}'}, status=status.HTTP_400_BAD_REQUEST)
+            item.quantity = quantity
+
+        item.save()
 
     return Response(CartSerializer(cart, context={'request': request}).data)
 

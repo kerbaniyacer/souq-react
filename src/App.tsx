@@ -78,22 +78,25 @@ function RouteLoader() {
   );
 }
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+function PrivateRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated } = useAuthStore();
+  if (!authReady) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
-function MerchantRoute({ children }: { children: React.ReactNode }) {
+function MerchantRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated, profile, profileLoading } = useAuthStore();
+  if (!authReady) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profileLoading) return <RouteLoader />;
   if (!profile?.is_seller) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
   const { isAuthenticated, user, profileLoading } = useAuthStore();
+  if (!authReady) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (profileLoading) return <RouteLoader />;
   if (!user?.is_staff) return <Navigate to="/" replace />;
@@ -173,27 +176,26 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
-          <Route path="/registration-success" element={<RegistrationSuccess />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
 
           {/* Email previews (lazy — admin only) */}
-          <Route path="/admin/emails" element={<AdminRoute><EmailGallery /></AdminRoute>} />
-          <Route path="/admin/emails/welcome" element={<AdminRoute><WelcomeEmail /></AdminRoute>} />
-          <Route path="/admin/emails/otp" element={<AdminRoute><OtpEmail /></AdminRoute>} />
-          <Route path="/admin/emails/password-reset" element={<AdminRoute><PasswordResetEmail /></AdminRoute>} />
-          <Route path="/admin/emails/password-changed" element={<AdminRoute><PasswordChangedEmail /></AdminRoute>} />
-          <Route path="/admin/emails/password-reset-success" element={<AdminRoute><PasswordResetSuccessEmail /></AdminRoute>} />
-          <Route path="/admin/emails/merchant-order" element={<AdminRoute><MerchantOrderEmail /></AdminRoute>} />
-          <Route path="/admin/emails/security-alert" element={<AdminRoute><SecurityAlertEmail /></AdminRoute>} />
-          <Route path="/admin/emails/newsletter" element={<AdminRoute><NewsletterEmail /></AdminRoute>} />
-          <Route path="/admin/emails/support" element={<AdminRoute><SupportEmail /></AdminRoute>} />
-          <Route path="/admin/emails/buyer-order" element={<AdminRoute><BuyerOrderEmail /></AdminRoute>} />
-          <Route path="/admin/emails/product-deleted" element={<AdminRoute><ProductDeletedEmail /></AdminRoute>} />
-          <Route path="/admin/emails/account-deleted" element={<AdminRoute><AccountDeletedEmail /></AdminRoute>} />
-          <Route path="/admin/emails/report-notification" element={<AdminRoute><ReportNotificationEmail /></AdminRoute>} />
-          <Route path="/admin/emails/appeal-decision" element={<AdminRoute><AppealDecisionEmail /></AdminRoute>} />
-          <Route path="/admin/emails/visibility-change" element={<AdminRoute><VisibilityChangeEmail /></AdminRoute>} />
-          <Route path="/admin/emails/admin-action" element={<AdminRoute><AdminActionEmail /></AdminRoute>} />
+          <Route path="/admin/emails" element={<AdminRoute authReady={authReady}><EmailGallery /></AdminRoute>} />
+          <Route path="/admin/emails/welcome" element={<AdminRoute authReady={authReady}><WelcomeEmail /></AdminRoute>} />
+          <Route path="/admin/emails/otp" element={<AdminRoute authReady={authReady}><OtpEmail /></AdminRoute>} />
+          <Route path="/admin/emails/password-reset" element={<AdminRoute authReady={authReady}><PasswordResetEmail /></AdminRoute>} />
+          <Route path="/admin/emails/password-changed" element={<AdminRoute authReady={authReady}><PasswordChangedEmail /></AdminRoute>} />
+          <Route path="/admin/emails/password-reset-success" element={<AdminRoute authReady={authReady}><PasswordResetSuccessEmail /></AdminRoute>} />
+          <Route path="/admin/emails/merchant-order" element={<AdminRoute authReady={authReady}><MerchantOrderEmail /></AdminRoute>} />
+          <Route path="/admin/emails/security-alert" element={<AdminRoute authReady={authReady}><SecurityAlertEmail /></AdminRoute>} />
+          <Route path="/admin/emails/newsletter" element={<AdminRoute authReady={authReady}><NewsletterEmail /></AdminRoute>} />
+          <Route path="/admin/emails/support" element={<AdminRoute authReady={authReady}><SupportEmail /></AdminRoute>} />
+          <Route path="/admin/emails/buyer-order" element={<AdminRoute authReady={authReady}><BuyerOrderEmail /></AdminRoute>} />
+          <Route path="/admin/emails/product-deleted" element={<AdminRoute authReady={authReady}><ProductDeletedEmail /></AdminRoute>} />
+          <Route path="/admin/emails/account-deleted" element={<AdminRoute authReady={authReady}><AccountDeletedEmail /></AdminRoute>} />
+          <Route path="/admin/emails/report-notification" element={<AdminRoute authReady={authReady}><ReportNotificationEmail /></AdminRoute>} />
+          <Route path="/admin/emails/appeal-decision" element={<AdminRoute authReady={authReady}><AppealDecisionEmail /></AdminRoute>} />
+          <Route path="/admin/emails/visibility-change" element={<AdminRoute authReady={authReady}><VisibilityChangeEmail /></AdminRoute>} />
+          <Route path="/admin/emails/admin-action" element={<AdminRoute authReady={authReady}><AdminActionEmail /></AdminRoute>} />
 
           {/* Main layout */}
           <Route element={<Layout />}>
@@ -205,32 +207,32 @@ export default function App() {
             <Route path="/track-order" element={<TrackOrder />} />
 
             {/* Protected */}
-            <Route path="/checkout" element={<PrivateRoute><OnboardingGuard><Checkout /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/orders" element={<PrivateRoute><OnboardingGuard><Orders /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/orders/:id" element={<PrivateRoute><OnboardingGuard><OrderDetail /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/orders/:id/review" element={<PrivateRoute><OnboardingGuard><OrderReview /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/profile" element={<PrivateRoute><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/checkout" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Checkout /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Orders /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders/:id" element={<PrivateRoute authReady={authReady}><OnboardingGuard><OrderDetail /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/orders/:id/review" element={<PrivateRoute authReady={authReady}><OnboardingGuard><OrderReview /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
             <Route path="/profile/:username" element={<UserProfile />} />
-            <Route path="/chat" element={<PrivateRoute><OnboardingGuard><Chat /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/registration-success" element={<PrivateRoute><RegistrationSuccess /></PrivateRoute>} />
-            
+            <Route path="/chat" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Chat /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/registration-success" element={<PrivateRoute authReady={authReady}><RegistrationSuccess /></PrivateRoute>} />
+
             {/* Appeals */}
-            <Route path="/appeals/new" element={<PrivateRoute><OnboardingGuard><AppealForm /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/appeals/list" element={<PrivateRoute><OnboardingGuard><MyAppeals /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/appeals/new" element={<PrivateRoute authReady={authReady}><OnboardingGuard><AppealForm /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/appeals/list" element={<PrivateRoute authReady={authReady}><OnboardingGuard><MyAppeals /></OnboardingGuard></PrivateRoute>} />
 
             {/* Merchant (lazy) */}
-            <Route path="/merchant/dashboard" element={<MerchantRoute><OnboardingGuard><MerchantDashboard /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/products" element={<MerchantRoute><OnboardingGuard><MerchantProducts /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/products/add" element={<MerchantRoute><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/products/:id/edit" element={<MerchantRoute><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/orders" element={<MerchantRoute><OnboardingGuard><MerchantOrders /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/orders/:id" element={<MerchantRoute><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/products/suspended" element={<MerchantRoute><OnboardingGuard><MerchantSuspendedProducts /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/dashboard" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantDashboard /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantProducts /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/add" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/:id/edit" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantOrders /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders/:id" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/products/suspended" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantSuspendedProducts /></OnboardingGuard></MerchantRoute>} />
 
             {/* Admin (lazy) */}
-            <Route path="/admin-panel" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/users/:id" element={<AdminRoute><AdminUserDetail /></AdminRoute>} />
-            <Route path="/admin/appeals" element={<AdminRoute><AdminAppeals /></AdminRoute>} />
+            <Route path="/admin-panel" element={<AdminRoute authReady={authReady}><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/users/:id" element={<AdminRoute authReady={authReady}><AdminUserDetail /></AdminRoute>} />
+            <Route path="/admin/appeals" element={<AdminRoute authReady={authReady}><AdminAppeals /></AdminRoute>} />
           </Route>
 
           {/* 404 */}
