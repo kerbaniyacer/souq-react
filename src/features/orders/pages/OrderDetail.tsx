@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowRight, Package, Upload, Trash2, Camera, CreditCard, Clock, Store, CheckCircle, Star } from 'lucide-react';
-import { ordersApi } from '@shared/services/api';
+import { ordersApi, chatApi } from '@shared/services/api';
 import { useToast } from '@shared/stores/toastStore';
 import type { Order } from '@shared/types';
+import { useGetOrCreateConversation, useSendMessage } from '@features/chat/hooks/useChat';
+import { Loader2 } from 'lucide-react';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending:    { label: 'قيد الانتظار', color: 'bg-yellow-100 text-yellow-700' },
@@ -33,6 +35,11 @@ export default function OrderDetail() {
   const [sellerFiles, setSellerFiles] = useState<Record<number, { file: File, preview: string }>>({});
   const [sellerTxInfo, setSellerTxInfo] = useState<Record<number, { tid: string, amount: string }>>({});
   const [uploadingSellers, setUploadingSellers] = useState<Record<number, boolean>>({});
+  const [showNotifyBtn, setShowNotifyBtn] = useState<Record<number, boolean>>({});
+  const [isNotifying, setIsNotifying] = useState<Record<number, boolean>>({});
+
+  const { mutateAsync: getConversation } = useGetOrCreateConversation();
+  const { mutateAsync: sendMessage } = useSendMessage();
 
   useEffect(() => {
     if (!id) return;
@@ -59,9 +66,27 @@ export default function OrderDetail() {
 
     try {
       const res = await ordersApi.uploadProof(id, formData);
-      setOrder(res.data);
+      const updatedOrder = res.data;
+      setOrder(updatedOrder);
       toast.success('تم رفع وصل الدفع بنجاح لهذا البائع.');
       
+      // Notify via Chat
+      try {
+        const subOrder = updatedOrder.sub_orders?.find((s: any) => 
+          s.items?.some((item: any) => item.seller_id === sellerId)
+        );
+        const targetId = subOrder ? subOrder.id : updatedOrder.id;
+
+        const conv = await getConversation({ sellerId });
+        await sendMessage({ 
+          conversationId: conv.id, 
+          content: `لقد أرسلت وصل الدفع للطلب رقم #${updatedOrder.order_number}. يرجى التحقق منه. ||MAIN_ORDER_ID:${updatedOrder.id}||SUB_ORDER_ID:${targetId}||MERCHANT_ID:${sellerId}||ORDER_NUMBER:${updatedOrder.order_number}||` 
+        });
+        setShowNotifyBtn(prev => ({ ...prev, [sellerId]: true }));
+      } catch (chatErr) {
+        console.error('Failed to send chat notification:', chatErr);
+      }
+
       // Clear specific seller state
       setSellerFiles(prev => {
         const next = { ...prev };
@@ -77,6 +102,21 @@ export default function OrderDetail() {
       toast.error('حدث خطأ أثناء رفع الوصل');
     } finally {
       setUploadingSellers(prev => ({ ...prev, [sellerId]: false }));
+    }
+  };
+
+  const handleNotifySeller = async (sellerId: number) => {
+    setIsNotifying(prev => ({ ...prev, [sellerId]: true }));
+    try {
+      // Find the conversation for this seller to get its ID
+      const conv = await getConversation({ sellerId });
+      await chatApi.notifyPayment(conv.id);
+      toast.success('تم إرسال إشعار وبريد إلكتروني للبائع بنجاح.');
+      setShowNotifyBtn(prev => ({ ...prev, [sellerId]: false }));
+    } catch (err) {
+      toast.error('تعذّر إرسال الإشعار للبائع');
+    } finally {
+      setIsNotifying(prev => ({ ...prev, [sellerId]: false }));
     }
   };
 
@@ -109,6 +149,7 @@ export default function OrderDetail() {
       acc[sId] = {
         id: sId,
         name: item.seller_name || 'بائع غير معروف',
+        subOrderId: subOrder?.id,
         status: subOrder?.status || 'pending',
         items: [],
         total: 0,
@@ -350,9 +391,24 @@ export default function OrderDetail() {
                             disabled={uploadingSellers[group.id] || !sellerFiles[group.id]}
                             className="w-full py-3 bg-primary-600 text-white rounded-xl font-arabic font-bold text-sm hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                           >
-                            {uploadingSellers[group.id] ? <Clock className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            {uploadingSellers[group.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             إرسال إثبات الدفع لهذا التاجر
                           </button>
+
+                          {showNotifyBtn[group.id] && (
+                            <button
+                              onClick={() => handleNotifySeller(group.id)}
+                              disabled={isNotifying[group.id]}
+                              className="w-full py-3 mt-2 bg-green-600 text-white rounded-xl font-arabic font-bold text-sm hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 animate-in slide-in-from-top-2"
+                            >
+                              {isNotifying[group.id] ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              إشعار البائع بالدفع الآن (إرسال بريد)
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}

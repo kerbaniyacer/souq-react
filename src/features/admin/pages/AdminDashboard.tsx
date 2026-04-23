@@ -99,6 +99,14 @@ const OrderStatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+const reportReasonLabels: Record<string, string> = {
+  SPAM: 'إزعاج (Spam)',
+  HARASSMENT: 'مضايقة أو شتم',
+  FRAUD: 'محاولة احتيال',
+  INAPPROPRIATE: 'محتوى غير لائق',
+  OTHER: 'سبب آخر',
+};
+
 export default function AdminDashboard() {
   const toast = useToast();
   const { user: _currentUser } = useAuthStore();
@@ -661,8 +669,12 @@ export default function AdminDashboard() {
                     {reports.map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50 dark:border-[#2E2E2E]">
                         <td className="px-6 py-5 text-sm font-bold text-gray-900 dark:text-gray-100">{r.reporter_name}</td>
-                        <td className="px-6 py-5 text-sm text-primary-600 font-bold">{r.target_product_name || r.target_user_name}</td>
-                        <td className="px-6 py-5 text-xs text-gray-500 font-arabic truncate max-w-xs">{r.reason}</td>
+                        <td className="px-6 py-5 text-sm text-primary-600 font-bold">
+                          {(r as any).target_name || r.target_product_name || r.target_user_name || '—'}
+                        </td>
+                        <td className="px-6 py-5 text-xs text-gray-500 font-arabic truncate max-w-xs">
+                          {reportReasonLabels[r.reason] || r.reason}
+                        </td>
                         <td className="px-6 py-5">
                           <button onClick={() => setViewingReport(r)} className="p-2 text-gray-400 hover:text-primary-600 transition-colors"><Search className="w-5 h-5" /></button>
                         </td>
@@ -748,7 +760,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                  <div className="p-4 bg-gray-50 dark:bg-[#252525] rounded-2xl border border-gray-100">
                     <p className="text-xs text-gray-400 font-arabic mb-1">السبب الرئيسي</p>
-                    <p className="text-sm font-bold">{viewingReport.reason}</p>
+                    <p className="text-sm font-bold">{reportReasonLabels[viewingReport.reason] || viewingReport.reason}</p>
                  </div>
                  <div className="p-4 bg-gray-50 dark:bg-[#252525] rounded-2xl border border-gray-100 min-h-[100px]">
                     <p className="text-xs text-gray-400 font-arabic mb-1">الوصف</p>

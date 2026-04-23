@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Send, 
@@ -8,23 +8,55 @@ import {
   ChevronRight,
   MessageSquare
 } from 'lucide-react';
-import { useConversations, useMessages, useSendMessage } from '../hooks/useChat';
+import { useConversations, useMessages, useSendMessage, useDeleteConversation } from '../hooks/useChat';
+import { getOrderRoute } from '@features/orders/utils/getOrderRoute';
+import { useMerchantOrders } from '@shared/hooks/useOrders';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { Conversation } from '@shared/types';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import api from '@features/auth/services/authService';
+import { X, AlertTriangle, Image as ImageIcon, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { chatApi } from '@shared/services/api';
+import { useToast } from '@shared/stores/toastStore';
 
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = searchParams.get('conversationId');
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
+  const { user } = useAuthStore();
+  const { data: merchantOrders = [] } = useMerchantOrders();
+  
+  // Map to resolve main order IDs to sub-order IDs for merchants
+  const orderIdMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (user?.role === 'seller' || user?.is_staff) {
+      merchantOrders.forEach((o: any) => {
+        if (o.order) map[o.order.toString()] = o.id.toString();
+        if (o.order_number) map[o.order_number] = o.id.toString();
+      });
+    }
+    return map;
+  }, [merchantOrders, user]);
+
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const { data: messages = [], isLoading: loadingMessages } = useMessages(Number(activeId));
-  const { mutate: sendMessage } = useSendMessage();
-  const [newMessage, setNewMessage] = useState('');
-  const { user } = useAuthStore();
+   const { mutate: sendMessage } = useSendMessage();
+   const { mutate: deleteConversation, isPending: deleting } = useDeleteConversation();
+   const [newMessage, setNewMessage] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const toast = useToast();
+
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [showNotifyBtn, setShowNotifyBtn] = useState(false);
+  const [isNotifying, setIsNotifying] = useState(false);
 
   useEffect(() => {
     if (activeId && conversations.length > 0) {
@@ -47,8 +79,86 @@ export default function Chat() {
     setNewMessage('');
   };
 
+  const handleDelete = async () => {
+    if (!activeId || !confirm('هل أنت متأكد من حذف هذه المحادثة؟')) return;
+    
+    deleteConversation(Number(activeId), {
+      onSuccess: () => {
+        toast.success('تم حذف المحادثة بنجاح');
+        setSearchParams({}); // Deselect conversation
+      },
+      onError: () => {
+        toast.error('تعذر حذف المحادثة');
+      }
+    });
+  };
+
   const selectConversation = (id: number) => {
     setSearchParams({ conversationId: String(id) });
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportReason) {
+      toast.error('يرجى اختيار سبب التبليغ');
+      return;
+    }
+
+    setSubmittingReport(true);
+    try {
+      const otherUserId = selectedConversation?.customer === user?.id 
+        ? selectedConversation?.seller : selectedConversation?.customer;
+
+      await api.post('/auth/reports/', {
+        report_type: selectedConversation?.customer === user?.id ? 'seller' : 'buyer',
+        target_id: otherUserId,
+        reason: reportReason,
+        description: reportDescription
+      });
+
+      toast.success('تم إرسال التبليغ بنجاح. سنراجع الأمر قريباً.');
+      setIsReportModalOpen(false);
+      setReportReason('');
+      setReportDescription('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'تعذّر إرسال التبليغ');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeId) return;
+
+    setIsUploadingReceipt(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      await chatApi.uploadReceipt(Number(activeId), formData);
+      toast.success('تم رفع وصل الدفع بنجاح. يمكنك الآن إشعار البائع.');
+      setShowNotifyBtn(true);
+      // Also send a message to the chat
+      sendMessage({ conversationId: Number(activeId), content: "لقد أرسلت وصل الدفع (إثبات دفع)." });
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'تعذّر رفع الوصل');
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  };
+
+  const handleNotifyPayment = async () => {
+    if (!activeId) return;
+    setIsNotifying(true);
+    try {
+      await chatApi.notifyPayment(Number(activeId));
+      toast.success('تم إرسال إشعار وبريد إلكتروني للبائع بنجاح.');
+      setShowNotifyBtn(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'تعذّر إرسال الإشعار');
+    } finally {
+      setIsNotifying(false);
+    }
   };
 
   return (
@@ -131,10 +241,45 @@ export default function Chat() {
           <>
             {/* Chat Header */}
             <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#252525] rounded-full transition-colors">
+              <div className="relative">
+                <button 
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-[#252525] rounded-full transition-colors"
+                >
                   <MoreVertical className="w-5 h-5 text-gray-500" />
                 </button>
+                
+                {showMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-20" 
+                      onClick={() => setShowMenu(false)} 
+                    />
+                    <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-[#1A1A1A] rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 py-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button 
+                        onClick={() => {
+                          setShowMenu(false);
+                          setIsReportModalOpen(true);
+                        }}
+                        className="w-full text-right px-4 py-2 text-sm font-arabic text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center justify-end gap-2"
+                      >
+                        إبلاغ عن المستخدم
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setShowMenu(false);
+                          handleDelete();
+                        }}
+                        disabled={deleting}
+                        className="w-full text-right px-4 py-2 text-sm font-arabic text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#252525] flex items-center justify-end gap-2 disabled:opacity-50"
+                      >
+                        {deleting ? 'جاري الحذف...' : 'حذف المحادثة'}
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-3 text-right">
@@ -151,9 +296,9 @@ export default function Chat() {
                       ? selectedConversation?.seller_details?.photo 
                       : selectedConversation?.customer_details?.photo) ? (
                         <img 
-                          src={selectedConversation?.customer === user?.id 
+                          src={(selectedConversation?.customer === user?.id 
                             ? selectedConversation?.seller_details?.photo 
-                            : selectedConversation?.customer_details?.photo} 
+                            : selectedConversation?.customer_details?.photo) || undefined} 
                           className="w-full h-full object-cover" 
                         />
                       ) : <User className="w-5 h-5 text-gray-400" />}
@@ -218,7 +363,61 @@ export default function Chat() {
                           ? 'bg-primary-500 text-white rounded-tr-none' 
                           : 'bg-white dark:bg-[#1A1A1A] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-800 rounded-tl-none'
                       }`}>
-                        <p className="text-sm font-arabic whitespace-pre-wrap leading-relaxed text-right">{msg.content}</p>
+                        {(() => {
+                          const mainMatch = msg.content.match(/\|\|MAIN_ORDER_ID:(\d+)\|\|/);
+                          const subMatch = msg.content.match(/\|\|SUB_ORDER_ID:(\d+)\|\|/);
+                          const merchantMatch = msg.content.match(/\|\|MERCHANT_ID:(\d+)\|\|/);
+                          const orderNumMatch = msg.content.match(/\|\|ORDER_NUMBER:([^|]+)\|\|/);
+                          const legacyMatch = msg.content.match(/\|\|ORDER_ID:(\d+)\|\|/);
+                          
+                          const merchantId = merchantMatch?.[1];
+                          const orderNumber = orderNumMatch?.[1];
+                          const mainOrderId = mainMatch?.[1] || legacyMatch?.[1];
+                          let resolvedId = subMatch?.[1] || legacyMatch?.[1];
+
+                          const isMerchantRole = user?.role === 'seller' || user?.role === 'admin' || user?.is_staff;
+
+                          // For merchants, we prioritize the mapped sub-order ID
+                          if (isMerchantRole) {
+                            const mappedId = (mainOrderId && orderIdMap[mainOrderId]) || (orderNumber && orderIdMap[orderNumber]);
+                            if (mappedId) resolvedId = mappedId;
+                          }
+
+                          const targetUrl = getOrderRoute(
+                            { id: resolvedId || mainOrderId || '', merchantId },
+                            user
+                          );
+
+                          const isMerchantOwner = user?.id.toString() === merchantId?.toString() || isMerchantRole;
+
+                          const cleanContent = msg.content
+                            .replace(/\|\|.*?\|\|/g, '')
+                            .replace(/(MAIN_ORDER_ID|SUB_ORDER_ID|MERCHANT_ID|ORDER_NUMBER|ORDER_ID):[^\s|]+/g, '')
+                            .trim();
+                          
+                          const canManage = isMerchantRole && (mainOrderId || resolvedId);
+                          
+                          return (
+                            <>
+                              <p className="text-sm font-arabic whitespace-pre-wrap leading-relaxed text-right">{cleanContent}</p>
+                              
+                              {canManage && (
+                                <Link 
+                                  to={targetUrl}
+                                  className={`mt-3 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-arabic font-bold transition-all ${
+                                    isMine 
+                                      ? 'bg-white/20 text-white hover:bg-white/30' 
+                                      : 'bg-primary-50 text-primary-600 hover:bg-primary-100'
+                                  }`}
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  إدارة الطلبية
+                                </Link>
+                              )}
+                            </>
+                          );
+                        })()}
+                        
                         <div className={`text-[9px] mt-1 flex items-center gap-1 ${isMine ? 'text-primary-100' : 'text-gray-400'}`}>
                           {format(new Date(msg.created_at), 'HH:mm', { locale: ar })}
                           {isMine && (
@@ -235,7 +434,24 @@ export default function Chat() {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 relative">
+              {showNotifyBtn && (
+                <div className="absolute -top-16 left-4 right-4 animate-in slide-in-from-bottom-4 duration-300">
+                  <button
+                    onClick={handleNotifyPayment}
+                    disabled={isNotifying}
+                    className="w-full bg-primary-600 text-white py-3 rounded-2xl font-arabic font-bold shadow-xl shadow-primary-600/20 flex items-center justify-center gap-2 hover:bg-primary-700 transition-all active:scale-[0.98]"
+                  >
+                    {isNotifying ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}
+                    إشعار البائع بتوفر وصل الدفع
+                  </button>
+                </div>
+              )}
+
               <form onSubmit={handleSend} className="flex gap-2 items-center bg-gray-50 dark:bg-[#1A1A1A] p-1 rounded-2xl border border-gray-100 dark:border-gray-800">
                 <button 
                   type="submit"
@@ -244,6 +460,7 @@ export default function Chat() {
                 >
                   <Send className="w-5 h-5 rotate-180" />
                 </button>
+                
                 <textarea 
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
@@ -257,6 +474,28 @@ export default function Chat() {
                   className="flex-1 bg-transparent border-none text-right font-arabic py-2.5 px-3 focus:ring-0 text-sm resize-none max-h-32 min-h-[44px]"
                   dir="rtl"
                 />
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleReceiptUpload}
+                  className="hidden"
+                  accept="image/*"
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingReceipt}
+                  className="w-10 h-10 flex-shrink-0 bg-gray-100 dark:bg-[#252525] text-gray-500 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#333333] transition-all disabled:opacity-50"
+                  title="إرسال وصل الدفع"
+                >
+                  {isUploadingReceipt ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5" />
+                  )}
+                </button>
               </form>
             </div>
           </>
@@ -270,6 +509,73 @@ export default function Chat() {
           </div>
         )}
       </div>
+      {/* Report User Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReportModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-[#1A1A1A] rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <button onClick={() => setIsReportModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+                <div className="flex items-center gap-2 text-red-600">
+                  <span className="text-lg font-bold font-arabic">التبليغ عن المستخدم</span>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 font-arabic mb-2 text-right uppercase tracking-wider">سبب التبليغ</label>
+                  <select 
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl py-3 px-4 text-sm font-arabic focus:ring-2 focus:ring-red-400/30 text-right"
+                    dir="rtl"
+                  >
+                    <option value="">اختر السبب...</option>
+                    <option value="SPAM">إزعاج (Spam)</option>
+                    <option value="HARASSMENT">مضايقة أو شتم</option>
+                    <option value="FRAUD">محاولة احتيال</option>
+                    <option value="INAPPROPRIATE">محتوى غير لائق</option>
+                    <option value="OTHER">سبب آخر</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 font-arabic mb-2 text-right uppercase tracking-wider">تفاصيل إضافية</label>
+                  <textarea 
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    placeholder="اشرح لنا المشكلة بالتفصيل..."
+                    className="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl py-3 px-4 text-sm font-arabic focus:ring-2 focus:ring-red-400/30 text-right h-32 resize-none"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setIsReportModalOpen(false)}
+                    className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-arabic"
+                  >
+                    إلغاء
+                  </button>
+                  <button 
+                    onClick={handleReportSubmit}
+                    disabled={submittingReport || !reportReason}
+                    className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors font-arabic disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
+                  >
+                    {submittingReport ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : 'إرسال التبليغ'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

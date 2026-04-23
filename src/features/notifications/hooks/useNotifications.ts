@@ -54,6 +54,7 @@ export const useNotifications = () => {
     mutationFn: (id: number) => notificationApi.markAsRead(id),
     onSuccess: (_, id) => {
       markRead(id);
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
     }
   });

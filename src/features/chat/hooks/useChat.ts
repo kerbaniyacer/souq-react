@@ -52,3 +52,15 @@ export const useSendMessage = () => {
     },
   });
 };
+export const useDeleteConversation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (conversationId: number) => {
+      const { data } = await chatApi.deleteConversation(conversationId);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations() });
+    },
+  });
+};

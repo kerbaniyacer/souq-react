@@ -12,6 +12,7 @@ const getIcon = (type: string) => {
     case 'new_order': return <ShoppingBag className="w-4 h-4 text-green-500" />;
     case 'new_message': return <MessageSquare className="w-4 h-4 text-purple-500" />;
     case 'follow': return <UserPlus className="w-4 h-4 text-orange-500" />;
+    case 'payment_proof_update': return <CreditCard className="w-4 h-4 text-primary-500" />;
     default: return <Info className="w-4 h-4 text-gray-500" />;
   }
 };
@@ -21,7 +22,8 @@ const getLink = (type: string, relatedId: string) => {
     case 'new_product': return `/products/${relatedId}`;
     case 'order_status_update': return `/orders/${relatedId}`;
     case 'new_order': return `/merchant/orders/${relatedId}`;
-    case 'new_message': return `/chat`; // Open chat
+    case 'new_message': return `/chat?conversationId=${relatedId}`; // Open specific chat
+    case 'payment_proof_update': return `/orders/${relatedId}`;
     default: return '#';
   }
 };

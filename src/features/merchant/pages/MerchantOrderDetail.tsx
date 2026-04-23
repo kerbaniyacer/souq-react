@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowRight, Package, ChevronLeft, User, Phone, MapPin, CreditCard, CheckCircle, Eye, XCircle, AlertCircle, Calendar, Hash, DollarSign } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
 import type { OrderStatus } from '@shared/types';
+import { ordersApi, chatApi } from '@shared/services/api';
 
 const statusConfig: Record<string, { label: string; color: string; next?: OrderStatus }> = {
   pending:    { label: 'معلّق',         color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400',    next: 'confirmed' },
@@ -73,6 +74,26 @@ export default function MerchantOrderDetail() {
     try {
       await approveProof.mutateAsync(proofId);
       toast.success('✅ تم تأكيد الدفع بنجاح');
+      // Notify customer via chat
+      if (order) {
+        (async () => {
+          try {
+            const { data: conversations } = await chatApi.getConversations();
+            const buyerUsername = (order as any).buyer_username || (order as any).user?.username;
+            const buyerId = (order as any).user?.id || (order as any).buyer?.id;
+            
+            const conv = conversations.find((c: any) => 
+              (buyerUsername && (c.customer_details?.username === buyerUsername || c.seller_details?.username === buyerUsername)) ||
+              (buyerId && (c.customer === buyerId || c.seller === buyerId))
+            );
+            if (conv) {
+              await chatApi.sendMessage(conv.id, `✅ تم تأكيد الدفع للطلب رقم #${order.order_number}. يمكنك الآن متابعة حالة طلبك.`);
+            }
+          } catch (e) {
+            console.error('Chat notification failed:', e);
+          }
+        })();
+      }
     } catch {
       toast.error('تعذّر تأكيد الدفع');
     }
@@ -83,6 +104,26 @@ export default function MerchantOrderDetail() {
     try {
       await rejectProof.mutateAsync({ proofId: rejectProofId, reason: rejectionReason });
       toast.success('❌ تم رفض الدفع');
+      // Notify customer via chat
+      if (order) {
+        (async () => {
+          try {
+            const { data: conversations } = await chatApi.getConversations();
+            const buyerUsername = (order as any).buyer_username || (order as any).user?.username;
+            const buyerId = (order as any).user?.id || (order as any).buyer?.id;
+
+            const conv = conversations.find((c: any) => 
+              (buyerUsername && (c.customer_details?.username === buyerUsername || c.seller_details?.username === buyerUsername)) ||
+              (buyerId && (c.customer === buyerId || c.seller === buyerId))
+            );
+            if (conv) {
+              await chatApi.sendMessage(conv.id, `❌ تم رفض وصل الدفع للطلب رقم #${order.order_number}.\nالسبب: ${rejectionReason}\nيرجى إعادة رفع وصل صحيح.`);
+            }
+          } catch (e) {
+            console.error('Chat notification failed:', e);
+          }
+        })();
+      }
       setRejectProofId(null);
       setRejectionReason('');
     } catch {

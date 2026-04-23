@@ -14,7 +14,7 @@ export interface Notification {
 
 export const notificationApi = {
   getNotifications: () => api.get<Notification[]>('/notifications/'),
-  markAsRead: (id: number) => api.patch(`/notifications/${id}/mark_as_read/`),
+  markAsRead: (id: number) => api.post('/notifications/mark_as_read/', { id }),
   markAllAsRead: () => api.post('/notifications/mark_all_as_read/'),
   getUnreadCount: () => api.get<{ unread_count: number }>('/notifications/unread_count/'),
 };

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { refreshAccessToken } from '@features/auth/services/authService';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Layout from '@shared/components/layout/Layout';
 
 /** Scrolls to top on every route change */
@@ -21,8 +22,7 @@ import OrderDetail from '@features/orders/pages/OrderDetail';
 import OrderReview from '@features/orders/pages/OrderReview';
 import Wishlist from '@features/products/pages/Wishlist';
 import TrackOrder from '@features/orders/pages/TrackOrder';
-import Login from '@features/auth/pages/Login';
-import Register from '@features/auth/pages/Register';
+import AuthPage from '@features/auth/pages/AuthPage';
 import Profile from '@features/auth/pages/Profile';
 import CompleteProfile from '@features/auth/pages/CompleteProfile';
 import ForgotPassword from '@features/auth/pages/ForgotPassword';
@@ -102,6 +102,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
   const fetchProfile = useAuthStore((s) => s.fetchProfile);
   const logout = useAuthStore((s) => s.logout);
@@ -167,8 +168,8 @@ export default function App() {
       <Suspense fallback={<RouteLoader />}>
         <Routes>
           {/* Auth pages (no layout) */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
@@ -246,6 +247,7 @@ export default function App() {
           } />
         </Routes>
       </Suspense>
+      {user?.is_staff && <ReactQueryDevtools initialIsOpen={false} />}
     </BrowserRouter>
   );
 }

@@ -120,13 +120,17 @@ export const ordersApi = {
     return { data: res.data };
   },
   track: async (orderNumber: string) => { const res = await api.get(`/orders/track/${orderNumber}/`); return { data: res.data }; },
-  merchantList: async () => { 
-    const res = await api.get('/merchant/orders/'); 
+  merchantList: async (params?: any) => { 
+    const res = await api.get('/merchant/orders/', { params }); 
     return { data: res.data.results ?? res.data }; 
   },
   merchantDetail: async (id: number | string) => { const res = await api.get(`/merchant/orders/${id}/`); return { data: res.data }; },
   updateStatus: async (id: number | string, status: string) => {
     const res = await api.patch(`/merchant/orders/${id}/status/`, { status });
+    return { data: res.data };
+  },
+  notifyProofStatus: async (orderId: number | string, status: 'approved' | 'rejected', reason?: string) => {
+    const res = await api.post(`/merchant/suborders/${orderId}/notify-proof/`, { status, reason });
     return { data: res.data };
   },
   uploadProof: async (orderId: number | string, formData: FormData) => {
@@ -254,6 +258,20 @@ export const chatApi = {
       conversation: conversationId, 
       content 
     });
+    return { data: res.data };
+  },
+  notifyPayment: async (conversationId: number) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/notify-payment/`);
+    return { data: res.data };
+  },
+  uploadReceipt: async (conversationId: number, formData: FormData) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/upload-receipt/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return { data: res.data };
+  },
+  deleteConversation: async (conversationId: number) => {
+    const res = await api.delete(`/chat/conversations/${conversationId}/`);
     return { data: res.data };
   },
 };
