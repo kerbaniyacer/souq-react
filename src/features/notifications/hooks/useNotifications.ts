@@ -4,19 +4,20 @@ import { useNotificationStore } from '../store/useNotificationStore';
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/shared/stores/toastStore';
 
-export const useNotifications = () => {
+/** Lightweight — only polling + store sync. Call in always-mounted components (NotificationBell). */
+export const useNotificationPolling = () => {
   const queryClient = useQueryClient();
-  const { setNotifications, setUnreadCount, markRead, markAllRead } = useNotificationStore();
+  const { setNotifications, setUnreadCount } = useNotificationStore();
   const { info } = useToast();
   const lastUnreadCount = useRef<number | null>(null);
 
-  const { data: notifications, isLoading } = useQuery({
+  const { data: notifications } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await notificationApi.getNotifications();
       return res.data;
     },
-    refetchInterval: 5000, // Reduced to 5 seconds for real-time feel
+    refetchInterval: 5000,
   });
 
   const { data: unreadData } = useQuery({
@@ -35,43 +36,63 @@ export const useNotifications = () => {
   useEffect(() => {
     if (unreadData) {
       const currentCount = unreadData.unread_count;
-      
-      // If count increased and it's not the first load
       if (lastUnreadCount.current !== null && currentCount > lastUnreadCount.current) {
         const diff = currentCount - lastUnreadCount.current;
         info(`لديك ${diff} إشعار جديد`);
-        
-        // Invalidate notifications list to get the new content immediately
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
-      
       setUnreadCount(currentCount);
       lastUnreadCount.current = currentCount;
     }
   }, [unreadData, setUnreadCount, info, queryClient]);
+};
+
+/** Full hook with mutations — use only inside NotificationDropdown. */
+export const useNotifications = () => {
+  const queryClient = useQueryClient();
+  const { markRead, markAllRead, deleteNotification, pinNotification } = useNotificationStore();
 
   const readMutation = useMutation({
     mutationFn: (id: number) => notificationApi.markAsRead(id),
-    onSuccess: (_, id) => {
-      markRead(id);
+    onMutate: (id) => { markRead(id); },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
-    }
+    },
   });
 
   const readAllMutation = useMutation({
     mutationFn: () => notificationApi.markAllAsRead(),
-    onSuccess: () => {
-      markAllRead();
+    onMutate: () => { markAllRead(); },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
-    }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => notificationApi.deleteNotification(id),
+    onMutate: (id) => { deleteNotification(id); },
+    onError: () => { queryClient.invalidateQueries({ queryKey: ['notifications'] }); },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+    },
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ id, is_pinned }: { id: number; is_pinned: boolean }) =>
+      notificationApi.pinNotification(id, is_pinned),
+    onMutate: ({ id, is_pinned }) => { pinNotification(id, is_pinned); },
+    onError: () => { queryClient.invalidateQueries({ queryKey: ['notifications'] }); },
   });
 
   return {
-    notifications: useNotificationStore((state) => state.notifications),
-    unreadCount: useNotificationStore((state) => state.unreadCount),
-    isLoading,
+    notifications: useNotificationStore((s) => s.notifications),
+    unreadCount: useNotificationStore((s) => s.unreadCount),
     markAsRead: readMutation.mutate,
-    markAllAsRead: readAllMutation.mutate
+    markAllAsRead: readAllMutation.mutate,
+    removeNotification: deleteMutation.mutate,
+    togglePin: (id: number, currentPinned: boolean) =>
+      pinMutation.mutate({ id, is_pinned: !currentPinned }),
   };
 };

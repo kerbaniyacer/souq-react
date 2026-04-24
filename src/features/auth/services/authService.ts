@@ -122,6 +122,8 @@ export interface DjangoUser {
   date_joined: string;
   profile: DjangoProfile | null;
   is_onboarded?: boolean;
+  last_seen?: string | null;
+  is_online?: boolean;
 }
 export interface DjangoProfile {
   id: number;

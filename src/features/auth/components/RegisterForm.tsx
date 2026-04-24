@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Eye, EyeOff, Store, User, ShoppingBag, ArrowLeft, ArrowRight, Phone
 } from 'lucide-react';
@@ -40,20 +40,21 @@ export default function RegisterForm({ onToggleMode }: RegisterFormProps) {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as never,
     defaultValues: {
-      username: '', 
-      email: socialData?.email || '', 
-      password: '', 
+      username: '',
+      email: socialData?.email || '',
+      password: '',
       password2: '',
-      phone: '', 
-      wilaya: '', 
-      baladia: '', 
+      phone: '',
+      wilaya: '',
+      baladia: '',
       address: '',
-      store_name: '', 
-      store_description: '', 
+      store_name: '',
+      store_description: '',
       store_category: '',
       ccp_number: '',
       ccp_name: '',
       baridimob_id: '',
+      acceptTerms: false,
     },
   });
 
@@ -373,12 +374,69 @@ export default function RegisterForm({ onToggleMode }: RegisterFormProps) {
             </div>
           )}
 
-          <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic text-center">
-            بالتسجيل فأنت توافق على{' '}
-            <span className="text-primary-600 cursor-pointer hover:underline">شروط الاستخدام</span>
-            {' '}و{' '}
-            <span className="text-primary-600 cursor-pointer hover:underline">سياسة الخصوصية</span>
-          </p>
+          {/* ─── الموافقة على الشروط ─── */}
+          <div className={`flex items-start gap-3 p-4 rounded-2xl border transition-colors ${
+            errors.acceptTerms
+              ? 'bg-red-50 dark:bg-red-900/10 border-red-300 dark:border-red-700'
+              : 'bg-gray-50 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#2E2E2E]'
+          }`}>
+            <div className="relative flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                id="acceptTerms"
+                {...register('acceptTerms')}
+                className="sr-only peer"
+              />
+              <label
+                htmlFor="acceptTerms"
+                className="w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all
+                  border-gray-300 dark:border-gray-600
+                  peer-checked:bg-primary-500 peer-checked:border-primary-500
+                  hover:border-primary-400"
+              >
+                <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 hidden" fill="none" viewBox="0 0 12 12">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </label>
+              {/* visible checkmark using sibling trick */}
+              <label htmlFor="acceptTerms" className="absolute inset-0 flex items-center justify-center cursor-pointer">
+                <svg
+                  className={`w-3 h-3 text-white transition-opacity ${watch('acceptTerms') ? 'opacity-100' : 'opacity-0'}`}
+                  fill="none" viewBox="0 0 12 12"
+                >
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </label>
+            </div>
+            <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300 font-arabic leading-relaxed cursor-pointer select-none">
+              أوافق على{' '}
+              <Link
+                to="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-primary-600 dark:text-primary-400 font-semibold hover:underline"
+              >
+                شروط الاستخدام
+              </Link>
+              {' '}و{' '}
+              <Link
+                to="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-primary-600 dark:text-primary-400 font-semibold hover:underline"
+              >
+                سياسة الخصوصية
+              </Link>
+              {' '}الخاصة بمنصة سوق
+            </label>
+          </div>
+          {errors.acceptTerms && (
+            <p className="text-xs text-red-500 font-arabic flex items-center gap-1 -mt-2 pr-1">
+              <span>⚠</span> {errors.acceptTerms.message}
+            </p>
+          )}
 
           <button
             type="submit"

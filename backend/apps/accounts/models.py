@@ -34,6 +34,9 @@ class User(AbstractUser):
     appeal_deadline = models.DateTimeField(null=True, blank=True)
     suspension_reason = models.TextField(null=True, blank=True)
 
+    # Presence tracking
+    last_seen = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -48,6 +51,13 @@ class User(AbstractUser):
     @property
     def full_name(self):
         return f'{self.first_name} {self.last_name}'.strip() or self.username
+
+    @property
+    def is_online(self):
+        if not self.last_seen:
+            return False
+        from datetime import timedelta
+        return self.last_seen >= timezone.now() - timedelta(minutes=1)
 
 
 class Profile(models.Model):
@@ -241,7 +251,7 @@ class Appeal(models.Model):
                 rand = ''.join(random.choices(string.digits, k=4))
                 prefix = f"APL-{year}-{rand}"
             self.appeal_id = prefix
-            
+        super().save(*args, **kwargs)
 
 class Follow(models.Model):
     follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following_relations')

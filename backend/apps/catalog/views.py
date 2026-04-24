@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db.models import Q, Sum, Min, Max
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -78,9 +79,16 @@ def brand_detail(request, slug):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def product_list(request):
+    # Auto-publish products whose 24h review window has expired
+    from django.utils import timezone
+    Product.objects.filter(
+        status='under_review',
+        review_deadline__lt=timezone.now()
+    ).update(status='active', is_active=True, review_deadline=None)
+
     # Staff can see all products if include_inactive is passed
     include_inactive = request.query_params.get('include_inactive') == 'true'
-    
+
     if request.user.is_staff and include_inactive:
         qs = Product.objects.all()
     else:
@@ -164,8 +172,16 @@ def merchant_product_list(request):
     serializer = ProductWriteSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         product = serializer.save(seller=request.user)
-        
-        # Notify followers
+
+        # Put product under 24h admin review before publishing
+        from django.utils import timezone
+        from datetime import timedelta
+        product.status = Product.Status.UNDER_REVIEW
+        product.is_active = False
+        product.review_deadline = timezone.now() + timedelta(hours=24)
+        product.save(update_fields=['status', 'is_active', 'review_deadline'])
+
+        # Notify followers (will see it after review)
         try:
             from apps.notifications.utils import notify_followers
             notify_followers(
@@ -177,6 +193,32 @@ def merchant_product_list(request):
             )
         except Exception as e:
             print(f"Error notifying followers: {e}")
+
+        # Notify all admins of new product awaiting review
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            from apps.accounts.models import User as UserModel
+            from django.core.mail import send_mail
+            admins = UserModel.objects.filter(is_staff=True)
+            for admin in admins:
+                create_notification(
+                    user=admin,
+                    n_type=Notification.Type.NEW_PRODUCT_REVIEW,
+                    title='منتج جديد بانتظار المراجعة',
+                    message=f'أضاف التاجر @{request.user.username} منتجاً جديداً "{product.name}" يحتاج إلى مراجعة خلال 24 ساعة.',
+                    related_id=str(product.id),
+                    related_type='product'
+                )
+            send_mail(
+                f'🆕 منتج جديد بانتظار المراجعة: {product.name}',
+                f'أضاف التاجر @{request.user.username} منتجاً جديداً "{product.name}".\nيُرجى المراجعة خلال 24 ساعة وإلا سيُنشر تلقائياً.',
+                'noreply@souq.dz',
+                [a.email for a in admins if a.email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"Error notifying admins of new product: {e}")
 
         return Response(
             ProductDetailSerializer(product, context={'request': request}).data,
@@ -226,7 +268,21 @@ def merchant_product_detail(request, pk):
                     after_state={'is_active': is_active_after}
                 )
 
-                # 2. Notify Merchant
+                # 2. Update suspension fields so it can be appealed
+                if not is_active_after:
+                    updated.suspended_at = timezone.now()
+                    from datetime import timedelta
+                    updated.appeal_deadline = timezone.now() + timedelta(days=14)
+                    updated.suspension_reason = 'تغيير حالة الظهور من قبل المسؤول.'
+                else:
+                    # If admin restored visibility, clear suspension fields
+                    updated.status = 'active'
+                    updated.suspended_at = None
+                    updated.appeal_deadline = None
+                    updated.suspension_reason = None
+                updated.save()
+
+                # 2. Notify Merchant — email + in-app
                 try:
                     email_html = get_product_visibility_email_html(updated.seller.username, updated.name, is_active_after)
                     send_mail(
@@ -236,6 +292,16 @@ def merchant_product_detail(request, pk):
                         [updated.seller.email],
                         fail_silently=True,
                         html_message=email_html
+                    )
+                    from apps.notifications.utils import create_notification
+                    from apps.notifications.models import Notification as NotifModel
+                    create_notification(
+                        user=updated.seller,
+                        n_type=NotifModel.Type.PRODUCT_VISIBILITY_CHANGE,
+                        title='تغيير في ظهور منتجك' if not is_active_after else 'تم تفعيل منتجك',
+                        message=f'تم {"إخفاء" if not is_active_after else "إعادة نشر"} منتجك "{updated.name}" من قبل الإدارة.' + ('' if is_active_after else ' يمكنك تقديم طعن.'),
+                        related_id=str(updated.id),
+                        related_type='product'
                     )
                 except Exception as e:
                     print(f"Error sending visibility email: {e}")

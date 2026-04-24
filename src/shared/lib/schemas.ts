@@ -28,6 +28,9 @@ export const registerSchema = z.object({
   ccp_number: z.string().optional().default(''),
   ccp_name: z.string().optional().default(''),
   baridimob_id: z.string().optional().default(''),
+  acceptTerms: z.boolean().refine((val) => val === true, {
+    message: 'يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة',
+  }),
 }).refine((data) => data.password === data.password2, {
   message: 'كلمتا المرور غير متطابقتان',
   path: ['password2'],

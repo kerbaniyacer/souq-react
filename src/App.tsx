@@ -32,6 +32,8 @@ import RegistrationSuccess from '@features/auth/pages/RegistrationSuccess';
 import AppealForm from '@features/auth/pages/AppealForm';
 import MyAppeals from '@features/auth/pages/MyAppeals';
 import UserProfile from '@features/accounts/pages/UserProfile';
+import PrivacyPolicy from '@features/legal/pages/PrivacyPolicy';
+import TermsOfService from '@features/legal/pages/TermsOfService';
 
 // Lazy-loaded (merchant section)
 const MerchantDashboard = lazy(() => import('@features/merchant/pages/MerchantDashboard'));
@@ -69,6 +71,7 @@ import { useCartStore } from '@shared/stores/cartStore';
 import { useWishlistStore } from '@shared/stores/wishlistStore';
 import ToastContainer from '@shared/components/common/Toast';
 import OnboardingGuard from '@features/auth/components/OnboardingGuard';
+import { useHeartbeat } from '@shared/hooks/useHeartbeat';
 
 function RouteLoader() {
   return (
@@ -113,13 +116,19 @@ export default function App() {
   const { fetchWishlist, resetWishlist } = useWishlistStore();
   const hasBootstrappedAuth = useRef(false);
   const [authReady, setAuthReady] = useState(false);
+  useHeartbeat();
 
   // 1. Boot effect: hydrate auth once before protected bootstrap fetches.
   useEffect(() => {
     let isMounted = true;
 
     const bootAuth = async () => {
-      if (!isAuthenticated) {
+      // Use persisted user data (not isAuthenticated) to decide if a silent refresh is needed.
+      // isAuthenticated is always false on page reload since accessToken is memory-only.
+      const storedUser = useAuthStore.getState().user;
+
+      if (!storedUser) {
+        // No stored session — user is genuinely logged out.
         hasBootstrappedAuth.current = true;
         if (isMounted) setAuthReady(true);
         return;
@@ -127,12 +136,12 @@ export default function App() {
 
       if (!hasBootstrappedAuth.current) {
         if (isMounted) setAuthReady(false);
-        console.log('[AuthBoot] Attempting silent refresh before protected bootstrap...');
+        console.log('[AuthBoot] Stored user found — attempting silent refresh...');
         try {
           await refreshAccessToken();
           console.log('[AuthBoot] Silent refresh successful.');
         } catch (err) {
-          console.error('[AuthBoot] Silent refresh failed:', err);
+          console.error('[AuthBoot] Silent refresh failed — logging out:', err);
           if (isMounted) {
             await logout();
           }
@@ -177,6 +186,10 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
+
+          {/* Legal pages (no layout) */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
 
           {/* Email previews (lazy — admin only) */}
           <Route path="/admin/emails" element={<AdminRoute authReady={authReady}><EmailGallery /></AdminRoute>} />

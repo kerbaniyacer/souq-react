@@ -12,6 +12,8 @@ export interface User {
   provider?: 'local' | 'google' | 'facebook';
   is_onboarded?: boolean;
   photo?: string | null;
+  last_seen?: string | null;
+  is_online?: boolean;
 }
 
 export interface Profile {

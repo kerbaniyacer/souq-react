@@ -500,8 +500,13 @@ export default function MerchantProductForm() {
           </div>
           <div className="flex flex-wrap gap-6 pt-2">
             <Toggle checked={form.is_active} onChange={(v) => setForm((p) => ({ ...p, is_active: v }))} label="منتج نشط (ظاهر للزبائن)" />
-            <Toggle checked={form.is_featured} onChange={(v) => setForm((p) => ({ ...p, is_featured: v }))} label="منتج مميز" />
+            <Toggle checked={form.is_featured} onChange={(v) => setForm((p) => ({ ...p, is_featured: v }))} label="منتج مميز ⭐" />
           </div>
+          {!isEdit && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 font-arabic bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-xl p-3 mt-2">
+              ⏳ سيخضع المنتج لمراجعة إدارية قبل نشره — يُنشر تلقائياً خلال <strong>24 ساعة</strong> إذا لم تتم المراجعة.
+            </p>
+          )}
         </Section>
 
         {/* ── خيارات المنتج والنسخ ──────────────────────────────────── */}

@@ -14,12 +14,38 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user).order_by('-created_at')[:50]
 
-    @action(detail=True, methods=['patch'])
-    def mark_as_read(self, request, pk=None):
-        notification = self.get_object()
-        notification.is_read = True
-        notification.save()
-        return Response({'status': 'notification marked as read'})
+    @action(detail=False, methods=['post'])
+    def mark_as_read(self, request):
+        notification_id = request.data.get('id')
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_read = True
+            notification.save()
+            return Response({'status': 'notification marked as read'})
+        except Notification.DoesNotExist:
+            return Response({'detail': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a single notification owned by the user."""
+        try:
+            notification = Notification.objects.get(pk=kwargs['pk'], user=request.user)
+            notification.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Notification.DoesNotExist:
+            return Response({'detail': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def pin(self, request):
+        """Toggle pin state for a notification."""
+        notification_id = request.data.get('id')
+        is_pinned = request.data.get('is_pinned', True)
+        try:
+            notification = Notification.objects.get(id=notification_id, user=request.user)
+            notification.is_pinned = bool(is_pinned)
+            notification.save(update_fields=['is_pinned'])
+            return Response({'status': 'ok', 'is_pinned': notification.is_pinned})
+        except Notification.DoesNotExist:
+            return Response({'detail': 'not found'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['post'])
     def mark_all_as_read(self, request):

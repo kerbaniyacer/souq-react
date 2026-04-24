@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Send, ClipboardList, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
@@ -16,6 +16,23 @@ export default function AppealForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [appealId, setAppealId] = useState('');
+  const [targetInfo, setTargetInfo] = useState<{ name: string; reason: string; type: string } | null>(null);
+  const [loadingInfo, setLoadingInfo] = useState(true);
+
+  useEffect(() => {
+    const fetchInfo = async () => {
+      if (!targetId) return;
+      try {
+        const res = await api.get(`/auth/appeals/target-info/?type=${targetType}&id=${targetId}`);
+        setTargetInfo(res.data);
+      } catch (err) {
+        console.error('Error fetching target info:', err);
+      } finally {
+        setLoadingInfo(false);
+      }
+    };
+    fetchInfo();
+  }, [targetId, targetType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,12 +40,16 @@ export default function AppealForm() {
       toast.error('يرجى شرح سبب التظلم بالتفصيل');
       return;
     }
+    if (!targetId) {
+      toast.error('لم يتم تحديد الهدف، يرجى استخدام رابط الطعن من الإشعار أو صفحة المنتج');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const res = await api.post('/auth/appeals/', {
         target_type: targetType,
-        target_id: targetId,
+        target_id: Number(targetId),
         reason: reason
       });
       setAppealId(res.data.appeal_id);
@@ -83,12 +104,31 @@ export default function AppealForm() {
           </div>
         </div>
 
-        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl p-4 mb-8 flex gap-4">
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-2xl p-4 mb-6 flex gap-4">
           <AlertCircle className="text-amber-500 shrink-0" size={24} />
           <div className="text-sm text-amber-700 dark:text-amber-400 font-arabic leading-relaxed">
             ملاحظة: لديك 14 يوماً فقط من تاريخ التجميد لتقديم هذا الطلب. تأكد من إرفاق كافة التفاصيل الضرورية.
           </div>
         </div>
+
+        {loadingInfo ? (
+           <div className="p-8 bg-gray-50 dark:bg-[#252525] rounded-3xl mb-8 flex items-center justify-center">
+              <span className="w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+           </div>
+        ) : targetInfo && (
+          <div className="p-6 bg-gray-50 dark:bg-[#252525] rounded-3xl mb-8 border border-gray-100 dark:border-[#2E2E2E] animate-in slide-in-from-top-4 duration-500">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                   <p className="text-[10px] text-gray-400 font-arabic mb-1 uppercase tracking-widest">العنصر المقصود</p>
+                   <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic">{targetInfo.name}</h3>
+                </div>
+                <div className="md:text-left">
+                   <p className="text-[10px] text-gray-400 font-arabic mb-1 uppercase tracking-widest">سبب التجميد الإداري</p>
+                   <p className="text-sm text-red-600 font-bold font-arabic">{targetInfo.reason || 'مخالفة سياسات المنصة'}</p>
+                </div>
+             </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>

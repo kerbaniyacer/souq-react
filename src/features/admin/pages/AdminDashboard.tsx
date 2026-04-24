@@ -18,6 +18,7 @@ interface AdminUser {
   profile?: { is_seller: boolean };
   status: 'active' | 'suspended';
   suspension_reason?: string;
+  suspended_at?: string;
 }
 
 interface AdminProduct {
@@ -27,6 +28,7 @@ interface AdminProduct {
   is_active: boolean;
   status: 'active' | 'suspended';
   suspension_reason?: string;
+  suspended_at?: string;
   is_featured: boolean;
   seller_id: string;
   seller?: { id: string; username: string; first_name?: string };
@@ -132,6 +134,7 @@ export default function AdminDashboard() {
   const [viewingReport, setViewingReport] = useState<AdminReport | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [reportTypeFilter, setReportTypeFilter] = useState<'all' | 'product' | 'user'>('all');
+  const [reportUserFilter, setReportUserFilter] = useState<{ id: string; name: string } | null>(null);
 
   const deleteReport = async (reportId: string) => {
     if (!window.confirm('هل أنت متأكد من حذف هذا البلاغ نهائياً؟')) return;
@@ -432,17 +435,25 @@ export default function AdminDashboard() {
                   <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-100 dark:border-[#2E2E2E]">
                     <tr>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">المستخدم</th>
+                      <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">آخر ظهور</th>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">البلاغات</th>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">الحالة</th>
                       <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider font-arabic">الإجراء الإداري</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#2E2E2E]">
-                    {filteredUsers.map((u) => (
+                    {filteredUsers.map((u) => {
+                      const isOnline = (u as any).is_online as boolean | undefined;
+                      const lastSeen = (u as any).last_seen as string | null | undefined;
+                      const reportsCount = (u as any).reports_count as number;
+                      return (
                       <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
                         <td className="px-6 py-5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center text-primary-600 font-bold">{u.username[0].toUpperCase()}</div>
+                            <div className="relative">
+                              <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center text-primary-600 font-bold">{u.username[0].toUpperCase()}</div>
+                              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#1A1A1A] ${isOnline ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                            </div>
                             <div>
                               <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{u.username}</p>
                               <p className="text-xs text-gray-400">{u.email}</p>
@@ -450,15 +461,34 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-5">
-                           {(u as any).reports_count > 0 ? (
-                             <div className="flex items-center gap-1.5 text-red-600 font-bold">
-                               <Flag className="w-3.5 h-3.5" />
-                               <span className="text-xs">{(u as any).reports_count}</span>
-                             </div>
-                           ) : (
-                             <span className="text-xs text-gray-400">—</span>
-                           )}
-                         </td>
+                          {isOnline ? (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full font-arabic">متصل الآن</span>
+                          ) : lastSeen ? (
+                            <span className="text-[10px] text-gray-400 font-arabic">
+                              {new Date(lastSeen).toLocaleString('ar-DZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-5">
+                          {reportsCount > 0 ? (
+                            <button
+                              onClick={() => {
+                                setReportUserFilter({ id: u.id, name: u.username });
+                                setReportTypeFilter('all');
+                                setTab('reports');
+                              }}
+                              className="flex items-center gap-1.5 text-red-600 font-bold hover:underline transition-all group"
+                              title={`عرض بلاغات @${u.username}`}
+                            >
+                              <Flag className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                              <span className="text-xs">{reportsCount}</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
                         <td className="px-6 py-5">
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold font-arabic ${
                             u.status === 'suspended' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
@@ -477,7 +507,8 @@ export default function AdminDashboard() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                </table>
             </div>
@@ -509,9 +540,9 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-5">
                           <span className={`text-[10px] px-3 py-1 rounded-full font-bold font-arabic ${
-                            p.status === 'suspended' ? 'bg-red-100 text-red-700' : p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            (p.status === 'suspended' || (p.suspended_at && !p.is_active)) ? 'bg-red-100 text-red-700' : p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                           }`}>
-                            {p.status === 'suspended' ? 'مجمد' : p.is_active ? 'نشط' : 'مخفي'}
+                            {(p.status === 'suspended' || (p.suspended_at && !p.is_active)) ? 'مجمد' : p.is_active ? 'نشط' : 'مخفي'}
                           </span>
                         </td>
                         <td className="px-6 py-5">
@@ -697,17 +728,32 @@ export default function AdminDashboard() {
           {/* Reports */}
           {tab === 'reports' && (
             <div className="space-y-4">
-              <div className="flex gap-2 p-1 bg-gray-50 dark:bg-[#252525] rounded-2xl w-fit">
-                 {(['all', 'product', 'user'] as const).map((type) => (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex gap-2 p-1 bg-gray-50 dark:bg-[#252525] rounded-2xl w-fit">
+                  {(['all', 'product', 'user'] as const).map((type) => (
                     <button key={type} onClick={() => setReportTypeFilter(type)}
                       className={`px-6 py-2 rounded-xl text-xs font-bold font-arabic transition-all ${
-                        reportTypeFilter === type 
-                        ? 'bg-white dark:bg-[#1A1A1A] text-primary-600 shadow-sm' 
+                        reportTypeFilter === type
+                        ? 'bg-white dark:bg-[#1A1A1A] text-primary-600 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                       }`}>
                       {type === 'all' ? 'الكل' : type === 'product' ? 'بلاغات المنتجات' : 'بلاغات المستخدمين'}
                     </button>
-                 ))}
+                  ))}
+                </div>
+                {/* Active user filter badge */}
+                {reportUserFilter && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
+                    <Flag className="w-3.5 h-3.5 text-red-500" />
+                    <span className="text-xs font-bold text-red-600 font-arabic">بلاغات @{reportUserFilter.name}</span>
+                    <button
+                      onClick={() => setReportUserFilter(null)}
+                      className="text-red-400 hover:text-red-600 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-gray-100 dark:border-[#2E2E2E] overflow-hidden">
@@ -723,6 +769,7 @@ export default function AdminDashboard() {
                   <tbody>
                     {reports
                       .filter(r => reportTypeFilter === 'all' ? true : reportTypeFilter === 'product' ? r.report_type === 'product' : r.report_type !== 'product')
+                      .filter(r => reportUserFilter ? String(r.target_user) === reportUserFilter.id : true)
                       .map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors border-b last:border-0 border-gray-50 dark:border-[#2E2E2E]">
                         <td className="px-6 py-5 text-sm font-bold text-gray-900 dark:text-gray-100">{r.reporter_name}</td>

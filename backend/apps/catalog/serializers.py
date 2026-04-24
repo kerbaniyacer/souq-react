@@ -67,6 +67,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_slug = serializers.CharField(source='product.slug', read_only=True)
     product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_status = serializers.CharField(source='product.status', read_only=True)
+    product_is_active = serializers.BooleanField(source='product.is_active', read_only=True)
     images = VariantImageSerializer(many=True, read_only=True)
     image = serializers.SerializerMethodField()
     is_in_stock = serializers.BooleanField(read_only=True)
@@ -74,7 +76,8 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
         fields = [
-            'id', 'product_id', 'product_name', 'product_slug', 'name', 'sku', 'price', 'old_price', 'discount',
+            'id', 'product_id', 'product_name', 'product_slug', 'product_status', 'product_is_active',
+            'name', 'sku', 'price', 'old_price', 'discount',
             'stock', 'is_active', 'attributes', 'is_main',
             'images', 'image', 'is_in_stock', 'stock_status',
         ]

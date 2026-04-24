@@ -9,6 +9,7 @@ export interface Notification {
   related_id: string;
   related_type: string;
   is_read: boolean;
+  is_pinned: boolean;
   created_at: string;
 }
 
@@ -17,6 +18,8 @@ export const notificationApi = {
   markAsRead: (id: number) => api.post('/notifications/mark_as_read/', { id }),
   markAllAsRead: () => api.post('/notifications/mark_all_as_read/'),
   getUnreadCount: () => api.get<{ unread_count: number }>('/notifications/unread_count/'),
+  deleteNotification: (id: number) => api.delete(`/notifications/${id}/`),
+  pinNotification: (id: number, is_pinned: boolean) => api.post('/notifications/pin/', { id, is_pinned }),
 };
 
 export const followApi = {

@@ -117,8 +117,17 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-6 text-center text-sm font-arabic">
-          <p>© {new Date().getFullYear()} سوق - جميع الحقوق محفوظة</p>
+        <div className="border-t border-gray-200 dark:border-white/10 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-arabic">
+          <p className="text-gray-500 dark:text-gray-400">© {new Date().getFullYear()} سوق - جميع الحقوق محفوظة</p>
+          <div className="flex items-center gap-4">
+            <Link to="/terms-of-service" className="text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors">
+              شروط الاستخدام
+            </Link>
+            <span className="text-gray-300 dark:text-gray-700">|</span>
+            <Link to="/privacy-policy" className="text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors">
+              سياسة الخصوصية
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Trash2, Plus, Minus, ShoppingCart,
-  ArrowLeft, Tag, Truck, ShieldCheck, RotateCcw,
+  ArrowLeft, Tag, Truck, ShieldCheck, RotateCcw, AlertCircle,
 } from 'lucide-react';
 import { useCartStore } from '@shared/stores/cartStore';
 import { useToast } from '@shared/stores/toastStore';
@@ -135,6 +135,9 @@ export default function Cart() {
   const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
   const shipping = subtotal >= 5000 ? 0 : 500;
   const total = subtotal + shipping;
+  const hasSuspendedItems = items.some(item => 
+    item.variant?.product_status === 'suspended' || item.variant?.product_is_active === false
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10" dir="rtl">
@@ -149,6 +152,13 @@ export default function Cart() {
         </h1>
       </div>
 
+      {hasSuspendedItems && (
+        <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-2xl p-4 mb-8 flex items-center gap-3 text-red-700 dark:text-red-400 font-arabic text-sm animate-pulse">
+           <AlertCircle className="w-5 h-5 shrink-0" />
+           بعض المنتجات في سلتك لم تعد متاحة حالياً. يرجى إزالتها لتتمكن من إتمام الطلب.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* ── Items list ── */}
@@ -160,11 +170,12 @@ export default function Cart() {
             const unitPrice = variant?.price ?? 0;
             const image = variant?.images?.[0]?.image;
             const isLowStock = variant?.stock && variant.stock <= 5 && variant.stock > 0;
+            const isSuspended = variant?.product_status === 'suspended' || variant?.product_is_active === false;
 
             return (
               <div
                 key={item.id}
-                className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-md dark:hover:shadow-black/20 transition-all duration-200"
+                className={`group bg-white dark:bg-gray-900 rounded-2xl border ${isSuspended ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/5' : 'border-gray-100 dark:border-gray-800'} overflow-hidden hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-md dark:hover:shadow-black/20 transition-all duration-200`}
               >
                 <div className="flex gap-0">
 

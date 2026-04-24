@@ -163,7 +163,7 @@ export default function ProductDetail() {
       });
       navigate(`/chat?conversationId=${conversation.id}`);
     } catch (err) {
-      toast.error('ØªØ¹Ø°Ù‘Ø± Ø¨Ø¯Ø¡ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø© Ø­Ø§Ù„ÙŠØ§Ù‹');
+      toast.error('تعذر بدء المحادثة حالياً');
     }
   };
 
@@ -196,7 +196,7 @@ export default function ProductDetail() {
   const previewAsCustomer = searchParams.get('preview') === 'customer';
   const canManageProduct = isOwner && !previewAsCustomer;
 
-  // â”€â”€ Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…ØªØºÙŠØ±Ø§Øª Ø§Ù„Ù…Ù†ÙØµÙ„Ø© (Ø§Ù„Ù„ÙˆÙ†ØŒ Ø§Ù„Ù…Ù‚Ø§Ø³...) â”€â”€
+  // ── استخراج خصائص المتغيرات المنفصلة (اللون، المقاس...) ──
   const attrKeys: string[] = [];
   (product.variants ?? []).forEach((v) => {
     Object.keys(v.attributes ?? {}).forEach((k) => {
@@ -204,24 +204,24 @@ export default function ProductDetail() {
     });
   });
 
-  // ØªÙ‡ÙŠØ¦Ø© Ø§Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…Ø®ØªØ§Ø±Ø© Ù…Ù† Ø§Ù„Ù…ØªØºÙŠØ± Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ
+  // تهيئة الخصائص المختارة من المتغير الرئيسي
   const mainAttrs = (() => {
     const init: Record<string, string> = {};
     const mainV = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
     if (mainV?.attributes) Object.entries(mainV.attributes).forEach(([k, v]) => { init[k] = v; });
     return init;
   })();
-  // ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ø£ÙˆÙ„ÙŠØ© Ø¥Ù† ÙƒØ§Ù†Øª selectedAttrs ÙØ§Ø±ØºØ©
+  // تطبيق القيم الأولية إن كانت selectedAttrs فارغة
   const effectiveAttrs = Object.keys(selectedAttrs).length > 0 ? selectedAttrs : mainAttrs;
 
-  // Ø¥ÙŠØ¬Ø§Ø¯ Ø§Ù„Ù…ØªØºÙŠØ± Ø§Ù„Ù…Ø·Ø§Ø¨Ù‚ Ù„Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù…Ø®ØªØ§Ø±Ø©
+  // إيجاد المتغير المطابق للخصائص المختارة
   const matchedVariant = attrKeys.length > 0
     ? (product.variants ?? []).find((v) =>
       attrKeys.every((k) => v.attributes?.[k] === effectiveAttrs[k])
     ) ?? null
     : selectedVariant;
 
-  // Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ù…ØªØ§Ø­Ø© Ù„ÙƒÙ„ Ø®Ø§ØµÙŠØ©
+  // القيم المتاحة لكل خاصية
   function getAvailableValues(key: string): { value: string; available: boolean }[] {
     const allValues = [...new Set(
       (product!.variants ?? []).map((v) => v.attributes?.[key]).filter(Boolean) as string[]
@@ -248,7 +248,7 @@ export default function ProductDetail() {
     }
   };
 
-  // Ù‡Ù„ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø®ØµØ§Ø¦Øµ Ù…Ø­Ø¯Ø¯Ø©ØŸ
+  // هل جميع الخصائص محددة؟
   const allAttrsSelected = attrKeys.length === 0 || attrKeys.every((k) => !!effectiveAttrs[k]);
 
   const activeVariant = matchedVariant ?? selectedVariant;
@@ -597,14 +597,14 @@ export default function ProductDetail() {
               (product as any).specifications ?? []
             ).map((s: any) => ({ label: s.key, value: s.value }));
 
-            // Ø§Ù„Ø®ØµØ§Ø¦Øµ Ø§Ù„Ù‚Ø¯ÙŠÙ…Ø© (attributes)
+            // الخصائص القديمة (attributes)
             const attrRows: { label: string; value: string }[] = (product.attributes ?? [])
               .map((a) => ({ label: a.name, value: a.value }));
 
             const allRows = [...fixedRows, ...specRows, ...attrRows];
 
             if (allRows.length === 0) {
-              return <p className="text-gray-400 dark:text-gray-500 font-arabic text-center py-6">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…ÙˆØ§ØµÙØ§Øª Ù…Ø¯Ø±Ø¬Ø©</p>;
+              return <p className="text-gray-400 dark:text-gray-500 font-arabic text-center py-6">لا توجد مواصفات مدرجة</p>;
             }
 
             return (
@@ -701,7 +701,7 @@ export default function ProductDetail() {
                    <textarea 
                       value={reportDescription}
                       onChange={(e) => setReportDescription(e.target.value)}
-                      placeholder="Ø§Ø´Ø±Ø­ Ù„Ù†Ø§ Ø§Ù„Ù…Ø´ÙƒÙ„Ø© Ø¨Ø§Ù„ØªÙØµÙŠÙ„ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)..."
+                      placeholder="اشرح لنا المشكلة بالتفصيل (اختياري)..."
                       className="w-full h-24 bg-gray-50 dark:bg-[#252525] border border-gray-100 dark:border-[#2E2E2E] rounded-xl p-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic text-sm resize-none"
                    />
                  </div>

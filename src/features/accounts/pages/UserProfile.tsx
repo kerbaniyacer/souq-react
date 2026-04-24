@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Star, Store, User as UserIcon, MapPin, Calendar, MessageSquare, ShoppingBag } from 'lucide-react';
 import { authApi, productsApi, reviewsApi } from '@shared/services/api';
 import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
+import { useAuthStore } from '@features/auth/stores/authStore';
+import { useGetOrCreateConversation } from '@features/chat/hooks/useChat';
 
 export default function UserProfile() {
   const { username } = useParams();
+  const navigate = useNavigate();
+  const { user: currentUser, isAuthenticated } = useAuthStore();
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [sellerReviews, setSellerReviews] = useState<any[]>([]);
   const [buyerReviews, setBuyerReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'products' | 'reviews'>('products');
+  const { mutate: getOrCreateConversation, isPending: startingChat } = useGetOrCreateConversation();
 
   useEffect(() => {
     if (!username) return;
@@ -59,6 +64,18 @@ export default function UserProfile() {
   }
 
   const p = user.profile;
+  const isOwnProfile = currentUser?.username === user.username;
+
+  const handleStartChat = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    getOrCreateConversation(
+      { sellerId: user.id },
+      { onSuccess: (conv) => navigate(`/chat?conversationId=${conv.id}`) }
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -111,8 +128,8 @@ export default function UserProfile() {
                </p>
              )}
 
-             {/* Rating Badges */}
-             <div className="flex flex-wrap justify-center md:justify-start gap-4">
+             {/* Rating Badges + Chat Button */}
+             <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
                 {p?.is_seller && (
                   <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-xl hover:shadow-yellow-200/40 dark:hover:shadow-yellow-900/20 hover:border-yellow-200 dark:hover:border-yellow-700/40">
                     <p className="text-[10px] text-yellow-600 dark:text-yellow-500 font-bold font-arabic mb-1">تقييم البائع</p>
@@ -123,7 +140,7 @@ export default function UserProfile() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-200/40 dark:hover:shadow-blue-900/20 hover:border-blue-200 dark:hover:border-blue-700/40">
                   <p className="text-[10px] text-blue-600 dark:text-blue-500 font-bold font-arabic mb-1">تقييم المشتري</p>
                   <div className="flex items-center gap-2">
@@ -132,6 +149,22 @@ export default function UserProfile() {
                      <span className="text-xs text-gray-400 font-arabic">({p?.buyer_reviews_count || 0} تقييم)</span>
                   </div>
                 </div>
+
+                {/* Chat button — visible only to other authenticated users */}
+                {!isOwnProfile && (
+                  <button
+                    onClick={handleStartChat}
+                    disabled={startingChat}
+                    className="flex items-center gap-2 px-5 py-3 bg-primary-500 hover:bg-primary-600 disabled:opacity-60 text-white rounded-2xl font-arabic font-bold text-sm transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-primary-200/50 dark:hover:shadow-primary-900/30 active:scale-95"
+                  >
+                    {startingChat ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <MessageSquare size={16} />
+                    )}
+                    <span>مراسلة</span>
+                  </button>
+                )}
              </div>
           </div>
         </div>

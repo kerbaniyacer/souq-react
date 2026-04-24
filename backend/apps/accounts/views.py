@@ -63,6 +63,23 @@ def register(request):
         except Exception as e:
             print(f"Error sending welcome email: {e}")
 
+        # Notify all admins of new registration
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            admins = User.objects.filter(is_staff=True)
+            for admin in admins:
+                create_notification(
+                    user=admin,
+                    n_type=Notification.Type.NEW_USER_REGISTERED,
+                    title='مستخدم جديد',
+                    message=f'سجّل مستخدم جديد: @{user.username} ({user.email})',
+                    related_id=str(user.id),
+                    related_type='user'
+                )
+        except Exception as e:
+            print(f"Error notifying admins of new user: {e}")
+
         return Response(
             {'detail': 'تم إنشاء الحساب بنجاح.', 'email': user.email},
             status=status.HTTP_201_CREATED,
@@ -354,6 +371,11 @@ class CustomLogoutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        # Clear presence immediately so the user shows as offline right away
+        if request.user.is_authenticated:
+            request.user.last_seen = None
+            request.user.save(update_fields=['last_seen'])
+
         refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
         if refresh_token:
             try:
@@ -859,6 +881,43 @@ def admin_report_list(request):
     return Response(serializer.data)
 
 
+@extend_schema(tags=['appeals'], summary='معلومات العنصر المجمد (للطعن)')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def appeal_target_info(request):
+    """Returns details about the item being appealed."""
+    target_type = request.query_params.get('type')
+    target_id = request.query_params.get('id')
+    
+    if not all([target_type, target_id]):
+        return Response({'detail': 'النوع والمعرف مطلوبان.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        if target_type == 'account':
+            target = User.objects.get(pk=target_id)
+            if target != request.user and not request.user.is_staff:
+                return Response({'detail': 'غير مصرح لك.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({
+                'name': target.username or target.email,
+                'reason': target.suspension_reason,
+                'type': 'account',
+                'suspended_at': target.suspended_at
+            })
+        elif target_type == 'product':
+            from apps.catalog.models import Product
+            target = Product.objects.get(pk=target_id)
+            if target.seller != request.user and not request.user.is_staff:
+                return Response({'detail': 'غير مصرح لك.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({
+                'name': target.name,
+                'reason': target.suspension_reason,
+                'type': 'product',
+                'suspended_at': target.suspended_at
+            })
+    except Exception:
+        return Response({'detail': 'العنصر غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
+
+
 @extend_schema(tags=['auth'], summary='حذف بلاغ (للمسؤولين فقط)')
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
@@ -906,18 +965,28 @@ def submit_appeal(request):
                  return Response({'detail': 'غير مصرح لك بالطعن نيابة عن غيرك.'}, status=status.HTTP_403_FORBIDDEN)
             suspended_at = target.suspended_at
         elif target_type == 'product':
-            target = Product.objects.get(pk=target_id, seller=request.user)
+            if request.user.is_staff:
+                target = Product.objects.get(pk=target_id)
+            else:
+                target = Product.objects.get(pk=target_id, seller=request.user)
+            
             suspended_at = target.suspended_at
+            
+            # If suspended_at is missing but product is not active or is suspended status, treat as suspended
+            if not suspended_at and (not target.is_active or target.status == 'suspended'):
+                suspended_at = target.updated_at or timezone.now()
         else:
             return Response({'detail': 'نوع مستهدف غير صحيح.'}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception:
+    except Exception as e:
+        print(f"Appeal Debug: Target fetch failed for {target_type} {target_id}: {e}")
         return Response({'detail': 'العنصر المستهدف غير موجود أو لا تملكه.'}, status=status.HTTP_404_NOT_FOUND)
 
     if not suspended_at:
+        print(f"Appeal Debug: Item {target_id} not suspended. Status: {getattr(target, 'status', 'N/A')}, Active: {getattr(target, 'is_active', 'N/A')}")
         return Response({'detail': 'هذا العنصر غير مجمد حالياً.'}, status=status.HTTP_400_BAD_REQUEST)
 
     # 2. Check 14-day deadline
-    if timezone.now() > suspended_at + timedelta(days=14):
+    if suspended_at and timezone.now() > suspended_at + timedelta(days=14):
         return Response({'detail': 'لقد انتهت فترة الـ 14 يوماً المتاحة لتقديم الطعن.'}, status=status.HTTP_400_BAD_REQUEST)
 
     # 3. Check Appeal Limit (Max 3)
@@ -927,7 +996,24 @@ def submit_appeal(request):
 
     serializer = AppealSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(user=request.user, target_type=target_type, target_id=target_id)
+        appeal = serializer.save(user=request.user, target_type=target_type, target_id=target_id)
+
+        # Notify all admin staff about new appeal
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            for admin in User.objects.filter(is_staff=True):
+                create_notification(
+                    user=admin,
+                    n_type=Notification.Type.APPEAL_SUBMITTED,
+                    title='طعن جديد يحتاج مراجعة',
+                    message=f'قدّم المستخدم {request.user.username} طعناً جديداً بخصوص {target_type}.',
+                    related_id=appeal.id,
+                    related_type='appeal'
+                )
+        except Exception:
+            pass
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1043,18 +1129,34 @@ def admin_manage_appeal(request, pk):
             is_processed=False
         ).update(is_processed=True)
 
+    # Send in-app notification to user
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        decision_ar = 'قبول' if decision == 'approved' else 'رفض'
+        create_notification(
+            user=appeal.user,
+            n_type=Notification.Type.APPEAL_DECISION,
+            title=f'تم {decision_ar} طعنك',
+            message=f'تم {decision_ar} طعنك رقم {appeal.appeal_id}. {admin_response}'.strip(),
+            related_id=appeal.id,
+            related_type='appeal'
+        )
+    except Exception:
+        pass
+
     # Send Notification Email
     try:
         from .utils import get_appeal_decision_email_html
         from django.core.mail import send_mail
-        
+
         email_html = get_appeal_decision_email_html(
             appeal.user.username,
             appeal.target_name or f"{appeal.target_type} #{appeal.target_id}",
             decision,
             admin_response
         )
-        
+
         send_mail(
             f"قرار بخصوص طعنك: {appeal.appeal_id}",
             f"تم { 'قبول' if decision == 'approved' else 'رفض' } طعنك.",
@@ -1155,3 +1257,28 @@ def complete_profile(request):
         "is_onboarded": profile.is_onboarded,
         "user": UserSerializer(user).data
     })
+
+
+@extend_schema(tags=['auth'], summary='تحديث حالة الاتصال (Heartbeat)')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def heartbeat(request):
+    """Updates the user's last_seen timestamp to mark them as online."""
+    from django.utils import timezone
+    request.user.last_seen = timezone.now()
+    request.user.save(update_fields=['last_seen'])
+    return Response({'status': 'ok'})
+
+
+@extend_schema(tags=['auth'], summary='بلاغات مستخدم محدد (للمسؤولين)')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_user_reports(request, pk):
+    """Returns all reports targeting a specific user. Restricted to staff."""
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+    from .models import Report
+    from .serializers import ReportSerializer
+    reports = Report.objects.filter(target_user_id=pk).order_by('-created_at')
+    serializer = ReportSerializer(reports, many=True)
+    return Response(serializer.data)

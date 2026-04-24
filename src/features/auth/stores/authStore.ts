@@ -60,6 +60,8 @@ function djangoUserToUser(d: DjangoUser): User {
     photo: d.photo ?? undefined,
     provider: d.provider as 'local' | 'google' | 'facebook',
     is_onboarded: d.is_onboarded ?? true,
+    last_seen: d.last_seen ?? null,
+    is_online: d.is_online ?? false,
   };
 }
 

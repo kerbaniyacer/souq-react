@@ -72,6 +72,7 @@ class Brand(models.Model):
 class Product(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Active'
+        UNDER_REVIEW = 'under_review', 'Under Review'
         SUSPENDED = 'suspended', 'Suspended'
         PENDING_DELETE = 'pending_delete', 'Pending Delete'
         DELETED = 'deleted', 'Deleted'
@@ -92,6 +93,7 @@ class Product(models.Model):
     suspended_at = models.DateTimeField(null=True, blank=True)
     appeal_deadline = models.DateTimeField(null=True, blank=True)
     suspension_reason = models.TextField(null=True, blank=True)
+    review_deadline = models.DateTimeField(null=True, blank=True)
 
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0, verbose_name='التقييم')
     reviews_count = models.PositiveIntegerField(default=0, verbose_name='عدد التقييمات')

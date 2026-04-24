@@ -33,10 +33,14 @@ class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     is_onboarded = serializers.SerializerMethodField()
     reports_count = serializers.IntegerField(read_only=True)
+    is_online = serializers.SerializerMethodField()
 
     def get_is_onboarded(self, obj):
         profile = getattr(obj, 'profile', None)
         return profile.is_onboarded if profile else False
+
+    def get_is_online(self, obj):
+        return obj.is_online
 
     class Meta:
         model = User
@@ -44,18 +48,22 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name',
             'full_name', 'photo', 'provider', 'is_staff', 'date_joined', 'role',
             'profile', 'status', 'suspended_at', 'appeal_deadline', 'suspension_reason',
-            'is_onboarded', 'reports_count',
+            'is_onboarded', 'reports_count', 'last_seen', 'is_online',
         ]
-        read_only_fields = ['id', 'is_staff', 'date_joined', 'provider']
+        read_only_fields = ['id', 'is_staff', 'date_joined', 'provider', 'last_seen', 'is_online']
 
 
 class PublicUserSerializer(serializers.ModelSerializer):
     profile = PublicProfileSerializer(read_only=True)
     full_name = serializers.CharField(read_only=True)
+    is_online = serializers.SerializerMethodField()
+
+    def get_is_online(self, obj):
+        return obj.is_online
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'full_name', 'photo', 'date_joined', 'profile']
+        fields = ['id', 'username', 'full_name', 'photo', 'date_joined', 'profile', 'last_seen', 'is_online']
 
 
 class AdminActionLogSerializer(serializers.ModelSerializer):

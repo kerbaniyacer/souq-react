@@ -26,8 +26,8 @@ def create_seller_review(request):
     serializer = SellerReviewSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         seller = sub_order.seller
-        serializer.save(buyer=request.user, seller=seller, sub_order=sub_order)
-        
+        review = serializer.save(buyer=request.user, seller=seller, sub_order=sub_order)
+
         # Update seller rating
         profile = seller.profile
         all_reviews = SellerReview.objects.filter(seller=seller, is_visible=True)
@@ -36,7 +36,22 @@ def create_seller_review(request):
         profile.seller_reviews_count = count
         profile.seller_rating = round(avg, 2)
         profile.save(update_fields=['seller_reviews_count', 'seller_rating'])
-        
+
+        # Notify seller about new review
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            create_notification(
+                user=seller,
+                n_type=Notification.Type.NEW_REVIEW,
+                title='تقييم جديد لك',
+                message=f'قام {request.user.username} بتقييمك بـ {review.rating} نجوم.',
+                related_id=sub_order.order_id,
+                related_type='order'
+            )
+        except Exception:
+            pass
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -59,8 +74,8 @@ def create_buyer_review(request):
     
     serializer = BuyerReviewSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save(seller=request.user, buyer=buyer, sub_order=sub_order)
-        
+        review = serializer.save(seller=request.user, buyer=buyer, sub_order=sub_order)
+
         # Update buyer rating in real-time
         profile = buyer.profile
         all_reviews = BuyerReview.objects.filter(buyer=buyer, is_visible=True)
@@ -69,7 +84,22 @@ def create_buyer_review(request):
         profile.buyer_reviews_count = count
         profile.buyer_rating = round(avg, 2)
         profile.save(update_fields=['buyer_reviews_count', 'buyer_rating'])
-        
+
+        # Notify buyer about new review
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            create_notification(
+                user=buyer,
+                n_type=Notification.Type.NEW_REVIEW,
+                title='تقييم جديد لك',
+                message=f'قام التاجر {request.user.username} بتقييمك بـ {review.rating} نجوم.',
+                related_id=sub_order.order_id,
+                related_type='order'
+            )
+        except Exception:
+            pass
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -143,6 +173,21 @@ def review_create(request):
     product.rating        = round(avg, 2)
     product.save(update_fields=['reviews_count', 'rating'])
 
+    # Notify product seller about new review
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        create_notification(
+            user=product.seller,
+            n_type=Notification.Type.NEW_REVIEW,
+            title='تقييم جديد على منتجك',
+            message=f'قام {request.user.username} بتقييم منتج "{product.name}" بـ {review.rating} نجوم.',
+            related_id=product.id,
+            related_type='product'
+        )
+    except Exception:
+        pass
+
     return Response(ReviewSerializer(review, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -199,6 +244,35 @@ def create_review_reply(request):
         content=content,
         **link_field
     )
-    
+
+    # Notify the original reviewer about the reply
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        if review_type == 'product':
+            reviewer = review.user
+            related_id = review.product_id
+            related_type = 'product'
+        elif review_type == 'seller':
+            reviewer = review.buyer
+            related_id = review.sub_order.order_id
+            related_type = 'order'
+        else:  # buyer
+            reviewer = review.buyer
+            related_id = review.sub_order.order_id
+            related_type = 'order'
+
+        if reviewer != request.user:
+            create_notification(
+                user=reviewer,
+                n_type=Notification.Type.REVIEW_REPLY,
+                title='رد على تقييمك',
+                message=f'قام {request.user.username} بالرد على تقييمك.',
+                related_id=related_id,
+                related_type=related_type
+            )
+    except Exception:
+        pass
+
     from .serializers import ReviewReplySerializer
     return Response(ReviewReplySerializer(reply).data, status=status.HTTP_201_CREATED)

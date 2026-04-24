@@ -6,7 +6,7 @@ from .views import (
     admin_manage_action, submit_appeal, user_appeal_list, admin_appeal_list,
     admin_manage_appeal, password_reset_request, password_reset_confirm,
     public_submit_appeal, CustomTokenRefreshView, CustomLogoutView,
-    complete_profile, public_profile
+    complete_profile, public_profile, heartbeat, admin_user_reports, appeal_target_info
 )
 
 urlpatterns = [
@@ -41,8 +41,13 @@ urlpatterns = [
     path('appeals/list/', user_appeal_list, name='auth-user-appeal-list'),
     path('admin/appeals/', admin_appeal_list, name='auth-admin-appeal-list'),
     path('admin/appeals/<int:pk>/manage/', admin_manage_appeal, name='auth-admin-manage-appeal'),
+    path('appeals/target-info/', appeal_target_info, name='auth-appeal-target-info'),
 
     # Admin Actions & Logs
     path('admin/action-log/', admin_action_log, name='auth-admin-action-log'),
     path('admin/manage-action/<int:pk>/', admin_manage_action, name='auth-admin-manage-action'),
+
+    # Presence
+    path('heartbeat/', heartbeat, name='auth-heartbeat'),
+    path('admin/users/<int:pk>/reports/', admin_user_reports, name='auth-admin-user-reports'),
 ]

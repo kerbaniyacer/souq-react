@@ -1,13 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { NotificationDropdown } from './NotificationDropdown';
-import { useNotifications } from '../hooks/useNotifications';
+import { useNotificationPolling } from '../hooks/useNotifications';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 export const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { unreadCount } = useNotifications();
+  // Polling runs here (always mounted) — mutations are in NotificationDropdown
+  useNotificationPolling();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const location = useLocation();
 
+  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -17,6 +23,11 @@ export const NotificationBell: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -34,7 +45,7 @@ export const NotificationBell: React.FC = () => {
 
       {isOpen && (
         <div className="absolute left-0 mt-2 z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
-          <NotificationDropdown />
+          <NotificationDropdown onClose={() => setIsOpen(false)} />
         </div>
       )}
     </div>

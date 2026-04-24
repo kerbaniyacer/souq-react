@@ -16,9 +16,10 @@ import { Conversation } from '@shared/types';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import api from '@features/auth/services/authService';
-import { X, AlertTriangle, Image as ImageIcon, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { X, AlertTriangle, Image as ImageIcon, CheckCircle, Loader2, ExternalLink, Clock } from 'lucide-react';
 import { chatApi } from '@shared/services/api';
 import { useToast } from '@shared/stores/toastStore';
+import OnlineIndicator from '@shared/components/common/OnlineIndicator';
 
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -73,10 +74,11 @@ export default function Chat() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeId) return;
+    const content = newMessage.trim();
+    if (!content || !activeId) return;
 
-    sendMessage({ conversationId: Number(activeId), content: newMessage });
-    setNewMessage('');
+    setNewMessage(''); // clear input immediately for better UX
+    sendMessage({ conversationId: Number(activeId), content });
   };
 
   const handleDelete = async () => {
@@ -110,7 +112,7 @@ export default function Chat() {
 
       await api.post('/auth/reports/', {
         report_type: selectedConversation?.customer === user?.id ? 'seller' : 'buyer',
-        target_id: otherUserId,
+        target_user: otherUserId,
         reason: reportReason,
         description: reportDescription
       });
@@ -208,6 +210,10 @@ export default function Chat() {
                           <User className="w-6 h-6" />
                         </div>
                       )}
+                      {/* Online dot */}
+                      <span className={`absolute bottom-0 left-0 w-3 h-3 rounded-full border-2 border-white dark:border-[#1A1A1A] ${
+                        (otherUser as any)?.is_online ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                      }`} />
                       {conv.unread_count > 0 && (
                         <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-[#1A1A1A]">
                           {conv.unread_count}
@@ -285,11 +291,22 @@ export default function Chat() {
               <div className="flex items-center gap-3 text-right">
                 <div className="hidden sm:block">
                   <h3 className="font-bold text-sm font-arabic">
-                    {selectedConversation?.customer === user?.id 
+                    {selectedConversation?.customer === user?.id
                       ? (selectedConversation?.seller_details?.full_name || selectedConversation?.seller_details?.username)
                       : (selectedConversation?.customer_details?.full_name || selectedConversation?.customer_details?.username)}
                   </h3>
-                  <p className="text-[10px] text-green-500 font-arabic">متصل الآن</p>
+                  {(() => {
+                    const other = selectedConversation?.customer === user?.id
+                      ? selectedConversation?.seller_details
+                      : selectedConversation?.customer_details;
+                    return (
+                      <OnlineIndicator
+                        isOnline={(other as any)?.is_online}
+                        lastSeen={(other as any)?.last_seen}
+                        showLabel
+                      />
+                    );
+                  })()}
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#252525] flex items-center justify-center overflow-hidden">
                    {(selectedConversation?.customer === user?.id 
@@ -353,14 +370,15 @@ export default function Chat() {
               ) : (
                 messages.map((msg) => {
                   const isMine = msg.sender === user?.id;
+                  const isOptimistic = msg.id < 0; // temporary message pending server confirmation
                   return (
-                    <div 
-                      key={msg.id} 
-                      className={`flex ${isMine ? 'justify-start' : 'justify-end'}`}
+                    <div
+                      key={msg.id}
+                      className={`flex ${isMine ? 'justify-start' : 'justify-end'} ${isOptimistic ? 'opacity-70' : ''}`}
                     >
                       <div className={`max-w-[80%] sm:max-w-[70%] rounded-2xl p-3 shadow-sm ${
-                        isMine 
-                          ? 'bg-primary-500 text-white rounded-tr-none' 
+                        isMine
+                          ? 'bg-primary-500 text-white rounded-tr-none'
                           : 'bg-white dark:bg-[#1A1A1A] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-800 rounded-tl-none'
                       }`}>
                         {(() => {
@@ -419,11 +437,17 @@ export default function Chat() {
                         })()}
                         
                         <div className={`text-[9px] mt-1 flex items-center gap-1 ${isMine ? 'text-primary-100' : 'text-gray-400'}`}>
-                          {format(new Date(msg.created_at), 'HH:mm', { locale: ar })}
-                          {isMine && (
-                             <span className="ml-1 opacity-70">
-                               {msg.is_read ? '✓✓' : '✓'}
-                             </span>
+                          {isOptimistic ? (
+                            <Clock className="w-2.5 h-2.5 opacity-60" />
+                          ) : (
+                            <>
+                              {format(new Date(msg.created_at), 'HH:mm', { locale: ar })}
+                              {isMine && (
+                                <span className="ml-1 opacity-70">
+                                  {msg.is_read ? '✓✓' : '✓'}
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

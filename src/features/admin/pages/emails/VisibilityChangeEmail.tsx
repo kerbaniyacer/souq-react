@@ -39,6 +39,19 @@ export default function VisibilityChangeEmail() {
                            {content.buttonLabel}
                         </a>
                      </div>
+
+                     {/* Appeal button */}
+                     <div style={{ background: '#fff8ed', borderRadius: 12, padding: '20px 24px', border: '1px solid #fed7aa', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 12px', color: '#92400e', fontSize: 14, lineHeight: 1.6 }}>
+                          إذا كنت تعتقد أن هذا القرار غير عادل، يمكنك تقديم طعن خلال <strong>14 يوماً</strong>.
+                        </p>
+                        <a
+                          href="/appeals/new"
+                          style={{ display: 'inline-block', background: '#f97316', color: '#ffffff', padding: '12px 36px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14, boxShadow: '0 4px 12px rgba(249,115,22,0.25)' }}
+                        >
+                          تقديم طعن الآن
+                        </a>
+                     </div>
                   </td>
                 </tr>
                 {/* Footer */}

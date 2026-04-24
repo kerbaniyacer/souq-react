@@ -71,6 +71,24 @@ def order_cancel(request, pk):
         for item in order.items.select_related('variant'):
             ProductVariant.objects.filter(pk=item.variant_id).update(stock=F('stock') + item.quantity)
 
+    # Notify each seller that the order was cancelled
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        seller_ids = order.items.values_list('variant__product__seller_id', flat=True).distinct()
+        from apps.accounts.models import User
+        for seller in User.objects.filter(id__in=seller_ids):
+            create_notification(
+                user=seller,
+                n_type=Notification.Type.ORDER_CANCELLED,
+                title='تم إلغاء الطلب',
+                message=f'قام المشتري بإلغاء الطلب #{order.order_number}',
+                related_id=order.id,
+                related_type='order'
+            )
+    except Exception:
+        pass
+
     return Response(OrderSerializer(order, context={'request': request}).data)
 
 
@@ -150,6 +168,23 @@ def payment_proof_upload(request, pk):
     order.payment_status = Order.PaymentStatus.PROOF_UPLOADED
     order.save(update_fields=['payment_status', 'updated_at'])
 
+    # Notify seller that a payment proof was uploaded
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        from apps.accounts.models import User as UserModel
+        seller = UserModel.objects.get(pk=seller_id)
+        create_notification(
+            user=seller,
+            n_type=Notification.Type.PAYMENT_SUBMITTED,
+            title='وصل دفع جديد',
+            message=f'قام المشتري برفع وصل دفع للطلب #{order.order_number}. يرجى مراجعته.',
+            related_id=order.id,
+            related_type='order'
+        )
+    except Exception:
+        pass
+
     return Response(OrderSerializer(order, context={'request': request}).data)
 
 
@@ -181,6 +216,15 @@ def order_create(request):
         # Re-check stock using locked rows
         for ci in cart_items:
             locked = locked_variants[ci.variant_id]
+            
+            # 1. Check Product Status (Suspended/Hidden)
+            if locked.product.status != Product.Status.ACTIVE or not locked.product.is_active:
+                return Response(
+                    {'detail': f'المنتج "{locked.product.name}" غير متاح حالياً للشراء (قد يكون معلقاً للمراجعة). يرجى إزالته من السلة.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 2. Check Stock
             if locked.stock < ci.quantity:
                 return Response(
                     {'detail': f'المخزون غير كافٍ لـ {ci.variant.product.name} ({locked.name})'},
@@ -318,6 +362,21 @@ def merchant_approve_payment(request, pk):
         order.payment_status = Order.PaymentStatus.PAID
         order.save()
 
+    # Notify buyer that payment was approved
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        create_notification(
+            user=order.user,
+            n_type=Notification.Type.PAYMENT_APPROVED,
+            title='تم قبول وصل الدفع',
+            message=f'قام التاجر بقبول وصل الدفع الخاص بطلبك #{order.order_number}.',
+            related_id=order.id,
+            related_type='order'
+        )
+    except Exception:
+        pass
+
     return Response({'detail': 'تم تأكيد استلام الدفع بنجاح'})
 
 
@@ -341,6 +400,21 @@ def merchant_reject_payment(request, pk):
     order = proof.order
     order.payment_status = Order.PaymentStatus.REJECTED
     order.save()
+
+    # Notify buyer that payment was rejected
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        create_notification(
+            user=order.user,
+            n_type=Notification.Type.PAYMENT_REJECTED,
+            title='تم رفض وصل الدفع',
+            message=f'تم رفض وصل الدفع الخاص بطلبك #{order.order_number}. السبب: {reason}',
+            related_id=order.id,
+            related_type='order'
+        )
+    except Exception:
+        pass
 
     return Response({'detail': 'تم رفض الوصل'})
 
