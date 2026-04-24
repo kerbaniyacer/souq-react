@@ -46,6 +46,7 @@ interface AdminReport {
   target_product?: string;
   target_product_name?: string;
   target_product_slug?: string;
+  target_product_seller?: string;
   target_user?: string;
   target_user_name?: string;
   reason: string;
@@ -769,7 +770,9 @@ export default function AdminDashboard() {
                   <tbody>
                     {reports
                       .filter(r => reportTypeFilter === 'all' ? true : reportTypeFilter === 'product' ? r.report_type === 'product' : r.report_type !== 'product')
-                      .filter(r => reportUserFilter ? String(r.target_user) === reportUserFilter.id : true)
+                      .filter(r => reportUserFilter 
+                        ? (String(r.target_user) === String(reportUserFilter.id) || String(r.target_product_seller) === String(reportUserFilter.id)) 
+                        : true)
                       .map((r) => (
                       <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors border-b last:border-0 border-gray-50 dark:border-[#2E2E2E]">
                         <td className="px-6 py-5 text-sm font-bold text-gray-900 dark:text-gray-100">{r.reporter_name}</td>

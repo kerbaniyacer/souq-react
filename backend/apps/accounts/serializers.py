@@ -282,13 +282,14 @@ class ReportSerializer(serializers.ModelSerializer):
     reporter_name = serializers.ReadOnlyField(source='reporter.username')
     target_product_name = serializers.ReadOnlyField(source='target_product.name')
     target_product_slug = serializers.ReadOnlyField(source='target_product.slug')
+    target_product_seller = serializers.ReadOnlyField(source='target_product.seller.id')
     target_user_name = serializers.ReadOnlyField(source='target_user.username')
 
     class Meta:
         model = Report
         fields = [
             'id', 'reporter', 'reporter_name', 'report_type', 
-            'target_product', 'target_product_name', 'target_product_slug',
+            'target_product', 'target_product_name', 'target_product_slug', 'target_product_seller',
             'target_user', 'target_user_name', 'reason', 
             'description', 'status', 'created_at'
         ]
