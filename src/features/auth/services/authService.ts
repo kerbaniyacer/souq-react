@@ -36,6 +36,60 @@ function processQueue(error: any, token: string | null = null) {
 
 let refreshPromise: Promise<string> | null = null;
 
+// ── Cross-tab token sync via BroadcastChannel ────────────────────────────────
+// Prevents token-rotation race condition when multiple tabs open simultaneously.
+// Tab 2 asks Tab 1 for its current access token instead of hitting /refresh
+// with the same (already-rotated) cookie, which would trigger a 401 blacklist error.
+
+let _bc: BroadcastChannel | null = null;
+function getBC(): BroadcastChannel | null {
+  if (!_bc && typeof BroadcastChannel !== 'undefined') {
+    _bc = new BroadcastChannel('souq_auth_sync');
+  }
+  return _bc;
+}
+
+/** Sets up the listener that answers TOKEN_REQUEST messages from sibling tabs */
+export function initTokenSync() {
+  const channel = getBC();
+  if (!channel) return;
+
+  channel.addEventListener('message', (e: MessageEvent) => {
+    if (e.data?.type === 'TOKEN_REQUEST') {
+      const token = useAuthStore.getState().accessToken;
+      if (token) channel.postMessage({ type: 'TOKEN_RESPONSE', token });
+    }
+    if (e.data?.type === 'TOKEN_REFRESHED') {
+      // Another tab just refreshed — adopt its token to avoid double-refresh
+      useAuthStore.getState().setAccessToken(e.data.token);
+    }
+  });
+}
+
+/** Asks sibling tabs for their current access token (resolves null if no reply within 300ms) */
+export function requestTokenFromSiblingTab(): Promise<string | null> {
+  const channel = getBC();
+  if (!channel) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      channel.removeEventListener('message', handler);
+      resolve(null);
+    }, 300);
+
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'TOKEN_RESPONSE' && e.data.token) {
+        clearTimeout(timer);
+        channel.removeEventListener('message', handler);
+        resolve(e.data.token as string);
+      }
+    };
+
+    channel.addEventListener('message', handler);
+    channel.postMessage({ type: 'TOKEN_REQUEST' });
+  });
+}
+
 export async function refreshAccessToken() {
   if (refreshPromise) {
     return refreshPromise;
@@ -43,12 +97,14 @@ export async function refreshAccessToken() {
 
   refreshPromise = (async () => {
     try {
-      const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, { 
+      const res = await axios.post(`${env.apiUrl}/auth/refresh/`, {}, {
         withCredentials: true,
         headers: { 'ngrok-skip-browser-warning': 'true' }
       });
       const newAccessToken = res.data.access;
       useAuthStore.getState().setAccessToken(newAccessToken);
+      // Broadcast the new token so sibling tabs don't need to refresh again
+      getBC()?.postMessage({ type: 'TOKEN_REFRESHED', token: newAccessToken });
       return newAccessToken;
     } finally {
       refreshPromise = null;
@@ -173,7 +229,10 @@ export async function loginDjango(email: string, password: string, rememberMe = 
       }
 
       if (status === 400 && stringDetail.includes('verification_required')) {
-        throw { type: 'VERIFICATION_REQUIRED', email: data.email || email };
+        // DRF ValidationError wraps dict values in lists: {"email": ["x@y.z"]}
+        const rawEmail = data.email;
+        const resolvedEmail = Array.isArray(rawEmail) ? rawEmail[0] : (rawEmail || email);
+        throw { type: 'VERIFICATION_REQUIRED', email: resolvedEmail };
       }
     }
     throw err;
@@ -213,10 +272,9 @@ export async function loginSocialDjango(data: {
       }
 
       if (status === 400 && stringDetail.includes('verification_required')) {
-        throw {
-          type: 'VERIFICATION_REQUIRED',
-          email: responseData.email || data.email
-        };
+        const rawEmail = responseData.email;
+        const resolvedEmail = Array.isArray(rawEmail) ? rawEmail[0] : (rawEmail || data.email);
+        throw { type: 'VERIFICATION_REQUIRED', email: resolvedEmail };
       }
     }
     throw err;

@@ -174,6 +174,9 @@ REST_FRAMEWORK = {
 }
 
 
+# Secure flag for JWT HttpOnly cookies (True in production/HTTPS, False in local HTTP dev)
+JWT_COOKIE_SECURE = True
+
 # ── JWT ────────────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),

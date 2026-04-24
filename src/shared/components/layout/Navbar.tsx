@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList, ShoppingBag, ShieldAlert, MessageSquare } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
@@ -8,6 +9,7 @@ import { NotificationBell } from '@features/notifications/components/Notificatio
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -54,6 +56,12 @@ export default function Navbar() {
     setUserMenuOpen(false);
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('search');
+    if (q) setSearchQuery(q);
+  }, [location.search]);
+
   const cartCount = itemsCount();
 
   const MobileNavLink = ({ to, icon: Icon, children, count, color = "text-gray-700 dark:text-gray-300" }: any) => (
@@ -93,7 +101,7 @@ export default function Navbar() {
             <span className="text-xl font-bold text-primary-400 font-arabic">سوق</span>
           </Link>
 
-          {/* Search bar - desktop */}
+          {/* Search bar - Desktop */}
           <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg">
             <div className="relative w-full">
               <input
@@ -112,14 +120,14 @@ export default function Navbar() {
           {/* Right actions */}
           <div className="flex items-center gap-2">
             {/* Theme Toggle */}
-            <div className="hidden sm:block">
+            <div className="hidden md:block">
               <ThemeToggle />
             </div>
 
             {/* Cart */}
             <Link
               to="/cart"
-              className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+              className="hidden md:flex relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
             >
               <ShoppingCart className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-primary-400 transition-colors" />
               {cartCount > 0 && (
@@ -132,7 +140,7 @@ export default function Navbar() {
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+              className="hidden md:flex p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
             >
               <Heart className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-rose-500 transition-colors" />
             </Link>
@@ -141,18 +149,22 @@ export default function Navbar() {
             {isAuthenticated && (
               <Link
                 to="/chat"
-                className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                className="hidden md:flex p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
               >
                 <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-primary-400 transition-colors" />
               </Link>
             )}
 
             {/* Notifications */}
-            {isAuthenticated && <NotificationBell />}
+            {isAuthenticated && (
+              <div className="hidden md:block">
+                <NotificationBell />
+              </div>
+            )}
 
             {/* User menu */}
             {isAuthenticated ? (
-              <div className="relative" ref={userMenuRef}>
+              <div className="hidden md:block relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -251,7 +263,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <Link
                   to="/login"
                   className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-arabic transition-colors"
@@ -267,16 +279,64 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Mobile menu btn */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2.5 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            {/* Mobile Actions (Search + Menu) */}
+            <div className="flex md:hidden items-center gap-1">
+              <button
+                onClick={() => setShowMobileSearch(true)}
+                className="p-2 rounded-xl text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                aria-label="بحث"
+              >
+                <Search className="w-6 h-6" />
+              </button>
+              <button
+                onClick={() => setIsOpen(true)}
+                className="p-2 rounded-xl text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                aria-label="القائمة"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Overlay */}
+      <AnimatePresence>
+        {showMobileSearch && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-[100] bg-white dark:bg-gray-950 md:hidden p-4"
+          >
+            <div className="flex items-center gap-3">
+              <form 
+                onSubmit={(e) => {
+                  handleSearch(e);
+                  setShowMobileSearch(false);
+                }} 
+                className="flex-1 relative"
+              >
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ابحث عن منتج..."
+                  className="w-full pr-10 pl-4 py-3 rounded-2xl border-none bg-gray-100 dark:bg-gray-900 text-sm font-arabic focus:ring-2 focus:ring-primary-400/30 transition-all"
+                />
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              </form>
+              <button 
+                onClick={() => setShowMobileSearch(false)}
+                className="p-2 text-gray-500 dark:text-gray-400 font-arabic text-sm"
+              >
+                إلغاء
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* شريط التاجر */}
       {isAuthenticated && profile?.is_seller && isMerchantPage && (

@@ -4,12 +4,11 @@ import { Store, ShoppingBag, User, Phone, ArrowLeft, Save } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
 import AddressFields from '@shared/components/common/AddressFields';
-import axios from 'axios';
-import { env } from '@shared/lib/env';
+import api from '@features/auth/services/authService';
 
 
 export default function CompleteProfile() {
-  const { profile, user, fetchProfile, finalizeLogin, isAuthenticated } = useAuthStore();
+  const { profile, user, fetchProfile, finalizeLogin, isAuthenticated, accessToken } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -57,13 +56,12 @@ export default function CompleteProfile() {
 
     setSaving(true);
     try {
-      // Determine the token to use: pending (guest flow) or existing (already logged in)
-      const authHeader = pendingToken
-        ? { Authorization: `Bearer ${pendingToken}` }
-        : { Authorization: `Bearer ${localStorage.getItem('access_token')}` };
+      // pendingToken: fresh registration flow (token not yet in store)
+      // accessToken:  already-authenticated user completing profile later
+      const token = pendingToken ?? accessToken;
 
-      await axios.post(
-        `${env.apiBaseUrl}/api/auth/complete-profile/`,
+      await api.post(
+        '/auth/complete-profile/',
         {
           is_seller: isSeller,
           phone: form.phone,
@@ -74,7 +72,7 @@ export default function CompleteProfile() {
           store_description: form.store_description,
           store_category: form.store_category,
         },
-        { headers: authHeader }
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
       );
 
       if (pendingToken) {

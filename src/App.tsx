@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { refreshAccessToken } from '@features/auth/services/authService';
+import { refreshAccessToken, initTokenSync, requestTokenFromSiblingTab } from '@features/auth/services/authService';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Layout from '@shared/components/layout/Layout';
 
@@ -65,6 +65,7 @@ const ReportNotificationEmail = lazy(() => import('./features/admin/pages/emails
 const AppealDecisionEmail = lazy(() => import('./features/admin/pages/emails/AppealDecisionEmail'));
 const VisibilityChangeEmail = lazy(() => import('./features/admin/pages/emails/VisibilityChangeEmail'));
 const AdminActionEmail = lazy(() => import('./features/admin/pages/emails/AdminActionEmail'));
+const NotificationsPage = lazy(() => import('@features/notifications/pages/NotificationsPage'));
 
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useCartStore } from '@shared/stores/cartStore';
@@ -118,6 +119,9 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   useHeartbeat();
 
+  // Register cross-tab token sync listener once on mount
+  useEffect(() => { initTokenSync(); }, []);
+
   // 1. Boot effect: hydrate auth once before protected bootstrap fetches.
   useEffect(() => {
     let isMounted = true;
@@ -136,10 +140,20 @@ export default function App() {
 
       if (!hasBootstrappedAuth.current) {
         if (isMounted) setAuthReady(false);
-        console.log('[AuthBoot] Stored user found — attempting silent refresh...');
+
+        // Ask sibling tabs for their current token before hitting /refresh.
+        // This prevents the rotation race condition where two tabs simultaneously
+        // try to use the same refresh token, causing one to get a 401 blacklist error.
+        const siblingToken = await requestTokenFromSiblingTab();
+        if (siblingToken) {
+          useAuthStore.getState().setAccessToken(siblingToken);
+          hasBootstrappedAuth.current = true;
+          if (isMounted) setAuthReady(true);
+          return;
+        }
+
         try {
           await refreshAccessToken();
-          console.log('[AuthBoot] Silent refresh successful.');
         } catch (err) {
           console.error('[AuthBoot] Silent refresh failed — logging out:', err);
           if (isMounted) {
@@ -217,6 +231,7 @@ export default function App() {
             <Route path="/products/:slug" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/notifications" element={<PrivateRoute authReady={authReady}><OnboardingGuard><NotificationsPage /></OnboardingGuard></PrivateRoute>} />
             <Route path="/track-order" element={<TrackOrder />} />
 
             {/* Protected */}

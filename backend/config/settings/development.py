@@ -20,6 +20,13 @@ if DB_ENGINE == 'sqlite':
 # Allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Cookies over HTTP on localhost — override base.py's production defaults
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+JWT_COOKIE_SECURE = False  # Allows Lax cookies over HTTP (Vite proxy keeps same origin)
+
 # Show emails in console by default, but allow .env override
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 

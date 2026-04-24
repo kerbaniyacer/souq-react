@@ -235,6 +235,33 @@ _DAY  = 60 * 60 * 24        # 1 day in seconds
 _WEEK = 60 * 60 * 24 * 7   # 7 days in seconds
 
 
+def _get_client_ip(request) -> str:
+    """
+    Extract and normalize the client IP from request headers.
+    Handles X-Forwarded-For chains from ngrok/proxy, strips ports from IPv4,
+    and unpacks IPv4-mapped IPv6 (::ffff:x.x.x.x) for DB compatibility.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if x_forwarded_for:
+        # Take the left-most IP (real client); strip any whitespace
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+
+    # Unpack IPv4-mapped IPv6: "::ffff:1.2.3.4" → "1.2.3.4"
+    if ip.lower().startswith('::ffff:'):
+        ip = ip[7:]
+
+    # Strip port from bare IPv4: "1.2.3.4:5678" → "1.2.3.4"
+    if ':' not in ip and '.' in ip:
+        ip = ip.split(':')[0]
+    elif ip.count(':') == 1 and '.' in ip:
+        # "1.2.3.4:5678" pattern
+        ip = ip.rsplit(':', 1)[0]
+
+    return ip or '127.0.0.1'
+
+
 def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = False, request=None):
     """
     Sets two HttpOnly cookies:
@@ -246,7 +273,7 @@ def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = F
     when the refresh token is rotated (CustomTokenRefreshView reads this cookie).
     """
 
-    # Secure detection for production/ngrok stability
+    # Detect if the request comes from a secure origin (HTTPS or ngrok tunnel)
     is_secure = False
     if request:
         is_secure = (
@@ -254,8 +281,11 @@ def _set_auth_cookies(response, refresh_token: str = None, remember_me: bool = F
             or 'ngrok' in request.get_host().lower()
             or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https'
         )
-    is_secure = is_secure or getattr(settings, 'SESSION_COOKIE_SECURE', True)
+    # Fall back to the explicit JWT cookie security setting, NOT SESSION_COOKIE_SECURE
+    # (SESSION_COOKIE_SECURE is for Django's own session system, not JWT cookies)
+    is_secure = is_secure or getattr(settings, 'JWT_COOKIE_SECURE', False)
 
+    # SameSite=None requires Secure; on HTTP localhost use Lax (Vite proxy handles same-origin)
     samesite = 'None' if is_secure else 'Lax'
     secure = is_secure
 
@@ -399,16 +429,15 @@ import uuid
 
 def _verify_google_token(access_token: str, expected_provider_id: str) -> bool:
     """Verify Google access_token by calling Google's userinfo endpoint."""
-    import requests as req
     try:
-        r = req.get(
+        import urllib.request as _urllib
+        import json as _json
+        req = _urllib.Request(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             headers={'Authorization': f'Bearer {access_token}'},
-            timeout=5,
         )
-        if r.status_code != 200:
-            return False
-        data = r.json()
+        with _urllib.urlopen(req, timeout=5) as resp:
+            data = _json.loads(resp.read())
         return str(data.get('sub', '')) == str(expected_provider_id)
     except Exception:
         return False
@@ -416,16 +445,14 @@ def _verify_google_token(access_token: str, expected_provider_id: str) -> bool:
 
 def _verify_facebook_token(access_token: str, expected_provider_id: str) -> bool:
     """Verify Facebook access_token by calling Graph API /me endpoint."""
-    import requests as req
     try:
-        r = req.get(
-            'https://graph.facebook.com/me',
-            params={'fields': 'id', 'access_token': access_token},
-            timeout=5,
-        )
-        if r.status_code != 200:
-            return False
-        data = r.json()
+        import urllib.request as _urllib
+        import urllib.parse as _parse
+        import json as _json
+        params = _parse.urlencode({'fields': 'id', 'access_token': access_token})
+        url = f'https://graph.facebook.com/me?{params}'
+        with _urllib.urlopen(url, timeout=5) as resp:
+            data = _json.loads(resp.read())
         return str(data.get('id', '')) == str(expected_provider_id)
     except Exception:
         return False
@@ -506,60 +533,61 @@ def social_login(request):
         }, status=status.HTTP_403_FORBIDDEN)
         
     # Track the successful login in LoginHistory
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
-        
+    ip = _get_client_ip(request)
     user_agent = request.META.get('HTTP_USER_AGENT', '')
-    
+
     is_known_ip = LoginHistory.objects.filter(user=user, ip_address=ip).exists()
     if not is_known_ip and not is_new:
         # Clear any existing unverified OTPs for this user
         OTPVerification.objects.filter(user=user).delete()
-        
+
         otp_record = OTPVerification(user=user, ip_address=ip)
         otp_record.generate_otp()
-        
+
         from apps.accounts.utils import get_otp_email_html
         otp_html = get_otp_email_html(otp_record.otp)
-        
+
         from django.core.mail import send_mail
         send_mail(
             'رمز التحقق للولوج الآمن (Souq)',
             f'لقد لاحظنا تسجيل دخول من شبكة جديدة.\n\nرمز التحقق الخاص بك هو: {otp_record.otp}',
             'noreply@souq.dz',
             [user.email],
-            fail_silently=False,
+            fail_silently=True,
             html_message=otp_html
         )
         return Response({"detail": "verification_required", "email": user.email}, status=status.HTTP_400_BAD_REQUEST)
 
-    LoginHistory.objects.create(
-        user=user,
-        ip_address=ip,
-        user_agent=user_agent
-    )
-    
-    # Issue JWT tokens
-    remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
-    refresh = RefreshToken.for_user(user)
-    
-    if remember_me:
-        refresh.set_exp(lifetime=timedelta(days=7))
-    else:
-        refresh.set_exp(lifetime=timedelta(days=1))
-    
-    response = Response({
-        'access': str(refresh.access_token),
-        'refresh': str(refresh),
-        'user': UserSerializer(user).data,
-        'is_new_social_user': is_new
-    })
-    
-    _set_auth_cookies(response, refresh_token=str(refresh), remember_me=remember_me, request=request)
-    return response
+    try:
+        LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
+
+        # Issue JWT tokens
+        remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
+        refresh = RefreshToken.for_user(user)
+
+        if remember_me:
+            refresh.set_exp(lifetime=timedelta(days=7))
+        else:
+            refresh.set_exp(lifetime=timedelta(days=1))
+
+        response = Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user, context={'request': request}).data,
+            'is_new_social_user': is_new,
+        })
+
+        _set_auth_cookies(response, refresh_token=str(refresh), remember_me=remember_me, request=request)
+        return response
+
+    except Exception as exc:
+        import traceback, logging
+        logger = logging.getLogger(__name__)
+        logger.error('social_login failed for %s: %s\n%s', email, exc, traceback.format_exc())
+        return Response(
+            {'detail': f'خطأ داخلي أثناء تسجيل الدخول: {str(exc)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 OTP_MAX_ATTEMPTS = 5
@@ -572,8 +600,12 @@ OTP_LOCKOUT_SECONDS = 3600  # 1 hour
 def verify_ip_login(request):
     from django.core.cache import cache
 
-    email = request.data.get('email')
-    otp = request.data.get('otp')
+    # DRF's ValidationError wraps dict values in lists; normalize here
+    raw_email = request.data.get('email')
+    email = (raw_email[0] if isinstance(raw_email, list) else raw_email or '').strip()
+
+    raw_otp = request.data.get('otp')
+    otp = str(raw_otp[0] if isinstance(raw_otp, list) else raw_otp or '').strip()
 
     if not email or not otp:
         return Response({'detail': 'يرجى توفير البريد الإلكتروني ورمز التحقق.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -588,9 +620,13 @@ def verify_ip_login(request):
 
     try:
         user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'detail': 'حساب غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
         otp_record = OTPVerification.objects.filter(user=user).first()
 
-        if not otp_record or otp_record.otp != otp:
+        if not otp_record or str(otp_record.otp) != str(otp):
             cache.set(cache_key, attempts + 1, OTP_LOCKOUT_SECONDS)
             remaining = OTP_MAX_ATTEMPTS - (attempts + 1)
             detail = 'الرمز غير صحيح أو منتهي الصلاحية.'
@@ -599,7 +635,7 @@ def verify_ip_login(request):
             else:
                 detail = 'تم قفل الحساب مؤقتاً لمدة ساعة بسبب تجاوز محاولات التحقق.'
             return Response({'detail': detail}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         # Check if user was suspended AFTER the OTP was sent
         if user.status == 'suspended':
             return Response({
@@ -608,34 +644,40 @@ def verify_ip_login(request):
                 'reason': user.suspension_reason or 'مخالفة شروط الاستخدام',
                 'email': user.email
             }, status=status.HTTP_403_FORBIDDEN)
-            
+
         # Success! Clear OTP, reset attempt counter, record login, issue tokens
         cache.delete(cache_key)
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
+        ip = _get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
 
         LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
         otp_record.delete()
-        
+
         remember_me = str(request.data.get('remember_me', 'false')).lower() in ('true', '1', 'yes')
         refresh = RefreshToken.for_user(user)
-        
+
         if remember_me:
             refresh.set_exp(lifetime=timedelta(days=7))
         else:
             refresh.set_exp(lifetime=timedelta(days=1))
-        
+
         response = Response({
             'access': str(refresh.access_token),
             'refresh': str(refresh),
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user, context={'request': request}).data,
         })
-        
+
         _set_auth_cookies(response, refresh_token=str(refresh), remember_me=remember_me, request=request)
         return response
-    except User.DoesNotExist:
-        return Response({'detail': 'حساب غير موجود.'}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as exc:
+        import traceback, logging
+        logger = logging.getLogger(__name__)
+        logger.error('verify_ip_login failed: %s\n%s', exc, traceback.format_exc())
+        return Response(
+            {'detail': f'خطأ داخلي أثناء التحقق: {str(exc)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @extend_schema(tags=['auth'], summary='جلب سجل تسجيل الدخول')

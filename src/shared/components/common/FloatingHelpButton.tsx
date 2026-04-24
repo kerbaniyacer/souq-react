@@ -111,7 +111,7 @@ export default function FloatingHelpButton() {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 left-6 z-[100] group transition-all duration-500 ${
+        className={`fixed bottom-[110px] md:bottom-6 left-6 z-[100] group transition-all duration-500 ${
           isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20 pointer-events-none'
         }`}
         aria-label="طلب المساعدة"
@@ -152,7 +152,7 @@ export default function FloatingHelpButton() {
       {isOpen && (
         <div
           ref={formRef}
-          className="fixed bottom-24 left-6 z-[100] w-80 sm:w-96 rounded-2xl overflow-hidden transition-all duration-300 animate-slide-up"
+          className="fixed bottom-[180px] md:bottom-24 left-6 z-[100] w-80 sm:w-96 rounded-2xl overflow-hidden transition-all duration-300 animate-slide-up"
           style={{
             background: 'linear-gradient(145deg, #ffffff, #f8f9fa)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.1)',

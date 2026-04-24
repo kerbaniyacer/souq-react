@@ -216,12 +216,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         user = self.user
         request = self.context.get('request')
         if request and user:
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
+            from apps.accounts.views import _get_client_ip
+            ip = _get_client_ip(request)
             user_agent = request.META.get('HTTP_USER_AGENT', '')
-            
+
             from apps.accounts.models import LoginHistory, OTPVerification, User
-            
+
             # Check for account suspension BEFORE anything else
             if user.status == User.Status.SUSPENDED:
                 from rest_framework.exceptions import PermissionDenied
@@ -236,28 +236,28 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             if not is_known_ip:
                 # Clear any existing unverified OTPs
                 OTPVerification.objects.filter(user=user).delete()
-                
+
                 otp_record = OTPVerification(user=user, ip_address=ip)
                 otp_record.generate_otp()
-                
+
                 from apps.accounts.utils import get_otp_email_html
                 otp_html = get_otp_email_html(otp_record.otp)
-                
+
                 send_mail(
                     'رمز التحقق للولوج الآمن (Souq)',
                     f'لقد لاحظنا تسجيل دخول من شبكة جديدة.\n\nرمز التحقق الخاص بك هو: {otp_record.otp}',
                     'noreply@souq.dz',
                     [user.email],
-                    fail_silently=False,
+                    fail_silently=True,  # don't let email failure block login flow
                     html_message=otp_html
                 )
-                
+
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({
                     "detail": "verification_required",
                     "email": user.email
                 })
-            
+
             LoginHistory.objects.create(user=user, ip_address=ip, user_agent=user_agent)
             
         # 3. Handle 'Remember Me' logic for token lifetime
