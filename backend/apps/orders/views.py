@@ -309,11 +309,11 @@ def order_create(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_order_list(request):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
     
-    # Orders that contain products from this seller
-    orders = Order.objects.filter(items__variant__product__seller=request.user).distinct().order_by('-created_at')
+    # Orders that contain products from this user's stores
+    orders = Order.objects.filter(items__variant__product__store__owner=request.user).distinct().order_by('-created_at')
     return Response(OrderSerializer(orders, many=True, context={'request': request}).data)
 
 
@@ -321,11 +321,11 @@ def merchant_order_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_order_detail(request, pk):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
     
     try:
-        order = Order.objects.prefetch_related('items', 'proofs').get(pk=pk, items__variant__product__seller=request.user)
+        order = Order.objects.prefetch_related('items', 'proofs').get(pk=pk, items__variant__product__store__owner=request.user)
     except Order.DoesNotExist:
         return Response({'detail': 'الطلب غير موجود'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -423,7 +423,7 @@ def merchant_reject_payment(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_suborder_list(request):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
     
     sub_orders = SubOrder.objects.filter(seller=request.user).order_by('-created_at')
@@ -434,7 +434,7 @@ def merchant_suborder_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_stats(request):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     products_qs = Product.objects.filter(seller=request.user)
@@ -503,7 +503,7 @@ def merchant_stats(request):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def sub_order_update_status(request, pk):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     try:
@@ -556,7 +556,7 @@ def sub_order_update_status(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_suborder_detail(request, pk):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     try:

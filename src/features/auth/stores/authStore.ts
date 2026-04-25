@@ -25,23 +25,15 @@ interface AuthStore {
     username: string;
     password: string;
     password2: string;
-    is_seller?: boolean;
     phone?: string;
     wilaya?: string;
     baladia?: string;
     address?: string;
-    store_name?: string;
-    store_description?: string;
-    store_category?: string;
-    ccp_number?: string;
-    ccp_name?: string;
-    baridimob_id?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: (force?: boolean) => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
   changePassword: (old_password: string, new_password: string, new_password2: string) => Promise<void>;
-  changeAccountType: (isSeller: boolean) => Promise<void>;
   finalizeLogin: () => Promise<void>;
   clearAll: () => void;
 }
@@ -56,12 +48,13 @@ function djangoUserToUser(d: DjangoUser): User {
     full_name: d.full_name,
     is_staff: d.is_staff,
     date_joined: d.date_joined,
-    role: d.role as 'customer' | 'seller' | 'admin',
+    role: (d.role === 'admin' ? 'admin' : 'customer') as 'customer' | 'admin',
     photo: d.photo ?? undefined,
     provider: d.provider as 'local' | 'google' | 'facebook',
     is_onboarded: d.is_onboarded ?? true,
     last_seen: d.last_seen ?? null,
     is_online: d.is_online ?? false,
+    stores: d.stores ?? [],
   };
 }
 
@@ -71,17 +64,12 @@ function djangoProfileToProfile(d: DjangoUser): Profile | null {
   return {
     id: p.id,
     user_id: d.id,
-    is_seller: p.is_seller,
     phone: p.phone,
     address: p.address,
     wilaya: p.wilaya,
     baladia: p.baladia,
     bio: p.bio,
     photo: d.photo,
-    store_name: p.store_name,
-    store_description: p.store_description,
-    store_category: p.store_category,
-    store_logo: p.store_logo,
     commercial_register: p.commercial_register,
     ccp_number: p.ccp_number,
     ccp_name: p.ccp_name,
@@ -159,8 +147,9 @@ export const useAuthStore = create<AuthStore>()(
       register: async (data) => {
         set({ isLoading: true });
         try {
-          await registerDjango(data);
+          const res = await registerDjango(data);
           set({ isLoading: false });
+          return res;
         } catch (err) {
           set({ isLoading: false });
           throw err;
@@ -205,10 +194,6 @@ export const useAuthStore = create<AuthStore>()(
 
       changePassword: async (old_password, new_password, new_password2) => {
         await changePasswordDjango(old_password, new_password, new_password2);
-      },
-
-      changeAccountType: async (isSeller: boolean) => {
-        await get().updateProfile({ is_seller: isSeller } as any);
       },
 
       clearAll: () => {

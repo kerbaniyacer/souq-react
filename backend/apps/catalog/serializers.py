@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductVariant, ProductAttribute, VariantImage
+from django.utils.text import slugify
+from .models import Category, Brand, Series, Product, ProductVariant, ProductAttribute, VariantImage
+from apps.accounts.models import Store
 
 
 DEFAULT_PRODUCT_IMAGE = '/static/images/default-product.jpg'
@@ -53,6 +55,16 @@ class VariantImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'image', 'alt_text', 'is_main']
 
 
+# ── Series ───────────────────────────────────────────────────────────────────
+
+class SeriesMiniSerializer(serializers.ModelSerializer):
+    brand = BrandMiniSerializer(read_only=True)
+
+    class Meta:
+        model = Series
+        fields = ['id', 'name', 'slug', 'logo', 'brand']
+
+
 # ── Product Attribute ─────────────────────────────────────────────────────────
 
 class ProductAttributeSerializer(serializers.ModelSerializer):
@@ -93,9 +105,14 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 # ── Product List ──────────────────────────────────────────────────────────────
 
+from apps.accounts.serializers import StoreMiniSerializer as StoreInfoSerializer
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     category = CategoryMiniSerializer(read_only=True)
     brand = BrandMiniSerializer(read_only=True)
+    series = SeriesMiniSerializer(read_only=True)
+    store = StoreInfoSerializer(read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     main_image = serializers.SerializerMethodField()
     min_price = serializers.SerializerMethodField()
@@ -106,10 +123,10 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'slug', 'main_image', 'category', 'brand',
-            'variants', 'min_price', 'max_price', 'rating', 'reviews_count', 
-            'sold_count', 'is_featured', 'is_active', 'created_at', 'stock_status',
-            'seller_name', 'seller_username',
+            'id', 'name', 'slug', 'main_image', 'category', 'brand', 'series', 'store',
+            'variants', 'min_price', 'max_price', 'rating', 'reviews_count',
+            'sold_count', 'is_featured', 'is_active', 'status', 'suspension_reason',
+            'created_at', 'stock_status', 'seller_name', 'seller_username',
         ]
 
     def get_main_image(self, obj):
@@ -137,17 +154,20 @@ class ProductListSerializer(serializers.ModelSerializer):
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategoryMiniSerializer(read_only=True)
     brand = BrandMiniSerializer(read_only=True)
+    series = SeriesMiniSerializer(read_only=True)
+    store = StoreInfoSerializer(read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     attributes = ProductAttributeSerializer(many=True, read_only=True)
     seller = serializers.SerializerMethodField()
     main_image = serializers.SerializerMethodField()
+    options = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'description', 'main_image',
-            'sku', 'category', 'brand', 'seller',
-            'variants', 'attributes',
+            'sku', 'category', 'brand', 'series', 'store', 'seller',
+            'variants', 'attributes', 'options',
             'rating', 'reviews_count', 'sold_count', 'total_stock',
             'is_featured', 'is_active', 'created_at', 'updated_at', 'stock_status',
         ]
@@ -163,10 +183,70 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return build_default_product_image(request)
 
     def get_seller(self, obj):
+        store_name = ''
+        if obj.store:
+            store_name = obj.store.name
+        else:
+            profile = getattr(obj.seller, 'profile', None)
+            if profile:
+                # Fallback for products not yet migrated or if store is null
+                store_name = getattr(profile, 'store_name', '')
+        
         return {
             'id': obj.seller.id,
             'username': obj.seller.username,
-            'store_name': getattr(getattr(obj.seller, 'profile', None), 'store_name', ''),
+            'store_name': store_name,
+        }
+
+    def get_options(self, obj):
+        """
+        Compute structured options from variant attributes.
+        Preserves the order keys were first seen across variants.
+        Returns: [{"name": "اللون", "position": 0, "values": ["أحمر", "أزرق"]}, ...]
+        """
+        keys_order = []
+        values_map = {}
+        for variant in obj.variants.filter(is_active=True).order_by('id'):
+            for key, val in (variant.attributes or {}).items():
+                if key not in keys_order:
+                    keys_order.append(key)
+                    values_map[key] = []
+                if val and val not in values_map[key]:
+                    values_map[key].append(val)
+        return [
+            {'name': key, 'position': i, 'values': values_map[key]}
+            for i, key in enumerate(keys_order)
+        ]
+
+
+# ── Admin Product Review ──────────────────────────────────────────────────────
+
+class AdminReviewProductSerializer(serializers.ModelSerializer):
+    category = CategoryMiniSerializer(read_only=True)
+    brand = BrandMiniSerializer(read_only=True)
+    series = SeriesMiniSerializer(read_only=True)
+    store = StoreInfoSerializer(read_only=True)
+    variants = ProductVariantSerializer(many=True, read_only=True)
+    images = VariantImageSerializer(source='variant_images', many=True, read_only=True)
+    seller_info = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'slug', 'description', 'sku',
+            'category', 'brand', 'series', 'store',
+            'variants', 'images',
+            'is_active', 'is_featured', 'status',
+            'review_deadline', 'created_at',
+            'seller_info',
+        ]
+
+    def get_seller_info(self, obj):
+        return {
+            'id': obj.seller.id,
+            'username': obj.seller.username,
+            'email': obj.seller.email,
+            'store_name': obj.store.name if obj.store else '',
         }
 
 
@@ -196,12 +276,22 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         required=False, allow_null=True, default=None,
     )
     brand_name = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+    category_name = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+    series_id = serializers.PrimaryKeyRelatedField(
+        queryset=Series.objects.all(), source='series',
+        required=False, allow_null=True, default=None,
+    )
+    series_name = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(), source='store',
+        required=False, allow_null=True, default=None,
+    )
 
     class Meta:
         model = Product
         fields = [
-            'name', 'description', 'category_id', 'brand_name',
-            'sku', 'is_active', 'is_featured', 'variants',
+            'name', 'description', 'category_id', 'category_name', 'brand_name',
+            'series_id', 'series_name', 'store_id', 'sku', 'is_active', 'is_featured', 'variants',
         ]
 
     def _save_variants(self, product, variants_data):
@@ -245,6 +335,33 @@ class ProductWriteSerializer(serializers.ModelSerializer):
                             img_obj.variants.add(variant)
                             break
 
+    def _resolve_series(self, series_name, brand):
+        if not series_name or not brand:
+            return None
+        series = Series.objects.filter(name__iexact=series_name, brand=brand).first()
+        if series:
+            return series
+        base = slugify(f'{brand.slug}-{series_name}') or f'{brand.slug}-series'
+        slug, counter = base, 1
+        while Series.objects.filter(slug=slug).exists():
+            slug = f'{base}-{counter}'
+            counter += 1
+        return Series.objects.create(name=series_name, brand=brand, slug=slug)
+
+    def _resolve_category(self, category_name):
+        if not category_name:
+            return None
+        category = Category.objects.filter(name__iexact=category_name).first()
+        if category:
+            return category
+        base_slug = category_name.lower().replace(' ', '-')
+        slug = base_slug
+        counter = 1
+        while Category.objects.filter(slug=slug).exists():
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+        return Category.objects.create(name=category_name, slug=slug)
+
     def _resolve_brand(self, brand_name):
         if not brand_name:
             return None
@@ -265,7 +382,20 @@ class ProductWriteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         variants_data = validated_data.pop('variants', [])
         brand_name = validated_data.pop('brand_name', '')
+        category_name = validated_data.pop('category_name', '')
+        series_name = validated_data.pop('series_name', '')
         validated_data['brand'] = self._resolve_brand(brand_name)
+        if category_name and not validated_data.get('category'):
+            validated_data['category'] = self._resolve_category(category_name)
+        if series_name and not validated_data.get('series'):
+            validated_data['series'] = self._resolve_series(series_name, validated_data.get('brand'))
+        # Auto-set store from user if not provided
+        if not validated_data.get('store'):
+            request = self.context.get('request')
+            if request:
+                store = Store.objects.filter(owner=request.user).first()
+                if store:
+                    validated_data['store'] = store
         product = Product.objects.create(**validated_data)
         self._save_variants(product, variants_data)
         return product
@@ -273,8 +403,22 @@ class ProductWriteSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         variants_data = validated_data.pop('variants', None)
         brand_name = validated_data.pop('brand_name', None)
+        category_name = validated_data.pop('category_name', '')
+        series_name = validated_data.pop('series_name', '')
         if brand_name is not None:
             validated_data['brand'] = self._resolve_brand(brand_name)
+        if category_name and not validated_data.get('category'):
+            validated_data['category'] = self._resolve_category(category_name)
+        resolved_brand = validated_data.get('brand') or instance.brand
+        if series_name and not validated_data.get('series'):
+            validated_data['series'] = self._resolve_series(series_name, resolved_brand)
+        # Auto-set store from user if not provided
+        if not validated_data.get('store') and not instance.store:
+            request = self.context.get('request')
+            if request:
+                store = Store.objects.filter(owner=request.user).first()
+                if store:
+                    validated_data['store'] = store
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()

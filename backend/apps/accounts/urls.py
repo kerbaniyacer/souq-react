@@ -6,7 +6,8 @@ from .views import (
     admin_manage_action, submit_appeal, user_appeal_list, admin_appeal_list,
     admin_manage_appeal, password_reset_request, password_reset_confirm,
     public_submit_appeal, CustomTokenRefreshView, CustomLogoutView,
-    complete_profile, public_profile, heartbeat, admin_user_reports, appeal_target_info
+    complete_profile, public_profile, heartbeat, admin_user_reports, appeal_target_info,
+    verify_email, my_stores, store_detail,
 )
 
 urlpatterns = [
@@ -18,6 +19,7 @@ urlpatterns = [
     path('refresh/', CustomTokenRefreshView.as_view(), name='auth-refresh'),
     path('logout/', CustomLogoutView.as_view(), name='auth-logout'),
     path('complete-profile/', complete_profile, name='auth-complete-profile'),
+    path('verify-email/', verify_email, name='auth-verify-email'),
 
     # Profile
     path('profile/', profile, name='auth-profile'),
@@ -50,4 +52,8 @@ urlpatterns = [
     # Presence
     path('heartbeat/', heartbeat, name='auth-heartbeat'),
     path('admin/users/<int:pk>/reports/', admin_user_reports, name='auth-admin-user-reports'),
+
+    # Stores
+    path('stores/', my_stores, name='my-stores'),
+    path('stores/<int:pk>/', store_detail, name='store-detail'),
 ]

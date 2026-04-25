@@ -6,9 +6,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from .models import Category, Brand, Product, ProductVariant
+from .models import Category, Brand, Series, Product, ProductVariant
 from .serializers import (
-    CategorySerializer, BrandSerializer,
+    CategorySerializer, BrandSerializer, SeriesMiniSerializer,
     ProductListSerializer, ProductDetailSerializer, ProductWriteSerializer,
     ProductVariantSerializer,
 )
@@ -62,6 +62,22 @@ def brand_detail(request, slug):
     return Response(BrandSerializer(brand, context={'request': request}).data)
 
 
+# ── Series ───────────────────────────────────────────────────────────────────
+
+@extend_schema(tags=['catalog'], summary='قائمة السلاسل')
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def series_list(request):
+    qs = Series.objects.select_related('brand').all()
+    brand_slug = request.query_params.get('brand')
+    if brand_slug:
+        qs = qs.filter(brand__slug=brand_slug)
+    brand_name = request.query_params.get('brand_name')
+    if brand_name:
+        qs = qs.filter(brand__name__iexact=brand_name)
+    return Response(SeriesMiniSerializer(qs, many=True, context={'request': request}).data)
+
+
 # ── Products ─────────────────────────────────────────────────────────────────
 
 @extend_schema(
@@ -98,7 +114,7 @@ def product_list(request):
         min_price=Min('variants__price'),
         max_price=Max('variants__price')
     ).select_related(
-        'category', 'brand', 'seller__profile'
+        'category', 'brand', 'series__brand', 'seller__profile'
     ).prefetch_related('variants', 'variant_images__variants')
 
     search = request.query_params.get('search')
@@ -116,6 +132,10 @@ def product_list(request):
     brand = request.query_params.get('brand')
     if brand:
         qs = qs.filter(brand__slug=brand)
+
+    series = request.query_params.get('series')
+    if series:
+        qs = qs.filter(series__slug=series)
 
     seller = request.query_params.get('seller')
     if seller:
@@ -142,7 +162,7 @@ def product_list(request):
 def product_detail(request, slug):
     try:
         product = Product.objects.select_related(
-            'category', 'brand', 'seller__profile'
+            'category', 'brand', 'series__brand', 'seller__profile'
         ).prefetch_related(
             'variants', 'variant_images__variants', 'attributes'
         ).get(slug=slug, is_active=True)
@@ -157,21 +177,33 @@ def product_detail(request, slug):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def merchant_product_list(request):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
-        qs = Product.objects.filter(seller=request.user).annotate(
+        # Products belong to stores — query by store owner, not by user
+        qs = Product.objects.filter(store__owner=request.user).annotate(
             min_price=Min('variants__price'),
             max_price=Max('variants__price')
         ).select_related(
-            'category', 'brand'
+            'category', 'brand', 'store__owner'
         ).prefetch_related('variants')
+        store_id = request.query_params.get('store_id')
+        if store_id:
+            qs = qs.filter(store__id=store_id)
         return Response(ProductListSerializer(qs, many=True, context={'request': request}).data)
 
     serializer = ProductWriteSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        product = serializer.save(seller=request.user)
+        # Derive seller from the store owner
+        store_id = request.data.get('store_id') or (serializer.validated_data.get('store') and serializer.validated_data['store'].id)
+        try:
+            from apps.accounts.models import Store as StoreModel
+            store = StoreModel.objects.get(pk=store_id, owner=request.user)
+            seller = store.owner
+        except Exception:
+            seller = request.user
+        product = serializer.save(seller=seller)
 
         # Put product under 24h admin review before publishing
         from django.utils import timezone
@@ -245,11 +277,12 @@ def merchant_product_detail(request, pk):
 
     if request.method == 'PATCH':
         is_active_before = product.is_active
+        was_suspended = product.status == Product.Status.SUSPENDED
         # Merchants can edit their own, staff can edit any
         serializer = ProductWriteSerializer(product, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             updated = serializer.save()
-            
+
             # If admin changed visibility, log and notify
             is_active_after = updated.is_active
             if is_active_before != is_active_after and request.user.is_staff:
@@ -261,50 +294,81 @@ def merchant_product_detail(request, pk):
                 # 1. Log Action
                 AdminService._create_log(
                     admin=request.user,
-                    action=AdminActionLog.Action.SUSPEND if not is_active_after else 'restore',
+                    action=AdminActionLog.Action.SUSPEND if not is_active_after else AdminActionLog.Action.RESTORE,
                     target=updated,
-                    reason='تغيير حالة الظهور من قبل المسؤول.',
-                    before_state={'is_active': is_active_before},
-                    after_state={'is_active': is_active_after}
+                    reason='تجميد المنتج من قبل المسؤول.' if not is_active_after else (
+                        'فك تجميد المنتج والموافقة عليه.' if was_suspended else 'إعادة نشر المنتج من قبل المسؤول.'
+                    ),
+                    before_state={'is_active': is_active_before, 'status': product.status},
+                    after_state={'is_active': is_active_after, 'status': 'active' if is_active_after else 'suspended'}
                 )
 
-                # 2. Update suspension fields so it can be appealed
+                # 2. Update suspension fields
                 if not is_active_after:
+                    updated.status = Product.Status.SUSPENDED
                     updated.suspended_at = timezone.now()
                     from datetime import timedelta
                     updated.appeal_deadline = timezone.now() + timedelta(days=14)
-                    updated.suspension_reason = 'تغيير حالة الظهور من قبل المسؤول.'
+                    updated.suspension_reason = 'تجميد من قبل المسؤول.'
                 else:
-                    # If admin restored visibility, clear suspension fields
-                    updated.status = 'active'
+                    updated.status = Product.Status.ACTIVE
                     updated.suspended_at = None
                     updated.appeal_deadline = None
                     updated.suspension_reason = None
                 updated.save()
 
-                # 2. Notify Merchant — email + in-app
+                # 3. Notify Merchant — email + in-app
                 try:
+                    from apps.notifications.utils import create_notification
+                    from apps.notifications.models import Notification as NotifModel
+
+                    if is_active_after and was_suspended:
+                        # Restoring from suspension → stronger "accepted" message
+                        notif_title = 'تم قبول منتجك ✓'
+                        notif_msg = (
+                            f'تهانينا! تم فك تجميد منتجك "{updated.name}" '
+                            f'من قبل الإدارة وهو الآن متاح للزبائن.'
+                        )
+                        email_subject = f'منتجك مقبول: {updated.name}'
+                        email_body = (
+                            f'مرحباً {updated.seller.username}،\n\n'
+                            f'تهانينا! تم مراجعة منتجك "{updated.name}" وفك تجميده.\n'
+                            f'المنتج أصبح الآن ظاهراً وجاهزاً للزبائن.\n\n'
+                            f'فريق سوق'
+                        )
+                    elif is_active_after:
+                        notif_title = 'تم إعادة نشر منتجك'
+                        notif_msg = f'تمت إعادة نشر منتجك "{updated.name}" من قبل الإدارة.'
+                        email_subject = f'تحديث بخصوص منتجك: {updated.name}'
+                        email_body = f'تمت إعادة نشر منتجك "{updated.name}" من قبل الإدارة.'
+                    else:
+                        notif_title = 'تم تجميد منتجك مؤقتاً'
+                        notif_msg = (
+                            f'تم تجميد منتجك "{updated.name}" من قبل الإدارة مؤقتاً. '
+                            f'يمكنك تقديم طعن خلال 14 يوماً.'
+                        )
+                        email_subject = f'إشعار بتجميد منتجك: {updated.name}'
+                        email_body = notif_msg
+
+                    create_notification(
+                        user=updated.seller,
+                        n_type=NotifModel.Type.PRODUCT_VISIBILITY_CHANGE,
+                        title=notif_title,
+                        message=notif_msg,
+                        related_id=str(updated.id),
+                        related_type='product'
+                    )
                     email_html = get_product_visibility_email_html(updated.seller.username, updated.name, is_active_after)
                     send_mail(
-                        f"تحديث بخصوص ظهور منتجك: {updated.name}",
-                        f"تم {'تفعيل' if is_active_after else 'إخفاء'} منتجك من قبل الإدارة.",
+                        email_subject,
+                        email_body,
                         'noreply@souq.dz',
                         [updated.seller.email],
                         fail_silently=True,
                         html_message=email_html
                     )
-                    from apps.notifications.utils import create_notification
-                    from apps.notifications.models import Notification as NotifModel
-                    create_notification(
-                        user=updated.seller,
-                        n_type=NotifModel.Type.PRODUCT_VISIBILITY_CHANGE,
-                        title='تغيير في ظهور منتجك' if not is_active_after else 'تم تفعيل منتجك',
-                        message=f'تم {"إخفاء" if not is_active_after else "إعادة نشر"} منتجك "{updated.name}" من قبل الإدارة.' + ('' if is_active_after else ' يمكنك تقديم طعن.'),
-                        related_id=str(updated.id),
-                        related_type='product'
-                    )
                 except Exception as e:
-                    print(f"Error sending visibility email: {e}")
+                    print(f"Error sending visibility notification: {e}")
 
             return Response(ProductDetailSerializer(updated, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -340,7 +404,7 @@ def merchant_product_detail(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def merchant_dashboard(request):
-    if not getattr(getattr(request.user, 'profile', None), 'is_seller', False):
+    if not request.user.stores.filter(status='active').exists():
         return Response({'detail': 'هذا المسار للتجار فقط'}, status=status.HTTP_403_FORBIDDEN)
 
     from apps.orders.models import Order
@@ -371,3 +435,195 @@ def merchant_dashboard(request):
         'low_stock_count':  products.filter(variants__stock__lte=5, variants__stock__gt=0).distinct().count(),
         'out_of_stock_count': products.filter(variants__stock=0).distinct().count(),
     })
+
+
+# ── Admin Product Review ──────────────────────────────────────────────────────
+
+@extend_schema(tags=['admin'], summary='قائمة المنتجات قيد المراجعة')
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_product_review_list(request):
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+
+    from .serializers import AdminReviewProductSerializer
+    qs = (
+        Product.objects
+        .filter(status=Product.Status.UNDER_REVIEW)
+        .select_related('category', 'brand', 'series__brand', 'seller__profile', 'store')
+        .prefetch_related('variants', 'variant_images__variants')
+        .order_by('review_deadline')
+    )
+    return Response(AdminReviewProductSerializer(qs, many=True, context={'request': request}).data)
+
+
+@extend_schema(tags=['admin'], summary='البت في مراجعة منتج (رفع أو رفض)')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_product_review_decide(request, pk):
+    if not request.user.is_staff:
+        return Response({'detail': 'مدخل للمسؤولين فقط.'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        product = Product.objects.select_related('seller').get(
+            pk=pk, status__in=[Product.Status.UNDER_REVIEW, Product.Status.REJECTED]
+        )
+    except Product.DoesNotExist:
+        return Response({'detail': 'المنتج غير موجود أو ليس قيد المراجعة أو الرفض.'}, status=status.HTTP_404_NOT_FOUND)
+
+    action = request.data.get('action')
+    reason = request.data.get('reason', '').strip()
+
+    if action == 'approve':
+        before = {'status': product.status, 'is_active': product.is_active}
+        product.status = Product.Status.ACTIVE
+        product.is_active = True
+        product.review_deadline = None
+        product.save(update_fields=['status', 'is_active', 'review_deadline'])
+
+        # Log the approval
+        try:
+            from apps.accounts.models import AdminActionLog
+            AdminActionLog.objects.create(
+                admin_user=request.user,
+                action=AdminActionLog.Action.APPROVE_REVIEW,
+                target_model='Product',
+                target_id=product.id,
+                target_name=product.name,
+                reason='موافقة على نشر المنتج بعد المراجعة.',
+                before_state=before,
+                after_state={'status': 'active', 'is_active': True},
+                is_processed=True,
+            )
+        except Exception as e:
+            print(f"Error logging approval: {e}")
+
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            create_notification(
+                user=product.seller,
+                n_type=Notification.Type.PRODUCT_VISIBILITY_CHANGE,
+                title='تم نشر منتجك ✓',
+                message=f'تمت مراجعة منتجك "{product.name}" والموافقة على نشره.',
+                related_id=str(product.id),
+                related_type='product'
+            )
+        except Exception:
+            pass
+
+        return Response({'detail': 'تم نشر المنتج بنجاح.'})
+
+    if action == 'reject':
+        if not reason:
+            return Response({'detail': 'سبب الرفض مطلوب.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        before = {'status': product.status, 'is_active': product.is_active}
+        product.status = Product.Status.REJECTED
+        product.is_active = False
+        product.suspension_reason = reason
+        product.review_deadline = None
+        product.save(update_fields=['status', 'is_active', 'suspension_reason', 'review_deadline'])
+
+        # Log the rejection
+        try:
+            from apps.accounts.models import AdminActionLog
+            AdminActionLog.objects.create(
+                admin_user=request.user,
+                action=AdminActionLog.Action.REJECT_REVIEW,
+                target_model='Product',
+                target_id=product.id,
+                target_name=product.name,
+                reason=reason,
+                before_state=before,
+                after_state={'status': 'rejected', 'is_active': False},
+                is_processed=False,
+            )
+        except Exception as e:
+            print(f"Error logging rejection: {e}")
+
+        try:
+            from apps.notifications.utils import create_notification
+            from apps.notifications.models import Notification
+            from django.core.mail import send_mail
+            create_notification(
+                user=product.seller,
+                n_type=Notification.Type.PRODUCT_VISIBILITY_CHANGE,
+                title='تم رفض منتجك — يحتاج تعديل',
+                message=(
+                    f'رُفض منتجك "{product.name}" من قبل الإدارة.\n'
+                    f'السبب: {reason}\n'
+                    f'يمكنك تعديل المنتج وإعادة تقديمه للمراجعة، أو حذفه نهائياً.'
+                ),
+                related_id=str(product.id),
+                related_type='product'
+            )
+            send_mail(
+                f'منتجك يحتاج تعديل: {product.name}',
+                (
+                    f'مرحباً {product.seller.username}،\n\n'
+                    f'تم رفض منتجك "{product.name}" من قبل إدارة سوق.\n'
+                    f'السبب: {reason}\n\n'
+                    f'يمكنك الدخول على لوحة التحكم وتعديل المنتج وإعادة تقديمه للمراجعة أو حذفه نهائياً.\n\n'
+                    f'فريق سوق'
+                ),
+                'noreply@souq.dz',
+                [product.seller.email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"Error notifying seller of rejection: {e}")
+
+        return Response({'detail': 'تم رفض المنتج وإخطار التاجر لإعادة التعديل.'})
+
+    return Response({'detail': 'الإجراء غير صالح. استخدم approve أو reject.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(tags=['merchant'], summary='إعادة تقديم منتج مرفوض للمراجعة')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def merchant_product_resubmit(request, pk):
+    """Allows a merchant to resubmit a rejected product for admin review."""
+    try:
+        product = Product.objects.get(pk=pk, seller=request.user, status=Product.Status.REJECTED)
+    except Product.DoesNotExist:
+        return Response({'detail': 'المنتج غير موجود أو ليس في حالة مرفوض.'}, status=status.HTTP_404_NOT_FOUND)
+
+    from datetime import timedelta
+    product.status = Product.Status.UNDER_REVIEW
+    product.is_active = False
+    product.suspension_reason = None
+    product.review_deadline = timezone.now() + timedelta(hours=24)
+    product.save(update_fields=['status', 'is_active', 'suspension_reason', 'review_deadline'])
+
+    # Mark the previous reject_review log as processed (التاجر أعاد التقديم)
+    try:
+        from apps.accounts.models import AdminActionLog
+        AdminActionLog.objects.filter(
+            action=AdminActionLog.Action.REJECT_REVIEW,
+            target_model='Product',
+            target_id=product.id,
+            is_processed=False
+        ).update(is_processed=True)
+    except Exception as e:
+        print(f"Error marking reject log as processed: {e}")
+
+    # Notify all admins
+    try:
+        from apps.notifications.utils import create_notification
+        from apps.notifications.models import Notification
+        from apps.accounts.models import User as UserModel
+        admins = UserModel.objects.filter(is_staff=True)
+        for admin in admins:
+            create_notification(
+                user=admin,
+                n_type=Notification.Type.NEW_PRODUCT_REVIEW,
+                title='منتج معدّل بانتظار المراجعة',
+                message=f'أعاد التاجر @{request.user.username} تقديم منتجه "{product.name}" بعد التعديل.',
+                related_id=str(product.id),
+                related_type='product'
+            )
+    except Exception as e:
+        print(f"Error notifying admins of resubmission: {e}")
+
+    return Response({'detail': 'تم إعادة تقديم المنتج للمراجعة بنجاح.'})

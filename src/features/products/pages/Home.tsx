@@ -315,70 +315,47 @@ export default function Home() {
 }
 
 function CTASection() {
-  const { isAuthenticated, profile } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   if (isAuthenticated) {
-    if (profile?.is_seller) {
-      return (
-        <section className="py-16 bg-gradient-to-br from-primary-50 to-sage-light/20 dark:from-gray-900 dark:to-gray-950 transition-colors">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl mb-6">
-              <LayoutDashboard className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">
-              مرحباً بك في لوحة التاجر
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 font-arabic mb-8 max-w-xl mx-auto">
-              إدارة منتجاتك، متابعة طلباتك، وتنمية تجارتك بسهولة.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/merchant/products"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-primary-400 text-white rounded-2xl hover:bg-primary-500 transition-all font-arabic text-lg shadow-lg hover:shadow-primary-400/30 hover:shadow-xl"
-              >
-                <Package className="w-5 h-5" />
-                منتجاتي
-              </Link>
-              <Link
-                to="/merchant/dashboard"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-arabic text-lg border border-gray-200 dark:border-gray-700 shadow-sm"
-              >
-                <LayoutDashboard className="w-5 h-5" />
-                لوحة التحكم
-              </Link>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
+    const isMerchant = user?.stores && user.stores.length > 0;
     return (
       <section className="py-16 bg-gradient-to-br from-primary-50 to-sage-light/20 dark:from-gray-900 dark:to-gray-950 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl mb-6">
-            <ShoppingBag className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+            {isMerchant
+              ? <LayoutDashboard className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+              : <ShoppingBag className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+            }
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4">
-            استمتع بتجربة تسوق مميزة
+            {isMerchant ? 'لوحة تحكم متاجرك' : 'استمتع بتجربة تسوق مميزة'}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 font-arabic mb-8 max-w-xl mx-auto">
-            تابع طلباتك، استعرض قائمة رغباتك، واكتشف منتجات جديدة كل يوم.
+            {isMerchant
+              ? 'إدارة منتجاتك، متابعة طلباتك، وتنمية تجارتك بسهولة.'
+              : 'تابع طلباتك، استعرض قائمة رغباتك، واكتشف منتجات جديدة كل يوم.'}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/orders"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-400 text-white rounded-2xl hover:bg-primary-500 transition-all font-arabic text-lg shadow-lg hover:shadow-primary-400/30 hover:shadow-xl"
-            >
-              <Package className="w-5 h-5" />
-              طلباتي
-            </Link>
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-arabic text-lg border border-gray-200 dark:border-gray-700 shadow-sm"
-            >
-              <ShoppingBag className="w-5 h-5" />
-              تسوّق الآن
-            </Link>
+            {isMerchant ? (
+              <>
+                <Link to="/merchant/products" className="inline-flex items-center gap-2 px-8 py-4 bg-primary-400 text-white rounded-2xl hover:bg-primary-500 transition-all font-arabic text-lg shadow-lg hover:shadow-primary-400/30 hover:shadow-xl">
+                  <Package className="w-5 h-5" />منتجاتي
+                </Link>
+                <Link to="/merchant/dashboard" className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-arabic text-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <LayoutDashboard className="w-5 h-5" />لوحة التحكم
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/orders" className="inline-flex items-center gap-2 px-8 py-4 bg-primary-400 text-white rounded-2xl hover:bg-primary-500 transition-all font-arabic text-lg shadow-lg hover:shadow-primary-400/30 hover:shadow-xl">
+                  <Package className="w-5 h-5" />طلباتي
+                </Link>
+                <Link to="/products" className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-arabic text-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <ShoppingBag className="w-5 h-5" />تسوّق الآن
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

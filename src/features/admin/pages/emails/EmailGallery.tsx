@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Mail } from 'lucide-react';
 
 const EMAIL_TEMPLATES = [
-  { id: 'welcome',                 title: 'بريد الترحيب',                icon: '🎉', desc: 'يُرسَل عند تسجيل مستخدم جديد' },
+  { id: 'welcome',                 title: 'بريد الترحيب (زبون)',          icon: '🎉', desc: 'يُرسَل عند تسجيل زبون جديد' },
+  { id: 'merchant-welcome',        title: 'بريد الترحيب (تاجر)',          icon: '🏪', desc: 'يُرسَل عند تفعيل حساب تاجر' },
+  { id: 'verify-email',            title: 'تأكيد البريد الإلكتروني',     icon: '📧', desc: 'يُرسَل لتفعيل الحساب بعد التسجيل' },
   { id: 'otp',                     title: 'رمز التحقق (OTP)',             icon: '🔢', desc: 'رمز التحقق عند تسجيل الدخول' },
   { id: 'password-reset',          title: 'إعادة تعيين كلمة المرور',     icon: '🔑', desc: 'رابط إعادة التعيين عبر البريد' },
   { id: 'password-changed',        title: 'إشعار تغيير كلمة المرور',     icon: '🔒', desc: 'إشعار بعد تغيير كلمة المرور' },
@@ -18,6 +20,7 @@ const EMAIL_TEMPLATES = [
   { id: 'appeal-decision',         title: 'قرار الطعن الإداري',        icon: '⚖️', desc: 'إشعار بقبول أو رفض الطعن' },
   { id: 'visibility-change',       title: 'تغيير حالة الظهور',          icon: '👁️', desc: 'إخفاء أو إظهار منتج يدوياً' },
   { id: 'admin-action',            title: 'إشعار إجراء إداري',          icon: '🛠️', desc: 'استعادة أو حذف من سجل العمليات' },
+  { id: 'product-review-notification', title: 'إشعار مراجعة منتج',      icon: '🆕', desc: 'تنبيه للإدارة بوجود منتج جديد بانتظار المراجعة' },
 ];
 
 export default function EmailGallery() {

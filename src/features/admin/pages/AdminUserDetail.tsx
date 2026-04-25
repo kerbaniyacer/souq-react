@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Trash2, Package, ShoppingBag, TrendingUp } from 'lucide-react';
+import { ArrowRight, Trash2, Package, ShoppingBag, TrendingUp, Store } from 'lucide-react';
 import api from '@features/auth/services/authService';
 import { useToast } from '@shared/stores/toastStore';
 
@@ -116,11 +116,11 @@ export default function AdminUserDetail() {
               </h2>
               <p className="text-gray-500 dark:text-gray-400 text-sm">{user.email}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-arabic font-medium ${
-                  profile?.is_seller ? 'bg-primary-100 text-primary-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {profile?.is_seller ? 'تاجر' : 'مشتري'}
-                </span>
+                {user?.stores?.length > 0 && (
+                  <span className="text-xs px-2.5 py-1 rounded-full font-arabic font-medium bg-primary-100 text-primary-700">
+                    {user.stores.length} {user.stores.length === 1 ? 'متجر' : 'متاجر'}
+                  </span>
+                )}
                 {user.is_staff && (
                   <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-700 font-arabic font-medium">مدير</span>
                 )}
@@ -143,8 +143,8 @@ export default function AdminUserDetail() {
         </div>
       </div>
 
-      {/* Seller Section */}
-      {profile?.is_seller && (
+      {/* Store Section */}
+      {user?.stores?.length > 0 && (
         <div className="mb-10">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic mb-6 flex items-center gap-2 border-b border-gray-100 pb-2">
             <Package className="w-5 h-5 text-primary-500" />
@@ -165,11 +165,27 @@ export default function AdminUserDetail() {
             ))}
           </div>
 
-          {profile?.store_name && (
+          {user.stores && user.stores.length > 0 && (
             <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-[#2E2E2E] p-5 mb-6">
-              <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic mb-2">معلومات المتجر</h3>
-              <p className="text-gray-700 dark:text-gray-300 font-arabic font-medium">{profile.store_name}</p>
-              {profile.store_description && <p className="text-gray-500 text-sm font-arabic mt-1">{profile.store_description}</p>}
+              <h3 className="font-bold text-gray-800 dark:text-gray-200 font-arabic mb-3">المتاجر التابعة</h3>
+              <div className="space-y-3">
+                {user.stores.map((store: any) => (
+                  <div key={store.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#252525] rounded-xl border border-gray-100 dark:border-[#2E2E2E]">
+                    <div className="w-12 h-12 bg-white dark:bg-[#1E1E1E] rounded-lg border border-gray-200 dark:border-[#2E2E2E] overflow-hidden flex items-center justify-center shrink-0">
+                      {store.logo ? <img src={store.logo} alt="" className="w-full h-full object-cover" /> : <Store className="w-6 h-6 text-gray-300" />}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-sm">{store.name}</h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 font-arabic">{store.category || 'بدون تصنيف'}</p>
+                    </div>
+                    <div className="text-left">
+                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-arabic ${store.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                         {store.status === 'active' ? 'نشط' : 'موقوف'}
+                       </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

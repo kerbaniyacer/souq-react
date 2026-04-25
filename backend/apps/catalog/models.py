@@ -69,10 +69,39 @@ class Brand(models.Model):
         super().save(*args, **kwargs)
 
 
+class Series(models.Model):
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='series', verbose_name='العلامة التجارية')
+    name = models.CharField(max_length=100, verbose_name='اسم السلسلة')
+    slug = models.SlugField(max_length=200, unique=True, blank=True, verbose_name='الرابط')
+    logo = models.ImageField(upload_to='series/', blank=True, null=True, verbose_name='الشعار')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'سلسلة المنتجات'
+        verbose_name_plural = 'سلاسل المنتجات'
+        ordering = ['brand', 'name']
+        unique_together = [['brand', 'name']]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(f'{self.brand.slug}-{self.name}') if self.brand_id else slugify(self.name)
+            base = base or f'series-{self.brand_id or 0}'
+            slug, counter = base, 1
+            while Series.objects.filter(slug=slug).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.brand.name} › {self.name}'
+
+
 class Product(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Active'
         UNDER_REVIEW = 'under_review', 'Under Review'
+        REJECTED = 'rejected', 'Rejected'
         SUSPENDED = 'suspended', 'Suspended'
         PENDING_DELETE = 'pending_delete', 'Pending Delete'
         DELETED = 'deleted', 'Deleted'
@@ -83,7 +112,9 @@ class Product(models.Model):
     slug = models.SlugField(max_length=300, unique=True, blank=True, verbose_name='الرابط')
     description = models.TextField(verbose_name='الوصف')
     sku = models.CharField(max_length=50, blank=True, verbose_name='رمز المنتج')
-    brand = models.ForeignKey(Brand,null=True,blank=True, on_delete=models.CASCADE, related_name='products', verbose_name='العلامة التجارية')
+    brand = models.ForeignKey(Brand, null=True, blank=True, on_delete=models.CASCADE, related_name='products', verbose_name='العلامة التجارية')
+    store = models.ForeignKey('accounts.Store', null=True, blank=True, on_delete=models.SET_NULL, related_name='products', verbose_name='المتجر')
+    series = models.ForeignKey('Series', null=True, blank=True, on_delete=models.SET_NULL, related_name='products', verbose_name='السلسلة')
     
     is_active = models.BooleanField(default=True, verbose_name='نشط')
     is_featured = models.BooleanField(default=False, verbose_name='مميز')

@@ -47,21 +47,30 @@ def register(request):
     if serializer.is_valid():
         user = serializer.save()
         
-        # Send Welcome Email
+        # Set inactive by default for local registration
+        user.is_active = False
+        user.save()
+        
+        # Send Verification Email
         try:
-            from django.core.mail import send_mail
-            from apps.accounts.utils import get_welcome_email_html
-            welcome_html = get_welcome_email_html(user.username)
+            from apps.accounts.utils import get_verify_email_html
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            # Link to frontend verification page
+            verify_url = f"{settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
+            
+            verify_html = get_verify_email_html(verify_url)
             send_mail(
-                'مرحباً بك في سوق! 🎉',
-                f'أهلاً وسهلاً {user.username}! يسعدنا انضمامك إلى سوق.',
+                'تأكيد حسابك في سوق 📧',
+                f'أهلاً بك! يرجى تأكيد حسابك عبر الرابط: {verify_url}',
                 'noreply@souq.dz',
                 [user.email],
-                fail_silently=True,
-                html_message=welcome_html
+                fail_silently=False,
+                html_message=verify_html
             )
         except Exception as e:
-            print(f"Error sending welcome email: {e}")
+            print(f"Error sending verification email: {e}")
 
         # Notify all admins of new registration
         try:
@@ -81,10 +90,55 @@ def register(request):
             print(f"Error notifying admins of new user: {e}")
 
         return Response(
-            {'detail': 'تم إنشاء الحساب بنجاح.', 'email': user.email},
+            {'detail': 'تم إنشاء الحساب بنجاح. يرجى مراجعة بريدك الإلكتروني لتفعيل الحساب.', 'email': user.email},
             status=status.HTTP_201_CREATED,
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(tags=['auth'], summary='تأكيد البريد الإلكتروني وتفعيل الحساب')
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    uidb64 = request.data.get('uid')
+    token = request.data.get('token')
+    
+    if not all([uidb64, token]):
+        return Response({'detail': 'بيانات التحقق مفقودة.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+        
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            
+            # Send Welcome Email (based on role)
+            try:
+                from apps.accounts.utils import get_welcome_email_html, get_merchant_welcome_email_html
+                if user.role == User.Role.SELLER or (hasattr(user, 'profile') and user.profile.is_seller):
+                    welcome_html = get_merchant_welcome_email_html(user.username)
+                    subject = 'أهلاً بك كتاجر في سوق! 🏪'
+                else:
+                    welcome_html = get_welcome_email_html(user.username)
+                    subject = 'مرحباً بك في سوق! 🎉'
+                    
+                send_mail(
+                    subject,
+                    f'أهلاً {user.username}! تم تفعيل حسابك بنجاح.',
+                    'noreply@souq.dz',
+                    [user.email],
+                    fail_silently=True,
+                    html_message=welcome_html
+                )
+            except Exception as e:
+                print(f"Error sending welcome email after verification: {e}")
+                
+            return Response({'detail': 'تم تفعيل حسابك بنجاح. يمكنك الآن تسجيل الدخول.'})
+        else:
+            return Response({'detail': 'رابط التفعيل غير صالح أو منتهي الصلاحية.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return Response({'detail': 'بيانات التفعيل غير صالحة.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(tags=['auth'], summary='جلب الملف الشخصي العام')
@@ -1260,36 +1314,24 @@ def create_report(request):
 @permission_classes([IsAuthenticated])
 def complete_profile(request):
     """
-    Dedicated endpoint for mandatory onboarding.
-    Accepts: phone, wilaya, store_name, is_seller, etc.
-    Returns: Updated profile info and onboarding status.
+    Mandatory onboarding endpoint.
+    Accepts: phone, wilaya, first_name, last_name, baladia, address.
+    Store creation is done separately via /auth/stores/.
     """
     user = request.user
     profile, _ = Profile.objects.get_or_create(user=user)
-    
     data = request.data
-    
-    # Update profile fields
-    profile.phone = data.get('phone', profile.phone)
-    profile.wilaya = data.get('wilaya', profile.wilaya)
+
+    profile.phone   = data.get('phone',   profile.phone)
+    profile.wilaya  = data.get('wilaya',  profile.wilaya)
     profile.baladia = data.get('baladia', profile.baladia)
     profile.address = data.get('address', profile.address)
-    
-    # Optional/conditional store fields
-    if 'is_seller' in data:
-        profile.is_seller = data.get('is_seller')
-    
-    profile.store_name = data.get('store_name', profile.store_name)
-    profile.store_description = data.get('store_description', profile.store_description)
-    profile.store_category = data.get('store_category', profile.store_category)
-    
     profile.save()
-    
-    # Also update user fields if provided (first_name, last_name)
+
     if 'first_name' in data:
-        user.first_name = data.get('first_name')
+        user.first_name = data['first_name']
     if 'last_name' in data:
-        user.last_name = data.get('last_name')
+        user.last_name = data['last_name']
     if 'first_name' in data or 'last_name' in data:
         user.save()
 
@@ -1324,3 +1366,48 @@ def admin_user_reports(request, pk):
     reports = Report.objects.filter(target_user_id=pk).order_by('-created_at')
     serializer = ReportSerializer(reports, many=True)
     return Response(serializer.data)
+
+
+# ── Store Views ───────────────────────────────────────────────────────────────
+
+from .models import Store
+from .serializers import StoreMiniSerializer, StoreWriteSerializer
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def my_stores(request):
+    if request.method == 'GET':
+        stores = Store.objects.filter(owner=request.user)
+        return Response(StoreMiniSerializer(stores, many=True, context={'request': request}).data)
+
+    serializer = StoreWriteSerializer(data=request.data)
+    if serializer.is_valid():
+        store = serializer.save(owner=request.user)
+        return Response(StoreMiniSerializer(store, context={'request': request}).data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def store_detail(request, pk):
+    try:
+        store = Store.objects.get(pk=pk, owner=request.user)
+    except Store.DoesNotExist:
+        return Response({'detail': 'المتجر غير موجود'}, status=404)
+
+    if request.method == 'GET':
+        return Response(StoreMiniSerializer(store, context={'request': request}).data)
+
+    if request.method == 'PATCH':
+        serializer = StoreWriteSerializer(store, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(StoreMiniSerializer(store, context={'request': request}).data)
+        return Response(serializer.errors, status=400)
+
+    if request.method == 'DELETE':
+        if store.products.filter(is_active=True).exists():
+            return Response({'detail': 'لا يمكن حذف متجر يحتوي على منتجات نشطة'}, status=400)
+        store.delete()
+        return Response(status=204)

@@ -8,7 +8,7 @@ import AddressFields from '@shared/components/common/AddressFields';
 import type { CheckoutData } from '@shared/types';
 
 export default function Checkout() {
-  const { cart, fetchCart, clearCart } = useCartStore();
+  const { cart, fetchCart, clearCart, guestInfo, setGuestInfo } = useCartStore();
   const { user, profile, isAuthenticated } = useAuthStore();
   const toast = useToast();
   const navigate = useNavigate();
@@ -26,23 +26,47 @@ export default function Checkout() {
     payment_method: 'cod',
   });
 
+  // Pre-fill logic
   useEffect(() => {
     fetchCart();
-    if (profile && user) {
+    
+    if (isAuthenticated && profile && user) {
+      // Priority 1: User Profile
       setForm((p) => ({
         ...p,
-        full_name: `${user.first_name} ${user.last_name}`.trim(),
-        phone: profile.phone,
-        email: user.email,
-        address: profile.address,
-        wilaya: profile.wilaya,
-        baladia: profile.baladia,
+        full_name: `${user.first_name} ${user.last_name}`.trim() || user.username,
+        phone: profile.phone || '',
+        email: user.email || '',
+        address: profile.address || '',
+        wilaya: profile.wilaya || '',
+        baladia: profile.baladia || '',
+      }));
+    } else if (guestInfo) {
+      // Priority 2: Guest Info (LocalStorage)
+      setForm((p) => ({
+        ...p,
+        ...guestInfo
       }));
     }
-  }, [fetchCart, profile, user]);
+  }, [fetchCart, profile, user, isAuthenticated, guestInfo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      // Save guest info for next time (excluding sensitive fields if any)
+      if (!isAuthenticated) {
+        setGuestInfo({
+          full_name: next.full_name,
+          phone: next.phone,
+          email: next.email,
+          address: next.address,
+          wilaya: next.wilaya,
+          baladia: next.baladia,
+        });
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,10 +79,17 @@ export default function Checkout() {
     try {
       const res = await ordersApi.create(form);
       await clearCart();
-      toast.success('تم تقديم طلبك بنجاح!');
-      navigate(`/orders/${res.data.id}`);
-    } catch {
-      toast.error('حدث خطأ أثناء تقديم الطلب');
+      toast.success('تم تقديم طلبك بنجاح! 👋');
+      // Redirect to OrderSuccess page
+      navigate(`/order-success/${res.data.id}`, { 
+        state: { 
+          guestEmail: !isAuthenticated ? form.email : undefined,
+          guestName: !isAuthenticated ? form.full_name : undefined,
+          guestPhone: !isAuthenticated ? form.phone : undefined
+        } 
+      });
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'حدث خطأ أثناء تقديم الطلب');
     } finally {
       setLoading(false);
     }
@@ -69,10 +100,11 @@ export default function Checkout() {
   const shipping = subtotal >= 5000 ? 0 : 500;
   const total = subtotal + shipping;
 
-  if (!isAuthenticated) {
-    navigate('/login', { state: { from: '/checkout' } });
-    return null;
-  }
+  // Remove restricted access for guests
+  // if (!isAuthenticated) {
+  //   navigate('/login', { state: { from: '/checkout' } });
+  //   return null;
+  // }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

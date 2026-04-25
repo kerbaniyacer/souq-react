@@ -18,6 +18,23 @@ export const DEFAULT_EMAIL_CONTENT: Record<string, EmailContent> = {
     buttonLabel: 'ابدأ التسوق الآن',
     buttonLink: '/products'
   },
+  'merchant-welcome': {
+    subject: 'أهلاً بك كتاجر في سوق! 🏪',
+    header: 'مرحباً بك كشريك نجاح!',
+    subheader: 'يسعدنا انضمامك إلينا كتاجر. حسابك مفعل الآن وجاهز لاستقبال أولى منتجاتك!',
+    bodyTitle: 'ابدأ رحلتك كتاجر:',
+    bodyText: 'أضف منتجاتك، حدد أسعارك، وتابع مبيعاتك عبر لوحة التحكم المتكاملة.',
+    buttonLabel: 'لوحة التاجر',
+    buttonLink: '/merchant/dashboard'
+  },
+  'verify-email': {
+    subject: 'تأكيد حسابك في سوق 📧',
+    header: 'تأكيد البريد الإلكتروني',
+    subheader: 'شكراً لتسجيلك في سوق. يرجى تأكيد حسابك للبدء في استكشاف المنصة.',
+    bodyText: 'بالضغط على الزر أدناه، سيتم تفعيل حسابك مباشرة لتتمكن من تسجيل الدخول والبدء في التسوق أو البيع.',
+    buttonLabel: 'تفعيل الحساب الآن',
+    buttonLink: '/verify-email'
+  },
   otp: {
     subject: 'رمز التحقق الخاص بك - سوق 🔢',
     header: 'رمز التحقق',
@@ -122,6 +139,14 @@ export const DEFAULT_EMAIL_CONTENT: Record<string, EmailContent> = {
     bodyText: 'هذا الإجراء يهدف لضمان جودة المحتوى المعروض في المنصة وفقاً للمعايير المعتمدة.',
     buttonLabel: 'لوحة التاجر',
     buttonLink: '/merchant/products'
+  },
+  'product-review-notification': {
+    subject: 'منتج جديد في انتظار المراجعة 🆕',
+    header: 'مراجعة منتج جديد',
+    subheader: 'قام أحد المتاجر بإضافة منتج جديد، وهو الآن بانتظار مراجعتك وموافقتك لكي يُعرض في المنصة.',
+    bodyText: 'يرجى مراجعة تفاصيل المنتج للتأكد من توافقه مع شروط وأحكام منصة سوق.',
+    buttonLabel: 'مراجعة المنتج',
+    buttonLink: '/admin/products/review'
   },
   'admin-action': {
     subject: 'إشعار بخصوص إجراء إداري 🛠️',

@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, TrendingUp, Eye, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useMerchantStats, useMerchantOrders } from '../hooks/useMerchantData';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import StoreSwitcher from '../components/StoreSwitcher';
+import { useStoreStore } from '@shared/stores/storeStore';
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   shipped:    { label: 'تم الشحن',     className: 'bg-blue-500/10 text-blue-500 border border-blue-500/20' },
@@ -34,6 +37,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function MerchantDashboard() {
   const { data: stats, isLoading: statsLoading } = useMerchantStats();
   const { data: orders, isLoading: ordersLoading } = useMerchantOrders();
+  const { stores, loadStores } = useStoreStore();
+
+  useEffect(() => {
+    loadStores();
+  }, [loadStores]);
 
   const loading = statsLoading || ordersLoading;
 
@@ -85,6 +93,9 @@ export default function MerchantDashboard() {
             </div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">مرحباً بك مجدداً! 👋</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">إليك نظرة سريعة على أداء متجرك اليوم.</p>
+            <div className="mt-3">
+              <StoreSwitcher />
+            </div>
           </div>
 
           {stats?.suspended_products_count && stats.suspended_products_count > 0 ? (
@@ -113,6 +124,25 @@ export default function MerchantDashboard() {
              </Link>
           </div>
         </div>
+
+        {/* No-stores CTA */}
+        {!loading && stores.length === 0 && (
+          <div className="mb-8 bg-primary-50 dark:bg-primary-900/10 border border-primary-200 dark:border-primary-900/20 rounded-[2rem] p-8 flex flex-col sm:flex-row items-center gap-6 animate-in slide-in-from-top-2 duration-500">
+            <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center text-primary-600 dark:text-primary-400 shrink-0">
+              <Package className="w-7 h-7" />
+            </div>
+            <div className="flex-1 text-center sm:text-right">
+              <p className="text-base font-bold text-primary-900 dark:text-primary-100 font-arabic">ابدأ بإنشاء متجرك الأول</p>
+              <p className="text-sm text-primary-700 dark:text-primary-400 font-arabic mt-1">لم تقم بإنشاء أي متجر بعد. أنشئ متجرك الأول وابدأ في إضافة المنتجات.</p>
+            </div>
+            <Link
+              to="/merchant/store-management"
+              className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-sm font-bold shrink-0 hover:scale-[1.02] transition-transform"
+            >
+              إنشاء متجرك الأول
+            </Link>
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

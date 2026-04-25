@@ -174,12 +174,13 @@ export interface DjangoUser {
   photo: string | null;
   provider: string;
   is_staff: boolean;
-  role: string;
+  role: 'customer' | 'admin';
   date_joined: string;
   profile: DjangoProfile | null;
   is_onboarded?: boolean;
   last_seen?: string | null;
   is_online?: boolean;
+  stores?: import('@shared/types').Store[];
 }
 export interface DjangoProfile {
   id: number;
@@ -188,11 +189,6 @@ export interface DjangoProfile {
   wilaya: string;
   baladia: string;
   bio: string;
-  is_seller: boolean;
-  store_name: string;
-  store_description: string;
-  store_category: string;
-  store_logo: string | null;
   commercial_register: string;
   ccp_number: string;
   ccp_name: string;

@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle, Home, ShoppingBag, LayoutDashboard, User } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { hasStore } from '@shared/types';
 
 export default function RegistrationSuccess() {
-  const { user, profile } = useAuthStore();
+  const { user } = useAuthStore();
 
   return (
     <div className="min-h-screen bg-page-bg flex items-center justify-center py-12 px-4">
@@ -36,12 +37,8 @@ export default function RegistrationSuccess() {
                       : user.username}
                   </p>
                   <p className="text-sm text-gray-500">{user.email}</p>
-                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-arabic font-medium ${
-                    profile?.is_seller
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {profile?.is_seller ? 'تاجر' : 'مشتري'}
+                  <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-arabic font-medium bg-gray-100 text-gray-600">
+                    عضو جديد
                   </span>
                 </div>
               </div>
@@ -71,7 +68,7 @@ export default function RegistrationSuccess() {
               <ShoppingBag className="w-5 h-5" />
               تصفح المنتجات
             </Link>
-            {profile?.is_seller && (
+            {hasStore(user) && (
               <Link to="/merchant/dashboard" className="w-full py-3 border border-gray-200 text-gray-700 rounded-xl font-arabic font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
                 <LayoutDashboard className="w-5 h-5" />
                 لوحة التحكم

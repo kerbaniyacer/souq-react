@@ -16,8 +16,8 @@ export default function OnboardingGuard({ children }: Props) {
   // Not logged in — let PrivateRoute handle this
   if (!isAuthenticated) return <>{children}</>;
 
-  // Still loading profile — wait
-  if (profileLoading) return null;
+  // Still loading profile and don't have user data — wait
+  if (profileLoading && !user) return null;
 
   // Admins and staff are always allowed
   if (user?.is_staff) return <>{children}</>;

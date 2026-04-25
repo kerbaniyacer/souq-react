@@ -60,6 +60,36 @@ def get_welcome_email_html(username):
     """
     return get_base_email_html('مرحباً بك في سوق', body)
 
+def get_merchant_welcome_email_html(username):
+    body = f"""
+      <h2 style="color:#5C8A6E;font-size:22px;margin:0 0 16px;">أهلاً بك كتاجر في سوق! 🏪</h2>
+      <p style="color:#4b5563;line-height:1.8;margin:0 0 20px;">يسعدنا انضمامك إلينا كتاجر شريك. حسابك مفعل الآن وجاهز لاستقبال أولى منتجاتك!</p>
+      <div style="background:#f0f7f3;border-radius:12px;padding:20px;margin:20px 0;">
+        <p style="margin:0 0 8px;color:#5C8A6E;font-weight:700;">ابدأ رحلتك كتاجر:</p>
+        <ul style="margin:0;padding-right:20px;color:#4b5563;line-height:2;">
+          <li>أضف منتجاتك ووصفها بدقة</li>
+          <li>حدد أسعارك وخيارات التوصيل</li>
+          <li>تابع مبيعاتك عبر لوحة التحكم</li>
+        </ul>
+      </div>
+      <a href="http://localhost:5173/merchant/dashboard" style="display:inline-block;background:#5C8A6E;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:16px;margin-top:8px;">انتقل إلى لوحة التاجر ←</a>
+    """
+    return get_base_email_html('مرحباً بك كتاجر في سوق', body)
+
+def get_verify_email_html(verify_url):
+    body = f"""
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:64px;height:64px;background:#dcfce7;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:28px;">📧</div>
+      </div>
+      <h2 style="color:#1f2937;font-size:22px;margin:0 0 16px;text-align:center;">تأكيد البريد الإلكتروني</h2>
+      <p style="color:#4b5563;line-height:1.8;text-align:center;">شكراً لتسجيلك في سوق. يرجى الضغط على الزر أدناه لتفعيل حسابك والبدء في استخدام المنصة.</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="{verify_url}" style="display:inline-block;background:#5C8A6E;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:16px;">تفعيل الحساب الآن ←</a>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;text-align:center;">إذا لم تكن أنت من قام بالتسجيل، يرجى تجاهل هذا البريد.</p>
+    """
+    return get_base_email_html('تأكيد حسابك في سوق', body)
+
 def get_password_reset_email_html(reset_url):
     body = f"""
       <div style="text-align:center;margin-bottom:24px;">

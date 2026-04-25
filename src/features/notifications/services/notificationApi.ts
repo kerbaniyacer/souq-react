@@ -1,13 +1,14 @@
 import api from '@/shared/services/api';
+import type { NotificationType } from '../config/notifications.config';
 
 export interface Notification {
   id: number;
   user: number;
-  type: string;
+  type: NotificationType;
   title: string;
   message: string;
-  related_id: string;
-  related_type: string;
+  entityId?: number | string;
+  meta?: Record<string, any>;
   is_read: boolean;
   is_pinned: boolean;
   created_at: string;

@@ -13,6 +13,7 @@ import { useGetOrCreateConversation } from '@features/chat/hooks/useChat';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '@features/auth/services/authService';
 import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
+import { useUIStore } from '@shared/stores/uiStore';
 
 // Review Components
 import StarRating from '@features/products/components/StarRating';
@@ -59,6 +60,7 @@ export default function ProductDetail() {
   const [reportDescription, setReportDescription] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
   const { mutateAsync: getOrCreateConversation } = useGetOrCreateConversation();
+  const { setForceHideBottomNavbar } = useUIStore();
 
   const handleReportSubmit = async () => {
     if (!isAuthenticated) {
@@ -90,6 +92,11 @@ export default function ProductDetail() {
   };
 
   useEffect(() => {
+    setForceHideBottomNavbar(isReportModalOpen);
+    return () => setForceHideBottomNavbar(false);
+  }, [isReportModalOpen, setForceHideBottomNavbar]);
+
+  useEffect(() => {
     if (product) {
       const main = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
       setSelectedVariant(main ?? null);
@@ -100,33 +107,24 @@ export default function ProductDetail() {
   const loading = productLoading;
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.info('يرجى تسجيل الدخول لإضافة المنتجات إلى السلة');
-      navigate('/login', { state: { from: window.location.pathname } });
-      return;
-    }
-    if (canManageProduct) {
-      toast.info('لا يمكنك إضافة منتجك إلى السلة');
-      return;
-    }
     const target = matchedVariant ?? selectedVariant;
     if (!target) return;
     if (!product) return;
+    
+    setForceHideBottomNavbar(true);
     try {
-      await addToCart(target.id, quantity, product.seller?.id);
+      await addToCart(target.id, quantity, product.seller?.id, target);
       toast.success('تمت الإضافة إلى السلة');
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'تعذّر إضافة المنتج');
+      toast.error(err.response?.data?.detail || err.message || 'تعذّر إضافة المنتج');
+    } finally {
+      setTimeout(() => setForceHideBottomNavbar(false), 500);
     }
   };
 
   const handleToggleWishlist = async () => {
     if (!product) return;
-    if (!isAuthenticated) {
-      toast.info('سجّل دخولك لإضافة المنتجات إلى المفضلة');
-      navigate('/login');
-      return;
-    }
+    
     if (canManageProduct) {
       toast.info('لا يمكنك إضافة منتجك إلى المفضلة');
       return;
@@ -136,7 +134,7 @@ export default function ProductDetail() {
         await removeFromWishlist(product.id);
         toast.info('تمت الإزالة من المفضلة');
       } else {
-        await addToWishlist(product.id, product.seller?.id);
+        await addToWishlist(product.id, product.seller?.id, product);
         toast.success('تمت الإضافة إلى المفضلة');
       }
     } catch (err: any) {
@@ -196,60 +194,89 @@ export default function ProductDetail() {
   const previewAsCustomer = searchParams.get('preview') === 'customer';
   const canManageProduct = isOwner && !previewAsCustomer;
 
-  // ── استخراج خصائص المتغيرات المنفصلة (اللون، المقاس...) ──
-  const attrKeys: string[] = [];
-  (product.variants ?? []).forEach((v) => {
-    Object.keys(v.attributes ?? {}).forEach((k) => {
-      if (!attrKeys.includes(k)) attrKeys.push(k);
-    });
-  });
+  // ── خيارات المنتج: من API أو مشتقة من المتغيرات ──
+  // product.options (من الـ API) يحتوي على الترتيب الصحيح وجميع القيم
+  const attrKeys: string[] = product.options?.length
+    ? product.options.map((o) => o.name)
+    : (() => {
+        const keys: string[] = [];
+        (product.variants ?? []).forEach((v) => {
+          Object.keys(v.attributes ?? {}).forEach((k) => {
+            if (!keys.includes(k)) keys.push(k);
+          });
+        });
+        return keys;
+      })();
 
-  // تهيئة الخصائص المختارة من المتغير الرئيسي
-  const mainAttrs = (() => {
-    const init: Record<string, string> = {};
-    const mainV = product.variants?.find((v) => v.is_main) ?? product.variants?.[0];
-    if (mainV?.attributes) Object.entries(mainV.attributes).forEach(([k, v]) => { init[k] = v; });
-    return init;
+  // مفتاح اللون يُعرض دائماً؛ باقي المفاتيح تظهر فقط بعد اختيار اللون
+  const colorKey = attrKeys.find((k) => k.includes('لون') || k.includes('Color') || k === 'اللون')
+    ?? (attrKeys.length > 0 ? attrKeys[0] : null);
+  const selectedColor = colorKey ? (selectedAttrs[colorKey] ?? null) : null;
+  const visibleAttrKeys = colorKey && attrKeys.length > 1
+    ? [colorKey, ...(selectedColor ? attrKeys.filter((k) => k !== colorKey) : [])]
+    : attrKeys;
+
+  // إيجاد المتغير المطابق: مطابقة كاملة، ثم معاينة بالون فقط
+  const matchedVariant = (() => {
+    if (attrKeys.length === 0) return selectedVariant;
+    const full = (product.variants ?? []).find((v) =>
+      attrKeys.every((k) => selectedAttrs[k] && v.attributes?.[k] === selectedAttrs[k])
+    );
+    if (full) return full;
+    if (selectedColor && colorKey) {
+      return (product.variants ?? []).find((v) => v.attributes?.[colorKey] === selectedColor) ?? null;
+    }
+    return null;
   })();
-  // تطبيق القيم الأولية إن كانت selectedAttrs فارغة
-  const effectiveAttrs = Object.keys(selectedAttrs).length > 0 ? selectedAttrs : mainAttrs;
-
-  // إيجاد المتغير المطابق للخصائص المختارة
-  const matchedVariant = attrKeys.length > 0
-    ? (product.variants ?? []).find((v) =>
-      attrKeys.every((k) => v.attributes?.[k] === effectiveAttrs[k])
-    ) ?? null
-    : selectedVariant;
 
   // القيم المتاحة لكل خاصية
+  // product.options.values يعطي جميع القيم المعرّفة (حتى غير المتوفرة)
   function getAvailableValues(key: string): { value: string; available: boolean }[] {
-    const allValues = [...new Set(
-      (product!.variants ?? []).map((v) => v.attributes?.[key]).filter(Boolean) as string[]
-    )];
+    const allValues = product!.options?.find((o) => o.name === key)?.values
+      ?? [...new Set(
+          (product!.variants ?? []).map((v) => v.attributes?.[key]).filter(Boolean) as string[]
+        )];
     return allValues.map((val) => {
-      const exists = (product!.variants ?? []).some((v) =>
-        v.attributes?.[key] === val &&
-        attrKeys.filter((k) => k !== key).every((k) => !effectiveAttrs[k] || v.attributes?.[k] === effectiveAttrs[k])
-      );
+      const exists = (product!.variants ?? []).some((v) => {
+        if (v.attributes?.[key] !== val) return false;
+        // للخصائص غير اللون: تصفية بالون المختار فقط
+        if (key !== colorKey && colorKey && selectedColor) {
+          return v.attributes?.[colorKey] === selectedColor;
+        }
+        return true;
+      });
       return { value: val, available: exists };
     });
   }
 
   const handleAttrSelect = (key: string, value: string) => {
-    const next = { ...effectiveAttrs, [key]: value };
+    let next: Record<string, string>;
+    if (colorKey && key === colorKey) {
+      // عند تغيير اللون يُعاد ضبط باقي الخيارات
+      next = { [colorKey]: value };
+    } else {
+      next = { ...selectedAttrs, [key]: value };
+    }
     setSelectedAttrs(next);
     const matched = (product.variants ?? []).find((v) =>
-      attrKeys.every((k) => v.attributes?.[k] === next[k])
+      attrKeys.every((k) => next[k] && v.attributes?.[k] === next[k])
     );
     if (matched) {
       setSelectedVariant(matched);
       const img = (matched as any).image ?? matched.images?.[0]?.image;
       if (img) setSelectedImage(img);
+    } else if (colorKey && next[colorKey]) {
+      // لون مختار بدون مطابقة كاملة: تحديث الصورة من أول نسخة بهذا اللون
+      const colorV = (product.variants ?? []).find((v) => v.attributes?.[colorKey] === next[colorKey]);
+      if (colorV) {
+        const img = (colorV as any).image ?? colorV.images?.[0]?.image;
+        if (img) setSelectedImage(img);
+      }
     }
   };
 
   // هل جميع الخصائص محددة؟
-  const allAttrsSelected = attrKeys.length === 0 || attrKeys.every((k) => !!effectiveAttrs[k]);
+  const allAttrsSelected = attrKeys.length === 0 || attrKeys.every((k) => !!selectedAttrs[k]);
 
   const activeVariant = matchedVariant ?? selectedVariant;
   const hasDiscount = activeVariant?.old_price && activeVariant.old_price > activeVariant.price;
@@ -351,6 +378,22 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
+          {/* Brand › Series breadcrumb */}
+          {(product.brand || product.series) && (
+            <div className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 font-arabic mb-2 flex-row-reverse justify-end" dir="ltr">
+              {product.brand && (
+                <Link to={`/products?brand=${product.brand.slug}`} className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                  {product.brand.name}
+                </Link>
+              )}
+              {product.brand && product.series && <span className="text-gray-300 dark:text-gray-600">›</span>}
+              {product.series && (
+                <Link to={`/products?series=${product.series.slug}`} className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                  {product.series.name}
+                </Link>
+              )}
+            </div>
+          )}
           {/* French name in LTR and left-aligned */}
           <h1 className="text-2xl md:text-3xl font-bold mb-4 leading-tight text-gray-900 dark:text-gray-100 text-left" dir="ltr">
             {product.name}
@@ -393,11 +436,11 @@ export default function ProductDetail() {
           {/* Options */}
           {attrKeys.length > 0 && (
             <div className="mb-8 space-y-5">
-              {attrKeys.map((key) => {
+              {visibleAttrKeys.map((key) => {
                 const values = getAvailableValues(key);
                 const isColor = key.includes('لون') || key.includes('Color') || key === 'اللون';
                 const isLatin = key.toLowerCase().includes('size') || key.includes('مقاس') || key.includes('Size');
-                
+
                 return (
                   <div key={key} className="flex flex-col items-end">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-200 font-arabic mb-3 text-right">
@@ -406,7 +449,7 @@ export default function ProductDetail() {
                     {/* Size and Latin options aligned to the left (ltr) while keeping container rtl logic */}
                     <div className={`flex flex-wrap gap-2 w-full ${isLatin ? 'justify-start' : 'justify-end'}`} dir={isLatin ? 'ltr' : 'rtl'}>
                       {values.map(({ value, available }) => {
-                        const isSelected = effectiveAttrs[key] === value;
+                        const isSelected = selectedAttrs[key] === value;
                         
                         if (isColor) {
                           const hex = COLOR_MAP[value] || '#888888';
@@ -523,7 +566,7 @@ export default function ProductDetail() {
                 >
                   <ShoppingCart className="w-5 h-5" />
                   {!allAttrsSelected
-                    ? `اختر ${attrKeys.filter((k) => !effectiveAttrs[k]).join(' و ')}`
+                    ? `اختر ${attrKeys.filter((k) => !selectedAttrs[k]).join(' و ')}`
                     : (matchedVariant ?? selectedVariant)?.is_in_stock
                       ? 'أضف إلى السلة'
                       : 'غير متوفر'}

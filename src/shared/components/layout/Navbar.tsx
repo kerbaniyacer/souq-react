@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList, ShoppingBag, ShieldAlert, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { hasStore } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
+import { useUIStore } from '@shared/stores/uiStore';
 import { NotificationBell } from '@features/notifications/components/NotificationBell';
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isMobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,7 +69,7 @@ export default function Navbar() {
   const MobileNavLink = ({ to, icon: Icon, children, count, color = "text-gray-700 dark:text-gray-300" }: any) => (
     <Link 
       to={to} 
-      onClick={() => setIsOpen(false)} 
+      onClick={() => setMobileMenuOpen(false)} 
       className={`flex items-center justify-between p-3.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 ${color} font-arabic font-medium`}
     >
       <div className="flex items-center gap-3">
@@ -211,7 +213,7 @@ export default function Navbar() {
                         <ShieldAlert className="w-4 h-4 text-amber-500" />
                         الطعون والاعتراضات
                       </Link>
-                      {profile?.is_seller && (
+                      {hasStore(user) && (
                         <>
                           <div className="mx-2 my-1 border-t border-gray-100 dark:border-gray-800" />
                           <p className="px-3 py-1 text-xs text-gray-400 dark:text-gray-500 font-arabic">لوحة التاجر</p>
@@ -238,6 +240,14 @@ export default function Navbar() {
                           >
                             <ClipboardList className="w-4 h-4" />
                             إدارة الطلبات
+                          </Link>
+                          <Link
+                            to="/merchant/store-management"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm text-primary-600 dark:text-primary-400 font-arabic transition-colors"
+                          >
+                            <Store className="w-4 h-4" />
+                            إدارة المتاجر
                           </Link>
                         </>
                       )}
@@ -289,7 +299,7 @@ export default function Navbar() {
                 <Search className="w-6 h-6" />
               </button>
               <button
-                onClick={() => setIsOpen(true)}
+                onClick={() => setMobileMenuOpen(true)}
                 className="p-2 rounded-xl text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
                 aria-label="القائمة"
               >
@@ -339,7 +349,7 @@ export default function Navbar() {
       </AnimatePresence>
 
       {/* شريط التاجر */}
-      {isAuthenticated && profile?.is_seller && isMerchantPage && (
+      {isAuthenticated && hasStore(user) && isMerchantPage && (
         <div className="bg-primary-400 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-2">
@@ -371,6 +381,15 @@ export default function Navbar() {
                 إدارة الطلبات
               </Link>
               <Link
+                to="/merchant/store-management"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-arabic whitespace-nowrap transition-colors ${
+                  location.pathname === '/merchant/store-management' ? 'bg-white/20 font-medium' : 'hover:bg-white/10'
+                }`}
+              >
+                <Store className="w-4 h-4" />
+                إدارة المتاجر
+              </Link>
+              <Link
                 to="/merchant/products/add"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-arabic whitespace-nowrap bg-white/15 hover:bg-white/25 transition-colors mr-auto"
               >
@@ -383,12 +402,12 @@ export default function Navbar() {
     </nav>
 
     {/* Mobile Drawer (Outside nav) */}
-    {isOpen && (
+    {isMobileMenuOpen && (
       <div className="fixed inset-0 z-[100] md:hidden">
         {/* Backdrop */}
         <div 
           className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]"
-          onClick={() => setIsOpen(false)}
+          onClick={() => setMobileMenuOpen(false)}
         />
         
         {/* Drawer Panel */}
@@ -402,7 +421,7 @@ export default function Navbar() {
               <span className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-lg tracking-tight">سوق</span>
             </div>
             <button 
-              onClick={() => setIsOpen(false)}
+              onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="إغلاق القائمة"
             >
@@ -449,12 +468,13 @@ export default function Navbar() {
                     <MobileNavLink to="/orders" icon={ShoppingBag} color="text-emerald-500">طلباتي</MobileNavLink>
                     <MobileNavLink to="/appeals/list" icon={ShieldAlert} color="text-amber-500">الطعون والاعتراضات</MobileNavLink>
                     
-                    {profile?.is_seller && (
+                    {hasStore(user) && (
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-1">
                         <p className="px-3 text-[11px] font-bold text-primary-400 uppercase tracking-widest font-arabic mb-2">لوحة التاجر</p>
                         <MobileNavLink to="/merchant/dashboard" icon={LayoutDashboard} color="text-primary-500">لوحة التحكم</MobileNavLink>
                         <MobileNavLink to="/merchant/products" icon={Package} color="text-primary-500">منتجاتي</MobileNavLink>
                         <MobileNavLink to="/merchant/orders" icon={ClipboardList} color="text-primary-500">إدارة الطلبات</MobileNavLink>
+                        <MobileNavLink to="/merchant/store-management" icon={Store} color="text-primary-500">إدارة المتاجر</MobileNavLink>
                       </div>
                     )}
                     
@@ -470,8 +490,8 @@ export default function Navbar() {
                   </>
                 ) : (
                   <div className="flex flex-col gap-3 pt-2">
-                    <Link to="/login" onClick={() => setIsOpen(false)} className="w-full py-4 px-4 bg-gray-50 dark:bg-gray-800 rounded-2xl text-sm font-bold text-center text-gray-700 dark:text-gray-200 font-arabic hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">تسجيل الدخول</Link>
-                    <Link to="/register" onClick={() => setIsOpen(false)} className="w-full py-4 px-4 bg-primary-400 rounded-2xl text-sm font-bold text-center text-white font-arabic shadow-xl shadow-primary-400/20 hover:bg-primary-500 transition-all active:scale-[0.98]">إنشاء حساب مجاني</Link>
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="w-full py-4 px-4 bg-gray-50 dark:bg-gray-800 rounded-2xl text-sm font-bold text-center text-gray-700 dark:text-gray-200 font-arabic hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">تسجيل الدخول</Link>
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="w-full py-4 px-4 bg-primary-400 rounded-2xl text-sm font-bold text-center text-white font-arabic shadow-xl shadow-primary-400/20 hover:bg-primary-500 transition-all active:scale-[0.98]">إنشاء حساب مجاني</Link>
                   </div>
                 )}
               </div>

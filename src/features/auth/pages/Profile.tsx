@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { User, Camera, Save, Lock, Store, ShoppingBag, LayoutDashboard, Package, ClipboardList, CreditCard, ShieldAlert } from 'lucide-react';
+import { User, Camera, Save, Lock, Store, LayoutDashboard, Package, ClipboardList, CreditCard, ShieldAlert } from 'lucide-react';
+import { hasStore } from '@shared/types';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
 import AddressFields from '@shared/components/common/AddressFields';
@@ -24,9 +25,6 @@ export default function Profile() {
     wilaya: '',
     baladia: '',
     bio: '',
-    store_name: '',
-    store_description: '',
-    store_category: '',
     ccp_number: '',
     ccp_name: '',
     baridimob_id: '',
@@ -53,9 +51,6 @@ export default function Profile() {
         wilaya: profile.wilaya ?? '',
         baladia: profile.baladia ?? '',
         bio: profile.bio ?? '',
-        store_name: profile.store_name ?? '',
-        store_description: profile.store_description ?? '',
-        store_category: profile.store_category ?? '',
         ccp_number: profile.ccp_number ?? '',
         ccp_name: profile.ccp_name ?? '',
         baridimob_id: profile.baridimob_id ?? '',
@@ -163,21 +158,13 @@ export default function Profile() {
             <h3 className="font-bold text-gray-900 dark:text-gray-100 font-arabic text-lg">{user?.username}</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">{user?.email}</p>
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              {profile?.is_seller ? (
+              {hasStore(user) && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-primary-100 text-primary-700 text-xs rounded-full font-arabic font-medium border border-primary-200">
                   <Store className="w-3 h-3" />
-                  تاجر
+                  {user!.stores!.length} {user!.stores!.length === 1 ? 'متجر' : 'متاجر'}
                   <span className="mx-1 text-primary-300">|</span>
                   <StarRating rating={profile?.seller_rating ?? 0} size={10} />
                   <span className="font-mono">({profile?.seller_reviews_count ?? 0})</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-arabic font-medium border border-blue-200">
-                  <ShoppingBag className="w-3 h-3" />
-                  مشتري
-                  <span className="mx-1 text-blue-300">|</span>
-                  <StarRating rating={profile?.buyer_rating ?? 0} size={10} />
-                  <span className="font-mono">({profile?.buyer_reviews_count ?? 0})</span>
                 </div>
               )}
               {user?.is_staff && (
@@ -189,8 +176,8 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Merchant quick links */}
-        {profile?.is_seller && (
+        {/* Quick links — shown if user has stores */}
+        {hasStore(user) && (
           <div className="mt-5 pt-5 border-t border-gray-200 dark:border-[#2E2E2E]">
             <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mb-3">روابط سريعة للتاجر</p>
             <div className="flex flex-wrap gap-2">
@@ -223,7 +210,7 @@ export default function Profile() {
       <div className="flex gap-1 bg-gray-100 dark:bg-[#252525] rounded-xl p-1 mb-6">
         {[
           { key: 'personal', label: 'البيانات الشخصية', icon: <User className="w-4 h-4" /> },
-          ...(profile?.is_seller ? [{ key: 'store', label: 'المتجر', icon: <Store className="w-4 h-4" /> }] : []),
+          { key: 'store', label: 'المتاجر', icon: <Store className="w-4 h-4" /> },
           { key: 'password', label: 'كلمة المرور', icon: <Lock className="w-4 h-4" /> },
         ].map((tab) => (
           <button
@@ -281,29 +268,32 @@ export default function Profile() {
           </div>
         )}
 
-        {activeTab === 'store' && profile?.is_seller && (
-          <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-200 dark:border-[#2E2E2E] p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">اسم المتجر</label>
-              <input name="store_name" value={form.store_name} onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+        {activeTab === 'store' && (
+          <div className="bg-white dark:bg-[#1E1E1E] rounded-2xl border border-gray-200 dark:border-[#2E2E2E] p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto">
+              <Store className="w-10 h-10 text-primary-500" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">فئة المتجر</label>
-              <input name="store_category" value={form.store_category} onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic" />
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 font-arabic">إدارة المتاجر</h3>
+              <p className="text-gray-500 dark:text-gray-400 font-arabic max-w-sm mx-auto">
+                لقد انتقلنا إلى نظام المتاجر المتعددة. يمكنك الآن إدارة كافة متاجرك، تعديل بياناتها، أو إنشاء متاجر جديدة من لوحة التحكم المخصصة.
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">وصف المتجر</label>
-              <textarea name="store_description" value={form.store_description} onChange={handleChange} rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400/30 font-arabic resize-none" />
+            <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/merchant/store-management"
+                className="px-8 py-3 bg-primary-400 text-white font-bold rounded-xl hover:bg-primary-500 transition-colors font-arabic inline-flex items-center justify-center gap-2"
+              >
+                <LayoutDashboard className="w-5 h-5" />
+                اذهب لإدارة المتاجر
+              </Link>
             </div>
-
-            <div className="pt-4 border-t border-gray-100 dark:border-[#2E2E2E]">
-              <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary-500" /> معلومات الحساب البنكي (للمدفوعات)
+            
+            <div className="pt-8 border-t border-gray-100 dark:border-[#2E2E2E]">
+              <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 font-arabic mb-4 flex items-center gap-2 justify-center">
+                <CreditCard className="w-4 h-4 text-primary-500" /> معلومات الدفع الشخصية
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-right">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic mb-2">رقم الحساب البريدي (CCP)</label>
                   <input name="ccp_number" value={form.ccp_number} onChange={handleChange}

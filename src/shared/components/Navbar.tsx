@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Heart, User, Menu, X, Search, Store, LayoutDashboard, LogOut, ChevronDown, Package, ClipboardList } from 'lucide-react';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { hasStore } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
 import ThemeToggle from '@shared/components/common/ThemeToggle';
 
@@ -160,7 +161,7 @@ export default function Navbar() {
                         <Store className="w-4 h-4" />
                         طلباتي
                       </Link>
-                      {profile?.is_seller && (
+                      {hasStore(user) && (
                         <>
                           <div className="mx-2 my-1 border-t border-gray-100 dark:border-gray-800" />
                           <p className="px-3 py-1 text-xs text-gray-400 dark:text-gray-500 font-arabic">لوحة التاجر</p>
@@ -240,7 +241,7 @@ export default function Navbar() {
       </div>
 
       {/* شريط التاجر */}
-      {isAuthenticated && profile?.is_seller && isMerchantPage && (
+      {isAuthenticated && hasStore(user) && isMerchantPage && (
         <div className="bg-primary-400 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-2">
@@ -346,7 +347,7 @@ export default function Navbar() {
                     <MobileNavLink to="/profile" icon={User}>الملف الشخصي</MobileNavLink>
                     <MobileNavLink to="/orders" icon={ClipboardList}>طلباتي</MobileNavLink>
                     
-                    {profile?.is_seller && (
+                    {hasStore(user) && (
                       <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-1">
                         <p className="px-3 text-[11px] font-bold text-primary-400 uppercase tracking-widest font-arabic mb-2">لوحة التاجر</p>
                         <MobileNavLink to="/merchant/dashboard" icon={LayoutDashboard} color="text-primary-500">لوحة التحكم</MobileNavLink>

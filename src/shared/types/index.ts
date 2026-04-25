@@ -1,4 +1,19 @@
 // ===== AUTH TYPES =====
+
+export interface Store {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  logo: string | null;
+  category: string;
+  status: 'active' | 'suspended';
+  rating: number;
+  reviews_count: number;
+  products_count?: number;
+  created_at: string;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -8,28 +23,28 @@ export interface User {
   full_name?: string;
   is_staff: boolean;
   date_joined: string;
-  role: 'customer' | 'seller' | 'admin';
+  role: 'customer' | 'admin';
   provider?: 'local' | 'google' | 'facebook';
   is_onboarded?: boolean;
   photo?: string | null;
   last_seen?: string | null;
   is_online?: boolean;
+  stores?: Store[];
 }
+
+/** True if the user owns at least one store — replaces is_seller everywhere */
+export const hasStore = (user?: User | null): boolean =>
+  Boolean(user?.stores && user.stores.length > 0);
 
 export interface Profile {
   id: number;
   user_id?: number;
-  is_seller: boolean;
   phone: string;
   address: string;
   wilaya: string;
   baladia: string;
   bio: string;
   photo: string | null;
-  store_name: string;
-  store_description: string;
-  store_category: string;
-  store_logo: string | null;
   commercial_register: string;
   ccp_number: string;
   ccp_name: string;
@@ -68,7 +83,6 @@ export interface RegisterData {
   email: string;
   password: string;
   password2: string;
-  is_seller: boolean;
 }
 
 // ===== STORE TYPES =====
@@ -103,6 +117,20 @@ export interface ProductAttribute {
   product: number;
   name: string;
   value: string;
+}
+
+export interface ProductOption {
+  name: string;
+  position: number;
+  values: string[];
+}
+
+export interface Series {
+  id: number;
+  name: string;
+  slug: string;
+  logo: string | null;
+  brand: Pick<Brand, 'id' | 'name' | 'slug' | 'logo'>;
 }
 
 export interface VariantImage {
@@ -145,12 +173,13 @@ export interface Product {
   description: string;
   sku: string;
   brand: Brand | null;
+  store?: Store | null;
   is_active: boolean;
   is_featured: boolean;
-  status: 'active' | 'suspended' | 'pending_delete' | 'deleted';
+  status: 'active' | 'under_review' | 'rejected' | 'suspended' | 'pending_delete' | 'deleted';
+  suspension_reason?: string | null;
   suspended_at?: string;
   appeal_deadline?: string;
-  suspension_reason?: string;
   rating: number;
   reviews_count: number;
   sold_count: number;
@@ -158,6 +187,8 @@ export interface Product {
   updated_at: string;
   variants: ProductVariant[];
   attributes: ProductAttribute[];
+  options?: ProductOption[];
+  series?: Series | null;
   images: VariantImage[];
   total_stock: number;
   stock_status: 'high' | 'medium' | 'low' | 'out_of_stock';
@@ -187,11 +218,13 @@ export interface Review {
 // ===== CART TYPES =====
 export interface CartItem {
   id: number;
-  cart: number;
+  cart?: number;
   variant: ProductVariant;
+  variant_id?: number;
+  price?: number;
   quantity: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   subtotal: number;
 }
 

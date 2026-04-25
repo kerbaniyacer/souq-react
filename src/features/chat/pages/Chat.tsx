@@ -31,7 +31,7 @@ export default function Chat() {
   // Map to resolve main order IDs to sub-order IDs for merchants
   const orderIdMap = useMemo(() => {
     const map: Record<string, string> = {};
-    if (user?.role === 'seller' || user?.is_staff) {
+    if ((user?.stores && user.stores.length > 0) || user?.is_staff) {
       merchantOrders.forEach((o: any) => {
         if (o.order) map[o.order.toString()] = o.id.toString();
         if (o.order_number) map[o.order_number] = o.id.toString();
@@ -393,7 +393,7 @@ export default function Chat() {
                           const mainOrderId = mainMatch?.[1] || legacyMatch?.[1];
                           let resolvedId = subMatch?.[1] || legacyMatch?.[1];
 
-                          const isMerchantRole = user?.role === 'seller' || user?.role === 'admin' || user?.is_staff;
+                          const isMerchantRole = (user?.stores && user.stores.length > 0) || user?.role === 'admin' || user?.is_staff;
 
                           // For merchants, we prioritize the mapped sub-order ID
                           if (isMerchantRole) {

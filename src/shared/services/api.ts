@@ -1,4 +1,5 @@
 import djangoApi, { fetchPublicProfileDjango } from '@features/auth/services/authService';
+import type { Store } from '@shared/types';
 export { djangoApi };
 
 export const authApi = {
@@ -45,9 +46,14 @@ export const productsApi = {
     return { data: res.data.results ?? res.data };
   },
 
-  myProducts: async () => {
-    const res = await api.get('/merchant/products/');
+  myProducts: async (params?: Record<string, string | number>) => {
+    const res = await api.get('/merchant/products/', { params });
     return { data: res.data.results ?? res.data };
+  },
+
+  resubmit: async (id: number) => {
+    const res = await api.post(`/merchant/products/${id}/resubmit/`);
+    return { data: res.data };
   },
 
   merchantDetail: async (id: number | string) => {
@@ -77,6 +83,45 @@ export const brandsApi = {
   detail: async (slug: string) => {
     const res = await api.get(`/brands/${slug}/`);
     return { data: res.data };
+  },
+};
+
+// ---- Stores (Django backend) ----
+export const storesApi = {
+  list: async () => {
+    const res = await api.get('/auth/stores/');
+    return { data: res.data as Store[] };
+  },
+  create: async (data: { name: string; description?: string; category?: string }) => {
+    const res = await api.post('/auth/stores/', data);
+    return { data: res.data };
+  },
+  update: async (id: number, data: Partial<{ name: string; description: string; category: string }>) => {
+    const res = await api.patch(`/auth/stores/${id}/`, data);
+    return { data: res.data };
+  },
+  delete: async (id: number) => {
+    await api.delete(`/auth/stores/${id}/`);
+  },
+};
+
+// ---- Admin Product Review ----
+export const adminReviewApi = {
+  list: async () => {
+    const res = await api.get('/admin/products/review/');
+    return { data: res.data as any[] };
+  },
+  decide: async (id: number, action: 'approve' | 'reject', reason?: string) => {
+    const res = await api.post(`/admin/products/review/${id}/decide/`, { action, reason });
+    return { data: res.data };
+  },
+};
+
+// ---- Series (Django backend) ----
+export const seriesApi = {
+  listByBrand: async (brandName: string) => {
+    const res = await api.get('/series/', { params: { brand_name: brandName } });
+    return { data: (res.data.results ?? res.data) as { id: number; name: string; slug: string }[] };
   },
 };
 

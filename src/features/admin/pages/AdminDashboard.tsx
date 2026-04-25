@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Package, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Clock, ShieldCheck, CheckCircle2, AlertCircle, Gavel, X, Flag } from 'lucide-react';
+import { Users, Package, Trash2, Shield, Search, ChevronLeft, Mail, Monitor, Clock, ShieldCheck, CheckCircle2, AlertCircle, Gavel, X, Flag, Eye } from 'lucide-react';
 import api from '@features/auth/services/authService';
 import { getLoginHistory } from '@shared/services/ipService';
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -15,7 +15,7 @@ interface AdminUser {
   date_joined: string;
   provider?: string;
   photo?: string;
-  profile?: { is_seller: boolean };
+  stores?: { id: number; name: string }[];
   status: 'active' | 'suspended';
   suspension_reason?: string;
   suspended_at?: string;
@@ -67,7 +67,7 @@ interface AdminLoginRecord {
 interface AdminActionLogRecord {
   id: number;
   admin_name: string;
-  action: 'suspend' | 'restore' | 'delete' | 'permanent_delete';
+  action: 'suspend' | 'restore' | 'delete' | 'permanent_delete' | 'approve_review' | 'reject_review';
   target_model: string;
   target_id: string;
   target_name: string;
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
   const [_historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<'overview' | 'users' | 'products' | 'orders' | 'reports' | 'appeals' | 'history' | 'actions'>('overview');
   const [search, setSearch] = useState('');
-  const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'buyer' | 'seller'>('all');
+  const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'has_stores' | 'no_stores'>('all');
   const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'inactive' | 'suspended'>('all');
   const [actionTypeFilter, setActionTypeFilter] = useState<'all' | 'User' | 'Product'>('all');
   const [historyDate, setHistoryDate] = useState(new Date().toLocaleDateString('en-CA'));
@@ -136,6 +136,8 @@ export default function AdminDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [reportTypeFilter, setReportTypeFilter] = useState<'all' | 'product' | 'user'>('all');
   const [reportUserFilter, setReportUserFilter] = useState<{ id: string; name: string } | null>(null);
+  const [productsPage, setProductsPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const deleteReport = async (reportId: string) => {
     if (!window.confirm('هل أنت متأكد من حذف هذا البلاغ نهائياً؟')) return;
@@ -252,11 +254,37 @@ export default function AdminDashboard() {
     setDeleteModal({ id: product.id, type: 'product', name: product.name });
   };
 
-  const handleToggleProductStatus = async (product: AdminProduct) => {
+  const handleRestoreProduct = async (product: AdminProduct) => {
     try {
-      await api.patch(`/merchant/products/${product.id}/`, { is_active: !product.is_active });
-      setProducts((p) => p.map((x) => x.id === product.id ? { ...x, is_active: !x.is_active } : x));
-      toast.success(product.is_active ? 'تم إخفاء المنتج' : 'تم تفعيل المنتج');
+      await api.patch(`/merchant/products/${product.id}/`, { is_active: true });
+      setProducts(ps => ps.map(x =>
+        x.id === product.id ? { ...x, is_active: true, status: 'active', suspended_at: undefined, suspension_reason: undefined } : x
+      ));
+      toast.success('تم قبول المنتج وإبلاغ التاجر ✓');
+    } catch {
+      toast.error('تعذر فك التجميد');
+    }
+  };
+
+  const handleHideProduct = async (product: AdminProduct) => {
+    try {
+      await api.patch(`/merchant/products/${product.id}/`, { is_active: false });
+      setProducts(ps => ps.map(x =>
+        x.id === product.id ? { ...x, is_active: false } : x
+      ));
+      toast.success('تم إخفاء المنتج');
+    } catch {
+      toast.error('حدث خطأ');
+    }
+  };
+
+  const handleShowProduct = async (product: AdminProduct) => {
+    try {
+      await api.patch(`/merchant/products/${product.id}/`, { is_active: true });
+      setProducts(ps => ps.map(x =>
+        x.id === product.id ? { ...x, is_active: true } : x
+      ));
+      toast.success('تم إظهار المنتج');
     } catch {
       toast.error('حدث خطأ');
     }
@@ -267,10 +295,11 @@ export default function AdminDashboard() {
       u.username.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
     
-    const matchesType = 
-       userTypeFilter === 'all' ||
-       (userTypeFilter === 'seller' && u.profile?.is_seller) ||
-       (userTypeFilter === 'buyer' && !u.profile?.is_seller);
+    const hasStores = u.stores && u.stores.length > 0;
+    const matchesType =
+      userTypeFilter === 'all' ||
+      (userTypeFilter === 'has_stores' && hasStores) ||
+      (userTypeFilter === 'no_stores' && !hasStores);
 
     return matchesSearch && matchesType;
   });
@@ -285,6 +314,11 @@ export default function AdminDashboard() {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setProductsPage(1);
+  }, [search, productStatusFilter]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -307,6 +341,10 @@ export default function AdminDashboard() {
           <Link to="/admin/appeals" className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 dark:bg-amber-900/10 text-amber-600 rounded-2xl hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all text-sm font-arabic font-bold border border-amber-100 dark:border-amber-900/10">
             <Gavel className="w-4 h-4" />
             إدارة الطعون
+          </Link>
+          <Link to="/admin/products/review" className="flex items-center gap-2 px-5 py-2.5 bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-400 rounded-2xl hover:bg-green-100 dark:hover:bg-green-900/20 transition-all text-sm font-arabic font-bold border border-green-100 dark:border-green-900/10">
+            <Package className="w-4 h-4" />
+            مراجعة المنتجات
           </Link>
           <Link to="/admin/emails" className="flex items-center gap-2 px-5 py-2.5 bg-gray-50 dark:bg-[#252525] text-gray-600 dark:text-gray-400 rounded-2xl hover:bg-gray-100 dark:hover:bg-[#2E2E2E] transition-all text-sm font-arabic font-bold">
             <Mail className="w-4 h-4" />
@@ -345,8 +383,8 @@ export default function AdminDashboard() {
               <select value={userTypeFilter} onChange={(e) => setUserTypeFilter(e.target.value as any)}
                 className="px-6 py-3.5 bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-[#2E2E2E] text-gray-900 dark:text-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 font-arabic font-bold outline-none">
                 <option value="all">الكل</option>
-                <option value="buyer">المشترون</option>
-                <option value="seller">التجار</option>
+                <option value="has_stores">لديهم متاجر</option>
+                <option value="no_stores">بدون متاجر</option>
               </select>
             )}
             {tab === 'products' && (
@@ -528,7 +566,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#2E2E2E]">
-                    {filteredProducts.map((p) => (
+                    {filteredProducts.slice((productsPage - 1) * ITEMS_PER_PAGE, productsPage * ITEMS_PER_PAGE).map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-[#252525] transition-colors">
                         <td className="px-6 py-5">
                           <p className="text-sm font-bold text-gray-900 dark:text-gray-100 font-arabic">{p.name}</p>
@@ -547,21 +585,87 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-5">
-                          <div className="flex items-center gap-2">
-                             <button onClick={() => handleToggleProductStatus(p)} className="p-2 text-gray-400 hover:text-primary-600 transition-all">
-                                {p.is_active ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-                             </button>
-                             {p.status === 'active' && (
-                               <button onClick={() => handleDeleteProduct(p)} disabled={deleting === p.id} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                                 <Trash2 className="w-5 h-5" />
-                               </button>
-                             )}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Preview */}
+                            <Link
+                              to={`/products/${p.slug}`}
+                              target="_blank"
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+                              title="معاينة المنتج"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
+
+                            {/* Suspended → restore button */}
+                            {p.status === 'suspended' ? (
+                              <button
+                                onClick={() => handleRestoreProduct(p)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold font-arabic rounded-xl transition-all shadow-sm shadow-green-600/20"
+                                title="فك التجميد والموافقة على المنتج"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                قبول المنتج
+                              </button>
+                            ) : p.is_active ? (
+                              /* Active → hide button */
+                              <button
+                                onClick={() => handleHideProduct(p)}
+                                className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all"
+                                title="إخفاء المنتج"
+                              >
+                                <AlertCircle className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              /* Hidden (not suspended) → show button */
+                              <button
+                                onClick={() => handleShowProduct(p)}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl transition-all"
+                                title="إظهار المنتج"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {/* Suspend (delete) — only for non-suspended products */}
+                            {p.status !== 'suspended' && (
+                              <button
+                                onClick={() => handleDeleteProduct(p)}
+                                disabled={deleting === p.id}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all disabled:opacity-40"
+                                title="تجميد المنتج"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                </table>
+               
+               {/* Pagination Controls */}
+               {filteredProducts.length > ITEMS_PER_PAGE && (
+                 <div className="flex items-center justify-center gap-2 p-6 border-t border-gray-100 dark:border-[#2E2E2E]">
+                   <button 
+                     disabled={productsPage === 1}
+                     onClick={() => setProductsPage(p => p - 1)}
+                     className="px-4 py-2 bg-gray-100 dark:bg-[#252525] disabled:opacity-50 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-[#303030] transition-colors"
+                   >
+                     السابق
+                   </button>
+                   <span className="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400">
+                     الصفحة {productsPage} من {Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)}
+                   </span>
+                   <button 
+                     disabled={productsPage >= Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)}
+                     onClick={() => setProductsPage(p => p + 1)}
+                     className="px-4 py-2 bg-gray-100 dark:bg-[#252525] disabled:opacity-50 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold hover:bg-gray-200 dark:hover:bg-[#303030] transition-colors"
+                   >
+                     التالي
+                   </button>
+                 </div>
+               )}
             </div>
           )}
 
@@ -668,20 +772,37 @@ export default function AdminDashboard() {
                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-start gap-4">
                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                            log.action === 'suspend' ? 'bg-yellow-100 text-yellow-600' : 
-                            log.action === 'restore' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                            log.action === 'suspend'         ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600' :
+                            log.action === 'restore'         ? 'bg-green-100 dark:bg-green-900/20 text-green-600' :
+                            log.action === 'approve_review'  ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600' :
+                            log.action === 'reject_review'   ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-600' :
+                                                               'bg-red-100 dark:bg-red-900/20 text-red-600'
                          }`}>
-                            {log.action === 'suspend' ? <Shield className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
+                            {log.action === 'approve_review'
+                              ? <CheckCircle2 className="w-6 h-6" />
+                              : log.action === 'reject_review'
+                              ? <AlertCircle className="w-6 h-6" />
+                              : log.action === 'suspend'
+                              ? <Shield className="w-6 h-6" />
+                              : <ShieldCheck className="w-6 h-6" />
+                            }
                          </div>
                          <div>
                             <div className="flex items-center gap-2 flex-wrap text-sm font-arabic">
                                <span className="font-bold text-gray-900 dark:text-gray-100">{log.admin_name}</span>
                                <span className="text-gray-400">قام بـ</span>
                                <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
-                                  log.action === 'suspend' ? 'bg-yellow-100 text-yellow-700' :
-                                  log.action === 'restore' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  log.action === 'suspend'        ? 'bg-yellow-100 text-yellow-700' :
+                                  log.action === 'restore'        ? 'bg-green-100 text-green-700' :
+                                  log.action === 'approve_review' ? 'bg-emerald-100 text-emerald-700' :
+                                  log.action === 'reject_review'  ? 'bg-orange-100 text-orange-700' :
+                                                                    'bg-red-100 text-red-700'
                                }`}>
-                                  {log.action === 'suspend' ? 'تجميد' : log.action === 'restore' ? 'استعادة' : 'حذف نهائي'}
+                                  {log.action === 'suspend'        ? 'تجميد'             :
+                                   log.action === 'restore'        ? 'استعادة'           :
+                                   log.action === 'approve_review' ? 'موافقة على منتج'   :
+                                   log.action === 'reject_review'  ? 'رفض منتج للتعديل' :
+                                                                     'حذف نهائي'}
                                </span>
                                <span className="text-gray-400">لـ {log.target_model === 'User' ? 'مستخدم' : 'منتج'}:</span>
                                <span className="font-bold text-primary-600">{log.target_name}</span>
@@ -693,6 +814,18 @@ export default function AdminDashboard() {
                             </div>
                          </div>
                       </div>
+
+                      {/* Review actions are informational — no further admin action needed */}
+                      {log.action === 'reject_review' && !log.is_processed && (
+                        <span className="text-[11px] font-arabic text-orange-500 dark:text-orange-400 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800/30">
+                          بانتظار تعديل التاجر
+                        </span>
+                      )}
+                      {log.action === 'reject_review' && log.is_processed && (
+                        <span className="text-[11px] font-arabic text-green-600 dark:text-green-400 px-3 py-1.5 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-800/30">
+                          أعاد التاجر التقديم ✓
+                        </span>
+                      )}
 
                       {log.action === 'suspend' && (
                         <div className="flex gap-2">

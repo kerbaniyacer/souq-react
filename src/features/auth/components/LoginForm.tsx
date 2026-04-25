@@ -12,6 +12,8 @@ import { loginSchema, type LoginFormData } from '@shared/lib/schemas';
 import type { User } from '@shared/types';
 import SuspensionModal from '@features/auth/components/SuspensionModal';
 import { getErrorMessage } from '@shared/lib/api-errors';
+import { useCartStore } from '@shared/stores/cartStore';
+import { useWishlistStore } from '@shared/stores/wishlistStore';
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -24,6 +26,8 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
   const [suspensionData, setSuspensionData] = useState<{ isOpen: boolean; userId: number }>({ isOpen: false, userId: 0 });
 
   const { login, loginSocial } = useAuthStore();
+  const syncCart = useCartStore(state => state.syncCart);
+  const syncWishlist = useWishlistStore(state => state.syncWishlist);
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,6 +45,10 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
     try {
       await login(data.email, data.password, rememberMe);
       toast.success('تم تسجيل الدخول بنجاح! 👋');
+      
+      // Sync guest data
+      await Promise.all([syncCart(), syncWishlist()]);
+      
       navigate(from, { replace: true });
     } catch (err: any) {
       if (err?.type === 'ONBOARDING_REQUIRED') {
@@ -72,6 +80,10 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
     const tokens = await verifyIpOtpDjango(otpModalData.email, otp, rememberMe);
     saveTokens(tokens);
     await loginSocial(tokens.user as unknown as User, tokens.access, tokens.refresh);
+    
+    // Sync guest data
+    await Promise.all([syncCart(), syncWishlist()]);
+    
     setOtpModalData({ isOpen: false, email: '' });
     toast.success('تم التحقق وتسجيل الدخول بنجاح!');
     navigate(from, { replace: true });
@@ -111,7 +123,7 @@ export default function LoginForm({ onToggleMode }: LoginFormProps) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300 font-arabic">كلمة المرور</label>
-              <Link to="/forgot-password" disabled={isSubmitting} className="text-xs text-primary-600 hover:underline font-arabic">
+              <Link to="/forgot-password" className={`text-xs text-primary-600 hover:underline font-arabic ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`}>
                 نسيت كلمة المرور؟
               </Link>
             </div>

@@ -1,31 +1,56 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import User, Profile, Report, AdminActionLog, Appeal
+from .models import User, Profile, Store, Report, AdminActionLog, Appeal
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    is_seller = serializers.SerializerMethodField()
+
+    def get_is_seller(self, obj):
+        return obj.is_seller  # computed @property
+
     class Meta:
         model = Profile
         fields = [
             'id', 'phone', 'address', 'wilaya', 'baladia', 'bio',
-            'is_seller', 'store_name', 'store_description',
-            'store_category', 'store_logo', 'commercial_register',
+            'is_seller', 'commercial_register',
             'ccp_number', 'ccp_name', 'baridimob_id',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_seller', 'created_at', 'updated_at']
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
+    is_seller = serializers.SerializerMethodField()
+
+    def get_is_seller(self, obj):
+        return obj.is_seller
+
     class Meta:
         model = Profile
         fields = [
-            'bio', 'wilaya', 'baladia', 'is_seller', 'store_name', 
-            'store_description', 'store_category', 'store_logo',
+            'bio', 'wilaya', 'baladia', 'is_seller',
             'seller_rating', 'seller_reviews_count',
             'buyer_rating', 'buyer_reviews_count',
             'created_at'
         ]
+
+
+class StoreMiniSerializer(serializers.ModelSerializer):
+    products_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Store
+        fields = ['id', 'name', 'slug', 'logo', 'category', 'status', 'rating', 'reviews_count', 'products_count', 'created_at']
+
+    def get_products_count(self, obj):
+        return obj.products.filter(is_active=True).count()
+
+
+class StoreWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = ['name', 'description', 'logo', 'category']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -34,6 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
     is_onboarded = serializers.SerializerMethodField()
     reports_count = serializers.IntegerField(read_only=True)
     is_online = serializers.SerializerMethodField()
+    stores = serializers.SerializerMethodField()
 
     def get_is_onboarded(self, obj):
         profile = getattr(obj, 'profile', None)
@@ -42,13 +68,16 @@ class UserSerializer(serializers.ModelSerializer):
     def get_is_online(self, obj):
         return obj.is_online
 
+    def get_stores(self, obj):
+        return StoreMiniSerializer(obj.stores.filter(status='active'), many=True).data
+
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
             'full_name', 'photo', 'provider', 'is_staff', 'date_joined', 'role',
             'profile', 'status', 'suspended_at', 'appeal_deadline', 'suspension_reason',
-            'is_onboarded', 'reports_count', 'last_seen', 'is_online',
+            'is_onboarded', 'reports_count', 'last_seen', 'is_online', 'stores',
         ]
         read_only_fields = ['id', 'is_staff', 'date_joined', 'provider', 'last_seen', 'is_online']
 
@@ -81,26 +110,17 @@ class AdminActionLogSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True)
-    is_seller = serializers.BooleanField(default=False)
     phone = serializers.CharField(required=False, allow_blank=True, default='')
     wilaya = serializers.CharField(required=False, allow_blank=True, default='')
     baladia = serializers.CharField(required=False, allow_blank=True, default='')
     address = serializers.CharField(required=False, allow_blank=True, default='')
-    store_name = serializers.CharField(required=False, allow_blank=True, default='')
-    store_description = serializers.CharField(required=False, allow_blank=True, default='')
-    store_category = serializers.CharField(required=False, allow_blank=True, default='')
-    ccp_number = serializers.CharField(required=False, allow_blank=True, default='')
-    ccp_name = serializers.CharField(required=False, allow_blank=True, default='')
-    baridimob_id = serializers.CharField(required=False, allow_blank=True, default='')
 
     class Meta:
         model = User
         fields = [
             'email', 'username', 'first_name', 'last_name',
             'password', 'password2',
-            'is_seller', 'phone', 'wilaya', 'baladia', 'address',
-            'store_name', 'store_description', 'store_category',
-            'ccp_number', 'ccp_name', 'baridimob_id',
+            'phone', 'wilaya', 'baladia', 'address',
         ]
 
     def validate(self, attrs):
@@ -110,17 +130,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         profile_data = {
-            'is_seller': validated_data.pop('is_seller', False),
-            'phone': validated_data.pop('phone', ''),
-            'wilaya': validated_data.pop('wilaya', ''),
+            'phone':   validated_data.pop('phone', ''),
+            'wilaya':  validated_data.pop('wilaya', ''),
             'baladia': validated_data.pop('baladia', ''),
             'address': validated_data.pop('address', ''),
-            'store_name': validated_data.pop('store_name', ''),
-            'store_description': validated_data.pop('store_description', ''),
-            'store_category': validated_data.pop('store_category', ''),
-            'ccp_number': validated_data.pop('ccp_number', ''),
-            'ccp_name': validated_data.pop('ccp_name', ''),
-            'baridimob_id': validated_data.pop('baridimob_id', ''),
         }
         user = User.objects.create_user(**validated_data)
         Profile.objects.create(user=user, **profile_data)

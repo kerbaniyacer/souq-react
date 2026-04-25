@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Plus, Trash2, Save, ChevronDown, ChevronUp, Video, X, ImagePlus, Sparkles, Star, ShoppingBag, MessageCircle, Package } from 'lucide-react';
 import { useToast } from '@shared/stores/toastStore';
-import { productsApi, categoriesApi } from '@shared/services/api';
+import { productsApi, categoriesApi, seriesApi } from '@shared/services/api';
+import { useStoreStore } from '@shared/stores/storeStore';
 import type { Category } from '@shared/types';
+import SpecsEditor, { type Spec } from '../components/SpecsEditor';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,10 +15,6 @@ interface OptionType {
   values: string[]; // e.g. ["أحمر","أزرق"]
 }
 
-interface Spec {
-  key: string;
-  value: string;
-}
 
 interface VariantForm {
   id?: string;
@@ -62,13 +60,6 @@ const EXAMPLE_OPTION_SETS = [
   },
 ];
 
-const SPEC_EXAMPLES = [
-  { key: 'المعالج', value: 'Snapdragon 8 Gen 3' },
-  { key: 'الشاشة', value: '6.8 بوصة AMOLED' },
-  { key: 'البطارية', value: '5000 mAh' },
-  { key: 'الخامة', value: '100% قطن' },
-  { key: 'بلد الصنع', value: 'الصين' },
-];
 
 // ─── Cartesian product helper ─────────────────────────────────────────────────
 function cartesian(arrays: string[][]): string[][] {
@@ -99,6 +90,7 @@ export default function MerchantProductForm() {
   const isEdit = Boolean(id);
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef<HTMLInputElement>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -111,11 +103,17 @@ export default function MerchantProductForm() {
     description: '',
     sku: '',
     category_id: '',
+    category_other: '',
     brand: '',
     brand_other: '',
+    series_id: '',
+    series_other: '',
     is_active: true,
     is_featured: false,
+    store_id: '',
   });
+
+  const [seriesList, setSeriesList] = useState<{ id: number; name: string }[]>([]);
 
   // ─── Option types ──────────────────────────────────────────────
   const [optionTypes, setOptionTypes] = useState<OptionType[]>([]);
@@ -138,12 +136,37 @@ export default function MerchantProductForm() {
 
   // ─── Specifications ────────────────────────────────────────────
   const [specs, setSpecs] = useState<Spec[]>([]);
-  const [newSpec, setNewSpec] = useState<Spec>({ key: '', value: '' });
 
   // ─── Video ─────────────────────────────────────────────────────
   const [videoPreview, setVideoPreview] = useState<string>('');
   const [videoName, setVideoName] = useState('');
   const [stats, setStats] = useState({ sold: 0, rating: 0, reviews: 0, stock: 0 });
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+
+  const { stores, loadStores, activeStoreId } = useStoreStore();
+
+  // تحميل المتاجر مرة واحدة فقط عند mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadStores(); }, []);
+
+  // تعيين المتجر الافتراضي للمنتج الجديد (مرة واحدة فقط)
+  const storeIdInitialized = useRef(false);
+  useEffect(() => {
+    if (isEdit || storeIdInitialized.current || stores.length === 0) return;
+    storeIdInitialized.current = true;
+    const storeIdFromState = location.state?.storeId;
+    const id = storeIdFromState ?? activeStoreId ?? stores[0]?.id;
+    if (id) setForm(f => ({ ...f, store_id: String(id) }));
+  }, [stores.length, activeStoreId, isEdit, location.state]);
+
+  // ─── Load series when brand changes ────────────────────────────
+  useEffect(() => {
+    const brandName = form.brand === 'other' ? '' : form.brand;
+    if (!brandName) { setSeriesList([]); return; }
+    seriesApi.listByBrand(brandName)
+      .then((r) => setSeriesList(r.data))
+      .catch(() => setSeriesList([]));
+  }, [form.brand]);
 
   // ─── Load categories & product (edit) ──────────────────────────
   useEffect(() => {
@@ -168,13 +191,23 @@ export default function MerchantProductForm() {
           description: p.description ?? '',
           sku: p.sku ?? '',
           category_id: String(p.category?.id ?? p.category_id ?? ''),
+          category_other: '',
           brand: PRESET_BRANDS.includes(p.brand?.name ?? p.brand ?? '') ? (p.brand?.name ?? p.brand ?? '') : (p.brand?.name ?? p.brand) ? 'other' : '',
           brand_other: PRESET_BRANDS.includes(p.brand?.name ?? p.brand ?? '') ? '' : (p.brand?.name ?? p.brand ?? ''),
+          series_id: p.series?.id ? String(p.series.id) : '',
+          series_other: '',
           is_active: p.is_active ?? true,
           is_featured: p.is_featured ?? false,
+          store_id: String(p.store?.id ?? p.store_id ?? ''),
         });
         if (p.video) { setVideoPreview(p.video); setVideoName('فيديو موجود'); }
-        if (p.specifications?.length) setSpecs(p.specifications);
+        if (p.specifications?.length) {
+          // Migrate old flat [{key, value}] format to new union type
+          setSpecs(p.specifications.map((s: any): Spec =>
+            (s.type === 'simple' || s.type === 'group') ? s
+              : { type: 'simple', name: s.key ?? s.name ?? '', value: s.value ?? '' }
+          ));
+        }
         if (p.variants?.length) {
           setVariants(p.variants.map((v: any) => ({
             id: String(v.id),
@@ -196,6 +229,9 @@ export default function MerchantProductForm() {
           reviews: p.reviews_count ?? 0,
           stock: p.total_stock ?? 0
         });
+        if (p.status === 'rejected') {
+          setRejectionReason(p.suspension_reason || 'لم يُحدد سبب.');
+        }
       }).catch(() => {
         toast.error('تعذّر تحميل بيانات المنتج');
       }).finally(() => setLoading(false));
@@ -349,15 +385,6 @@ export default function MerchantProductForm() {
     setVideoName(file.name);
   };
 
-  // ─── Spec management ──────────────────────────────────────────
-  const addSpec = () => {
-    if (!newSpec.key.trim() || !newSpec.value.trim()) return;
-    setSpecs((p) => [...p, { ...newSpec }]);
-    setNewSpec({ key: '', value: '' });
-  };
-
-  const removeSpec = (idx: number) => setSpecs((p) => p.filter((_, i) => i !== idx));
-
   // ─── Submit ───────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,18 +393,34 @@ export default function MerchantProductForm() {
     const emptyPrice = variants.find((v) => !v.price);
     if (emptyPrice) { toast.error(`أدخل السعر لجميع النسخ (${emptyPrice.name || 'نسخة بدون اسم'})`); return; }
 
+    if (form.category_id === 'other' && !form.category_other.trim()) {
+      toast.error('أدخل اسم القسم الجديد');
+      return;
+    }
+
     setSaving(true);
     try {
       const brandValue = form.brand === 'other' ? form.brand_other : form.brand;
+      const isOtherCategory = form.category_id === 'other';
+
+      const isOtherSeries = form.series_id === 'other';
+      const seriesIdValue = !isOtherSeries && form.series_id ? Number(form.series_id) : null;
+      const seriesNameValue = isOtherSeries ? form.series_other.trim()
+        : (form.brand === 'other' && form.series_other.trim()) ? form.series_other.trim() : '';
 
       const productData = {
         name: form.name,
         description: form.description,
         sku: form.sku,
-        category_id: form.category_id ? Number(form.category_id) : null,
+        category_id: isOtherCategory ? null : (form.category_id ? Number(form.category_id) : null),
+        category_name: isOtherCategory ? form.category_other.trim() : '',
         brand_name: brandValue,
+        series_id: seriesIdValue,
+        series_name: seriesNameValue,
+        store_id: form.store_id ? Number(form.store_id) : null,
         is_active: form.is_active,
         is_featured: form.is_featured,
+        specifications: specs,
         variants: variants.map((v) => ({
           name: v.name,
           sku: v.sku,
@@ -438,6 +481,24 @@ export default function MerchantProductForm() {
         {isEdit ? 'تعديل المنتج' : '+ إضافة منتج جديد'}
       </h1>
 
+      {/* Rejection banner */}
+      {rejectionReason && (
+        <div className="mb-6 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30 rounded-2xl p-5">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="font-bold text-red-700 dark:text-red-400 mb-1">تم رفض هذا المنتج من قبل الإدارة</p>
+              <p className="text-sm text-red-600 dark:text-red-500 font-arabic leading-relaxed">
+                <span className="font-bold">السبب:</span> {rejectionReason}
+              </p>
+              <p className="text-xs text-red-500/70 dark:text-red-400/60 mt-2">
+                عدّل المنتج بناءً على الملاحظات أعلاه، ثم اضغط "إعادة تقديم للمراجعة" من صفحة منتجاتي.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isEdit && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
            <StatBox label="إجمالي المبيعات" value={stats.sold} icon={<ShoppingBag className="w-5 h-5" />} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-900/10" />
@@ -464,32 +525,78 @@ export default function MerchantProductForm() {
               rows={4} placeholder="وصف تفصيلي للمنتج، ميزاته، مواصفاته العامة..."
               className="field-input resize-none" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="field-label">المتجر *</label>
+              <select name="store_id" value={form.store_id}
+                onChange={(e) => setForm((p) => ({ ...p, store_id: e.target.value }))}
+                required
+                className="field-input">
+                <option value="">اختر المتجر</option>
+                {stores.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+              </select>
+            </div>
             <div>
               <label className="field-label">القسم</label>
               <select name="category_id" value={form.category_id}
-                onChange={(e) => setForm((p) => ({ ...p, category_id: e.target.value }))}
+                onChange={(e) => setForm((p) => ({ ...p, category_id: e.target.value, category_other: '' }))}
                 className="field-input">
                 <option value="">اختر القسم</option>
                 {categories.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                <option value="other">أخرى...</option>
               </select>
             </div>
             <div>
               <label className="field-label">العلامة التجارية</label>
-              <select value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))}
+              <select value={form.brand}
+                onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value, series_id: '', series_other: '' }))}
                 className="field-input">
                 <option value="">بدون علامة تجارية</option>
                 {PRESET_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
                 <option value="other">أخرى...</option>
               </select>
             </div>
+            <div>
+              <label className="field-label">السلسلة <span className="text-gray-400 font-normal">(اختياري)</span></label>
+              <select
+                value={form.series_id}
+                onChange={(e) => setForm((p) => ({ ...p, series_id: e.target.value, series_other: '' }))}
+                disabled={!form.brand || form.brand === 'other'}
+                className="field-input disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{!form.brand ? 'اختر ماركة أولاً' : 'بدون سلسلة'}</option>
+                {seriesList.map((s) => (
+                  <option key={s.id} value={String(s.id)}>{s.name}</option>
+                ))}
+                {form.brand && form.brand !== 'other' && <option value="other">أخرى...</option>}
+              </select>
+            </div>
           </div>
+          {form.category_id === 'other' && (
+            <div>
+              <label className="field-label">اسم القسم الجديد</label>
+              <input value={form.category_other} onChange={(e) => setForm((p) => ({ ...p, category_other: e.target.value }))}
+                placeholder="أدخل اسم القسم (سيُنشأ تلقائياً إن لم يكن موجوداً)"
+                className="field-input" />
+            </div>
+          )}
           {form.brand === 'other' && (
             <div>
               <label className="field-label">اسم العلامة التجارية</label>
               <input value={form.brand_other} onChange={(e) => setForm((p) => ({ ...p, brand_other: e.target.value }))}
                 placeholder="أدخل اسم العلامة التجارية"
                 className="field-input" />
+            </div>
+          )}
+          {form.series_id === 'other' && (
+            <div>
+              <label className="field-label">اسم السلسلة الجديدة</label>
+              <input
+                value={form.series_other}
+                onChange={(e) => setForm((p) => ({ ...p, series_other: e.target.value }))}
+                placeholder="مثال: Redmi، Poco، Galaxy S..."
+                className="field-input"
+              />
             </div>
           )}
           <div>
@@ -504,7 +611,7 @@ export default function MerchantProductForm() {
           </div>
           {!isEdit && (
             <p className="text-xs text-amber-700 dark:text-amber-400 font-arabic bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-xl p-3 mt-2">
-              ⏳ سيخضع المنتج لمراجعة إدارية قبل نشره — يُنشر تلقائياً خلال <strong>24 ساعة</strong> إذا لم تتم المراجعة.
+              ⏳ سيخضع المنتج لمراجعة إدارية قبل نشره — في مدة أقصاها <strong>24 ساعة</strong>.
             </p>
           )}
         </Section>
@@ -798,53 +905,7 @@ export default function MerchantProductForm() {
 
         {/* ── المواصفات الفنية ──────────────────────────────────────── */}
         <Section title="المواصفات الفنية">
-          {/* Examples */}
-          <div className="mb-4">
-            <p className="text-xs text-gray-400 dark:text-gray-500 font-arabic mb-2">أمثلة سريعة:</p>
-            <div className="flex flex-wrap gap-2">
-              {SPEC_EXAMPLES.map((ex) => (
-                <button key={ex.key} type="button"
-                  onClick={() => setSpecs((p) => p.find((s) => s.key === ex.key) ? p : [...p, ex])}
-                  className="px-2.5 py-1 text-xs bg-gray-100 dark:bg-[#252525] text-gray-600 dark:text-gray-400 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 font-arabic transition-colors">
-                  + {ex.key}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Spec list */}
-          {specs.map((spec, i) => (
-            <div key={i} className="flex items-center gap-2 mb-2">
-              <input value={spec.key} onChange={(e) => setSpecs((p) => p.map((s, j) => j === i ? { ...s, key: e.target.value } : s))}
-                placeholder="المواصفة"
-                className="w-36 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#2E2E2E] bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-gray-100 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30" />
-              <span className="text-gray-300 dark:text-gray-600">:</span>
-              <input value={spec.value} onChange={(e) => setSpecs((p) => p.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
-                placeholder="القيمة"
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#2E2E2E] bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-gray-100 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30" />
-              <button type="button" onClick={() => removeSpec(i)}
-                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-
-          {/* Add spec */}
-          <div className="flex items-center gap-2 mt-2">
-            <input value={newSpec.key} onChange={(e) => setNewSpec((p) => ({ ...p, key: e.target.value }))}
-              placeholder="المواصفة (مثال: الوزن)"
-              className="w-36 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30" />
-            <span className="text-gray-300 dark:text-gray-600">:</span>
-            <input value={newSpec.value}
-              onChange={(e) => setNewSpec((p) => ({ ...p, value: e.target.value }))}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSpec())}
-              placeholder="القيمة (مثال: 185 غرام)"
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#2E2E2E] bg-gray-50 dark:bg-[#1A1A1A] text-gray-900 dark:text-gray-100 text-sm font-arabic focus:outline-none focus:ring-2 focus:ring-primary-400/30" />
-            <button type="button" onClick={addSpec}
-              className="p-2 bg-primary-400 text-white rounded-lg hover:bg-primary-500 transition-colors">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+          <SpecsEditor specs={specs} onChange={setSpecs} />
         </Section>
 
         {/* ── الفيديو ──────────────────────────────────────────────── */}

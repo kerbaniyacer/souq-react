@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Star, Store, User as UserIcon, MapPin, Calendar, MessageSquare, ShoppingBag } from 'lucide-react';
+import { Star, Store, User as UserIcon, MapPin, Calendar, MessageSquare } from 'lucide-react';
+import { hasStore } from '@shared/types';
 import { authApi, productsApi, reviewsApi } from '@shared/services/api';
 import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -29,17 +30,19 @@ export default function UserProfile() {
       }
       setUser(userData);
       
-      // If merchant, fetch products and seller reviews
-      if (userData.profile?.is_seller) {
+      const userHasStores = userData.stores && userData.stores.length > 0;
+
+      // If user has stores, fetch their products and seller reviews
+      if (userHasStores) {
         productsApi.list({ seller: userData.id }).then(pRes => setProducts(pRes.data));
         reviewsApi.sellerList(userData.id).then(rRes => setSellerReviews(rRes.data));
       }
 
-      // Always try to fetch buyer reviews (other merchants might have rated them)
+      // Always fetch buyer reviews
       reviewsApi.buyerList(userData.id).then(brRes => setBuyerReviews(brRes.data));
-      
-      // Default tab
-      if (!userData.profile?.is_seller) setActiveTab('reviews');
+
+      // Default tab: products if has stores, else reviews
+      if (!userHasStores) setActiveTab('reviews');
 
     }).catch(() => {
        setUser(null);
@@ -93,7 +96,7 @@ export default function UserProfile() {
                   </div>
                 )}
              </div>
-             {p?.is_seller && (
+             {hasStore(user) && (
                 <div className="absolute -bottom-2 -right-2 bg-primary-500 text-white p-2 rounded-xl shadow-lg border-2 border-white dark:border-gray-900">
                   <Store size={18} />
                 </div>
@@ -104,8 +107,14 @@ export default function UserProfile() {
           <div className="flex-1 text-center md:text-right">
              <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
                 <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100 font-arabic">
-                  {p?.is_seller ? p.store_name : user.full_name}
+                  {user.full_name || user.username}
                 </h1>
+                {hasStore(user) && user.stores && user.stores.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-primary-100 text-primary-700 text-[10px] rounded-full font-arabic font-bold border border-primary-200">
+                    <Store className="w-3 h-3" />
+                    {user.stores.length === 1 ? user.stores[0].name : `${user.stores.length} متاجر`}
+                  </div>
+                )}
                 <span className="px-4 py-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full text-sm font-mono">
                   @{user.username}
                 </span>
@@ -130,7 +139,7 @@ export default function UserProfile() {
 
              {/* Rating Badges + Chat Button */}
              <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
-                {p?.is_seller && (
+                {hasStore(user) && (
                   <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-xl hover:shadow-yellow-200/40 dark:hover:shadow-yellow-900/20 hover:border-yellow-200 dark:hover:border-yellow-700/40">
                     <p className="text-[10px] text-yellow-600 dark:text-yellow-500 font-bold font-arabic mb-1">تقييم البائع</p>
                     <div className="flex items-center gap-2">
@@ -172,7 +181,7 @@ export default function UserProfile() {
 
       {/* Tabs */}
       <div className="flex items-center gap-8 border-b border-gray-100 dark:border-gray-800 mb-8 px-4">
-        {p?.is_seller && (
+        {hasStore(user) && (
           <button 
             onClick={() => setActiveTab('products')}
             className={`pb-4 text-sm font-bold font-arabic transition-all relative ${activeTab === 'products' ? 'text-primary-500' : 'text-gray-400 hover:text-gray-600'}`}
@@ -185,14 +194,14 @@ export default function UserProfile() {
           onClick={() => setActiveTab('reviews')}
           className={`pb-4 text-sm font-bold font-arabic transition-all relative ${activeTab === 'reviews' ? 'text-primary-500' : 'text-gray-400 hover:text-gray-600'}`}
         >
-          التقييمات ({p?.is_seller ? sellerReviews.length + buyerReviews.length : buyerReviews.length})
+          التقييمات ({hasStore(user) ? sellerReviews.length + buyerReviews.length : buyerReviews.length})
           {activeTab === 'reviews' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary-500 rounded-t-full" />}
         </button>
       </div>
 
       {/* Tab Content */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {activeTab === 'products' && p?.is_seller && (
+        {activeTab === 'products' && hasStore(user) && (
            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {products.map(product => (
                 <Link key={product.id} to={`/products/${product.slug}`} className="group bg-white dark:bg-gray-950 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-900 hover:shadow-xl transition-all">
@@ -231,7 +240,7 @@ export default function UserProfile() {
         {activeTab === 'reviews' && (
            <div className="space-y-12">
               {/* Merchant Reviews Section */}
-              {p?.is_seller && sellerReviews.length > 0 && (
+              {hasStore(user) && sellerReviews.length > 0 && (
                 <div className="space-y-6">
                   <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic">
                     <Store size={20} className="text-primary-500" /> تقييمات المتجر
@@ -273,7 +282,7 @@ export default function UserProfile() {
               {buyerReviews.length > 0 && (
                  <div className="space-y-6">
                     <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 font-arabic">
-                      <ShoppingBag size={20} className="text-blue-500" /> تقييمات كـ مشتري
+                      <ShoppingBag size={20} className="text-blue-500" /> تقييمات المشتريات
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {buyerReviews.map(rev => (

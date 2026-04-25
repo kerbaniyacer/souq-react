@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class User(AbstractUser):
@@ -19,7 +20,6 @@ class User(AbstractUser):
 
     class Role(models.TextChoices):
         CUSTOMER = 'customer', 'Customer'
-        SELLER = 'seller', 'Seller'
         ADMIN = 'admin', 'Admin'
 
     email = models.EmailField(unique=True)
@@ -60,6 +60,42 @@ class User(AbstractUser):
         return self.last_seen >= timezone.now() - timedelta(minutes=1)
 
 
+class Store(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'نشط'
+        SUSPENDED = 'suspended', 'موقوف'
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stores', verbose_name='المالك')
+    name = models.CharField(max_length=200, verbose_name='اسم المتجر')
+    slug = models.SlugField(max_length=250, unique=True, blank=True, verbose_name='الرابط')
+    description = models.TextField(blank=True, default='', verbose_name='الوصف')
+    logo = models.ImageField(upload_to='stores/logos/', null=True, blank=True, verbose_name='الشعار')
+    category = models.CharField(max_length=100, blank=True, default='', verbose_name='تصنيف المتجر')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, verbose_name='الحالة')
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0, verbose_name='التقييم')
+    reviews_count = models.PositiveIntegerField(default=0, verbose_name='عدد التقييمات')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'متجر'
+        verbose_name_plural = 'المتاجر'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name) or f'store-{self.owner_id}'
+            slug, counter = base, 1
+            while Store.objects.filter(slug=slug).exists():
+                slug = f'{base}-{counter}'
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.name} ({self.owner.username})'
+
+
 class Profile(models.Model):
     """Extended profile — one-to-one with User."""
 
@@ -69,16 +105,9 @@ class Profile(models.Model):
     wilaya = models.CharField(max_length=100, blank=True, default='')
     baladia = models.CharField(max_length=100, blank=True, default='')
     bio = models.TextField(blank=True, default='')
-    is_seller = models.BooleanField(default=False)
-
-    # Store fields (only relevant when is_seller=True)
-    store_name = models.CharField(max_length=200, blank=True, default='')
-    store_description = models.TextField(blank=True, default='')
-    store_category = models.CharField(max_length=100, blank=True, default='')
-    store_logo = models.ImageField(upload_to='stores/logos/', null=True, blank=True)
     commercial_register = models.CharField(max_length=100, blank=True, default='')
 
-    # Bank / Payment Details (for Sellers)
+    # Payment details
     ccp_number = models.CharField(max_length=20, blank=True, default='', verbose_name='رقم الحساب البريدي (CCP)')
     ccp_name   = models.CharField(max_length=200, blank=True, default='', verbose_name='الاسم الكامل في الحساب')
     baridimob_id = models.CharField(max_length=50, blank=True, default='', verbose_name='رقم RIP أو BaridiMob')
@@ -97,13 +126,14 @@ class Profile(models.Model):
         verbose_name_plural = 'الملفات الشخصية'
 
     @property
+    def is_seller(self) -> bool:
+        """True if the user owns at least one active store."""
+        return self.user.stores.filter(status='active').exists()
+
+    @property
     def is_onboarded(self) -> bool:
         """Returns True if the user has completed the mandatory profile fields."""
-        if not self.phone or not self.wilaya:
-            return False
-        if self.is_seller and not self.store_name:
-            return False
-        return True
+        return bool(self.phone and self.wilaya)
 
     def __str__(self):
         return f'Profile({self.user.email})'
@@ -117,6 +147,8 @@ class AdminActionLog(models.Model):
         RESTORE = 'restore', 'Restore'
         DELETE = 'delete', 'Delete'
         PERMANENT_DELETE = 'permanent_delete', 'Permanent Delete'
+        APPROVE_REVIEW = 'approve_review', 'Approve Review'
+        REJECT_REVIEW = 'reject_review', 'Reject Review'
 
     admin_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='admin_actions')
     action = models.CharField(max_length=20, choices=Action.choices)

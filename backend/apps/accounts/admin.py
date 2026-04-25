@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Profile, LoginHistory, AdminActionLog, Report, Appeal
+from .models import User, Profile, Store, LoginHistory, AdminActionLog, Report, Appeal
 
 
 @admin.register(User)
@@ -16,10 +16,23 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'phone', 'wilaya', 'is_seller', 'store_name']
-    list_filter = ['is_seller', 'wilaya']
-    search_fields = ['user__email', 'store_name', 'phone']
+    list_display = ['user', 'phone', 'wilaya', 'has_stores']
+    list_filter = ['wilaya']
+    search_fields = ['user__email', 'phone']
     raw_id_fields = ['user']
+
+    @admin.display(description='لديه متاجر', boolean=True)
+    def has_stores(self, obj):
+        return obj.is_seller
+ 
+ 
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    list_display = ['name', 'owner', 'status', 'rating', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['name', 'owner__username', 'owner__email']
+    prepopulated_fields = {'slug': ('name',)}
+    raw_id_fields = ['owner']
 
 
 @admin.register(LoginHistory)

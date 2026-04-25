@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
-    Category, Brand,
+    Category, Brand, Series,
     Product, ProductVariant, ProductAttribute,
     VariantImage, ProductVideo, AttributeValue,
 )
@@ -31,6 +31,28 @@ class BrandAdmin(admin.ModelAdmin):
     search_fields = ['name', 'slug', 'country']
     prepopulated_fields = {'slug': ('name',)}
     ordering      = ['-created_at']
+
+
+# ── Series ───────────────────────────────────────────────────────────────────
+
+class SeriesInline(admin.TabularInline):
+    model = Series
+    extra = 0
+    fields = ['name', 'slug', 'logo']
+    prepopulated_fields = {'slug': ('name',)}
+
+
+@admin.register(Series)
+class SeriesAdmin(admin.ModelAdmin):
+    list_display  = ['name', 'brand', 'slug', 'products_count', 'created_at']
+    list_filter   = ['brand']
+    search_fields = ['name', 'slug', 'brand__name']
+    prepopulated_fields = {'slug': ('name',)}
+    ordering      = ['brand', 'name']
+
+    @admin.display(description='المنتجات')
+    def products_count(self, obj):
+        return obj.products.filter(is_active=True).count()
 
 
 # ── Variant Image inline ──────────────────────────────────────────────────────
@@ -90,7 +112,7 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('seller', 'name', 'slug', 'description', 'sku'),
         }),
         ('التصنيف', {
-            'fields': ('category', 'brand'),
+            'fields': ('category', 'brand', 'series'),
         }),
         ('الحالة', {
             'fields': ('is_active', 'is_featured'),

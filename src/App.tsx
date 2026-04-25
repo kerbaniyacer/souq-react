@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { refreshAccessToken, initTokenSync, requestTokenFromSiblingTab } from '@features/auth/services/authService';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Layout from '@shared/components/layout/Layout';
@@ -11,6 +11,42 @@ function ScrollToTop() {
   return null;
 }
 
+// ── Routing redirects (maps notification URLs → existing pages) ───────────────
+
+/** /chat/:id → /chat?conversationId=:id */
+function ChatRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/chat?conversationId=${id}`} replace />;
+}
+
+/** /orders/:id/status | /orders/:id/confirmed | /orders/:id/payment → /orders/:id */
+function OrderSubRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/orders/${id}`} replace />;
+}
+
+/** /merchant/orders/:id/payment → /merchant/orders/:id */
+function MerchantOrderSubRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/merchant/orders/${id}`} replace />;
+}
+
+/** /appeals/:id → /appeals/list */
+function AppealDetailRedirect() {
+  return <Navigate to="/appeals/list" replace />;
+}
+
+/** /store/:id → /profile/:id */
+function StoreRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/profile/${id}`} replace />;
+}
+
+/** /admin/users → /admin-panel */
+function AdminUsersRedirect() {
+  return <Navigate to="/admin-panel" replace />;
+}
+
 // Eager-loaded (core user paths)
 import Home from '@features/products/pages/Home';
 import Products from '@features/products/pages/Products';
@@ -20,6 +56,7 @@ import Checkout from '@features/cart/pages/Checkout';
 import Orders from '@features/orders/pages/Orders';
 import OrderDetail from '@features/orders/pages/OrderDetail';
 import OrderReview from '@features/orders/pages/OrderReview';
+import OrderSuccess from '@features/orders/pages/OrderSuccess';
 import Wishlist from '@features/products/pages/Wishlist';
 import TrackOrder from '@features/orders/pages/TrackOrder';
 import AuthPage from '@features/auth/pages/AuthPage';
@@ -29,6 +66,7 @@ import ForgotPassword from '@features/auth/pages/ForgotPassword';
 import ResetPassword from '@features/auth/pages/ResetPassword';
 import AccountSuspended from '@features/auth/pages/AccountSuspended';
 import RegistrationSuccess from '@features/auth/pages/RegistrationSuccess';
+import VerifyEmailPage from '@features/auth/pages/VerifyEmailPage';
 import AppealForm from '@features/auth/pages/AppealForm';
 import MyAppeals from '@features/auth/pages/MyAppeals';
 import UserProfile from '@features/accounts/pages/UserProfile';
@@ -42,14 +80,19 @@ const MerchantProductForm = lazy(() => import('@features/merchant/pages/Merchant
 const MerchantOrders = lazy(() => import('@features/merchant/pages/MerchantOrders'));
 const MerchantOrderDetail = lazy(() => import('@features/merchant/pages/MerchantOrderDetail'));
 const MerchantSuspendedProducts = lazy(() => import('@features/merchant/pages/MerchantSuspendedProducts'));
+const StoreManagement = lazy(() => import('@features/merchant/pages/StoreManagement'));
+const StoreDashboard = lazy(() => import('@features/merchant/pages/StoreDashboard'));
 const Chat = lazy(() => import('@features/chat/pages/Chat'));
 
 // Lazy-loaded (admin section)
 const AdminDashboard = lazy(() => import('@features/admin/pages/AdminDashboard'));
 const AdminUserDetail = lazy(() => import('@features/admin/pages/AdminUserDetail'));
 const AdminAppeals = lazy(() => import('@features/admin/pages/AdminAppeals'));
+const AdminProductReview = lazy(() => import('@features/admin/pages/AdminProductReview'));
 const EmailGallery = lazy(() => import('@features/admin/pages/emails/EmailGallery'));
 const WelcomeEmail = lazy(() => import('@features/admin/pages/emails/WelcomeEmail'));
+const MerchantWelcomeEmail = lazy(() => import('@features/admin/pages/emails/MerchantWelcomeEmail'));
+const VerifyEmailTemplate = lazy(() => import('@features/admin/pages/emails/VerifyEmailTemplate'));
 const OtpEmail = lazy(() => import('@features/admin/pages/emails/OtpEmail'));
 const PasswordResetEmail = lazy(() => import('@features/admin/pages/emails/PasswordResetEmail'));
 const PasswordChangedEmail = lazy(() => import('@features/admin/pages/emails/PasswordChangedEmail'));
@@ -65,6 +108,7 @@ const ReportNotificationEmail = lazy(() => import('./features/admin/pages/emails
 const AppealDecisionEmail = lazy(() => import('./features/admin/pages/emails/AppealDecisionEmail'));
 const VisibilityChangeEmail = lazy(() => import('./features/admin/pages/emails/VisibilityChangeEmail'));
 const AdminActionEmail = lazy(() => import('./features/admin/pages/emails/AdminActionEmail'));
+const ProductReviewNotificationEmail = lazy(() => import('./features/admin/pages/emails/ProductReviewNotificationEmail'));
 const NotificationsPage = lazy(() => import('@features/notifications/pages/NotificationsPage'));
 
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -90,11 +134,12 @@ function PrivateRoute({ children, authReady }: { children: React.ReactNode; auth
 }
 
 function MerchantRoute({ children, authReady }: { children: React.ReactNode; authReady: boolean }) {
-  const { isAuthenticated, profile, profileLoading } = useAuthStore();
+  const { isAuthenticated, user, profileLoading } = useAuthStore();
   if (!authReady) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (profileLoading) return <RouteLoader />;
-  if (!profile?.is_seller) return <Navigate to="/" replace />;
+  if (profileLoading && !user) return <RouteLoader />;
+  // Any user with at least one store can access merchant pages
+  if (!user?.stores || user.stores.length === 0) return <Navigate to="/merchant/store-management" replace />;
   return <>{children}</>;
 }
 
@@ -102,7 +147,7 @@ function AdminRoute({ children, authReady }: { children: React.ReactNode; authRe
   const { isAuthenticated, user, profileLoading } = useAuthStore();
   if (!authReady) return <RouteLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (profileLoading) return <RouteLoader />;
+  if (profileLoading && !user) return <RouteLoader />;
   if (!user?.is_staff) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -200,6 +245,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account-suspended" element={<AccountSuspended />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Legal pages (no layout) */}
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -208,6 +254,8 @@ export default function App() {
           {/* Email previews (lazy — admin only) */}
           <Route path="/admin/emails" element={<AdminRoute authReady={authReady}><EmailGallery /></AdminRoute>} />
           <Route path="/admin/emails/welcome" element={<AdminRoute authReady={authReady}><WelcomeEmail /></AdminRoute>} />
+          <Route path="/admin/emails/merchant-welcome" element={<AdminRoute authReady={authReady}><MerchantWelcomeEmail /></AdminRoute>} />
+          <Route path="/admin/emails/verify-email" element={<AdminRoute authReady={authReady}><VerifyEmailTemplate /></AdminRoute>} />
           <Route path="/admin/emails/otp" element={<AdminRoute authReady={authReady}><OtpEmail /></AdminRoute>} />
           <Route path="/admin/emails/password-reset" element={<AdminRoute authReady={authReady}><PasswordResetEmail /></AdminRoute>} />
           <Route path="/admin/emails/password-changed" element={<AdminRoute authReady={authReady}><PasswordChangedEmail /></AdminRoute>} />
@@ -223,6 +271,7 @@ export default function App() {
           <Route path="/admin/emails/appeal-decision" element={<AdminRoute authReady={authReady}><AppealDecisionEmail /></AdminRoute>} />
           <Route path="/admin/emails/visibility-change" element={<AdminRoute authReady={authReady}><VisibilityChangeEmail /></AdminRoute>} />
           <Route path="/admin/emails/admin-action" element={<AdminRoute authReady={authReady}><AdminActionEmail /></AdminRoute>} />
+          <Route path="/admin/emails/product-review-notification" element={<AdminRoute authReady={authReady}><ProductReviewNotificationEmail /></AdminRoute>} />
 
           {/* Main layout */}
           <Route element={<Layout />}>
@@ -235,18 +284,26 @@ export default function App() {
             <Route path="/track-order" element={<TrackOrder />} />
 
             {/* Protected */}
-            <Route path="/checkout" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Checkout /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success/:id" element={<OrderSuccess />} />
             <Route path="/orders" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Orders /></OnboardingGuard></PrivateRoute>} />
             <Route path="/orders/:id" element={<PrivateRoute authReady={authReady}><OnboardingGuard><OrderDetail /></OnboardingGuard></PrivateRoute>} />
             <Route path="/orders/:id/review" element={<PrivateRoute authReady={authReady}><OnboardingGuard><OrderReview /></OnboardingGuard></PrivateRoute>} />
-            <Route path="/profile" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
+            {/* Notification deep-links → redirect to existing order page */}
+            <Route path="/orders/:id/status"    element={<PrivateRoute authReady={authReady}><OrderSubRedirect /></PrivateRoute>} />
+            <Route path="/orders/:id/confirmed" element={<PrivateRoute authReady={authReady}><OrderSubRedirect /></PrivateRoute>} />
+            <Route path="/orders/:id/payment"   element={<PrivateRoute authReady={authReady}><OrderSubRedirect /></PrivateRoute>} />
+            <Route path="/profile"           element={<PrivateRoute authReady={authReady}><OnboardingGuard><Profile /></OnboardingGuard></PrivateRoute>} />
             <Route path="/profile/:username" element={<UserProfile />} />
-            <Route path="/chat" element={<PrivateRoute authReady={authReady}><OnboardingGuard><Chat /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/store/:id"         element={<StoreRedirect />} />
+            <Route path="/chat"    element={<PrivateRoute authReady={authReady}><OnboardingGuard><Chat /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/chat/:id" element={<PrivateRoute authReady={authReady}><ChatRedirect /></PrivateRoute>} />
             <Route path="/registration-success" element={<PrivateRoute authReady={authReady}><RegistrationSuccess /></PrivateRoute>} />
 
             {/* Appeals */}
-            <Route path="/appeals/new" element={<PrivateRoute authReady={authReady}><OnboardingGuard><AppealForm /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/appeals/new"  element={<PrivateRoute authReady={authReady}><OnboardingGuard><AppealForm /></OnboardingGuard></PrivateRoute>} />
             <Route path="/appeals/list" element={<PrivateRoute authReady={authReady}><OnboardingGuard><MyAppeals /></OnboardingGuard></PrivateRoute>} />
+            <Route path="/appeals/:id"  element={<PrivateRoute authReady={authReady}><AppealDetailRedirect /></PrivateRoute>} />
 
             {/* Merchant (lazy) */}
             <Route path="/merchant/dashboard" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantDashboard /></OnboardingGuard></MerchantRoute>} />
@@ -254,13 +311,18 @@ export default function App() {
             <Route path="/merchant/products/add" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
             <Route path="/merchant/products/:id/edit" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantProductForm /></OnboardingGuard></MerchantRoute>} />
             <Route path="/merchant/orders" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantOrders /></OnboardingGuard></MerchantRoute>} />
-            <Route path="/merchant/orders/:id" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders/:id"         element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantOrderDetail /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/orders/:id/payment" element={<MerchantRoute authReady={authReady}><MerchantOrderSubRedirect /></MerchantRoute>} />
             <Route path="/merchant/products/suspended" element={<MerchantRoute authReady={authReady}><OnboardingGuard><MerchantSuspendedProducts /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/store-management" element={<MerchantRoute authReady={authReady}><OnboardingGuard><StoreManagement /></OnboardingGuard></MerchantRoute>} />
+            <Route path="/merchant/stores/:id/dashboard" element={<MerchantRoute authReady={authReady}><OnboardingGuard><StoreDashboard /></OnboardingGuard></MerchantRoute>} />
 
             {/* Admin (lazy) */}
-            <Route path="/admin-panel" element={<AdminRoute authReady={authReady}><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin-panel"  element={<AdminRoute authReady={authReady}><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/users"  element={<AdminRoute authReady={authReady}><AdminUsersRedirect /></AdminRoute>} />
             <Route path="/admin/users/:id" element={<AdminRoute authReady={authReady}><AdminUserDetail /></AdminRoute>} />
             <Route path="/admin/appeals" element={<AdminRoute authReady={authReady}><AdminAppeals /></AdminRoute>} />
+            <Route path="/admin/products/review" element={<AdminRoute authReady={authReady}><AdminProductReview /></AdminRoute>} />
           </Route>
 
           {/* 404 */}

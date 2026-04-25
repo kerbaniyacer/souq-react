@@ -5,16 +5,18 @@ import { useScrollDirection } from '@shared/hooks/useScrollDirection';
 import { useCartStore } from '@shared/stores/cartStore';
 import { useNotificationStore } from '@features/notifications/store/useNotificationStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { useUIStore } from '@shared/stores/uiStore';
 
 export default function BottomNavbar() {
   const location = useLocation();
   const scrollDirection = useScrollDirection();
   const { itemsCount } = useCartStore();
+  const { isMobileMenuOpen, forceHideBottomNavbar } = useUIStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const { isAuthenticated } = useAuthStore();
 
   const cartCount = itemsCount();
-  const isHidden = scrollDirection === 'down';
+  const isHidden = scrollDirection === 'down' || isMobileMenuOpen || forceHideBottomNavbar;
 
   const navItems = [
     { label: 'الرئيسية', icon: Home, path: '/', id: 'home' },

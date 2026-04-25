@@ -4,8 +4,8 @@ import type { Product, ProductVariant } from '@shared/types';
 import { useCartStore } from '@shared/stores/cartStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useToast } from '@shared/stores/toastStore';
-import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PRODUCT_IMAGE } from '@shared/lib/assets';
+import { useUIStore } from '@shared/stores/uiStore';
 
 interface Props {
   product: Product | null;
@@ -15,21 +15,23 @@ interface Props {
 
 /* ── helpers ───────────────────────────────────────────────────── */
 
-/** Collect all unique attribute keys across variants (e.g. ["اللون","المقاس"]) */
+/** Collect all unique attribute keys across variants, preserving insertion order */
 function getAttributeKeys(variants: ProductVariant[]): string[] {
-  const keys = new Set<string>();
-  variants.forEach((v) => Object.keys(v.attributes ?? {}).forEach((k) => keys.add(k)));
-  return Array.from(keys);
+  const keys: string[] = [];
+  variants.forEach((v) => Object.keys(v.attributes ?? {}).forEach((k) => {
+    if (!keys.includes(k)) keys.push(k);
+  }));
+  return keys;
 }
 
 /** Get unique values for a given attribute key */
 function getAttributeValues(variants: ProductVariant[], key: string): string[] {
-  const vals = new Set<string>();
+  const vals: string[] = [];
   variants.forEach((v) => {
     const val = v.attributes?.[key];
-    if (val) vals.add(val);
+    if (val && !vals.includes(val)) vals.push(val);
   });
-  return Array.from(vals);
+  return vals;
 }
 
 /** Find the variant that matches ALL selected attributes */
@@ -46,30 +48,30 @@ function findMatchingVariant(
 
 export default function VariantSelectorModal({ product, isOpen, onClose }: Props) {
   const { addItem } = useCartStore();
-  const { isAuthenticated, user } = useAuthStore();
+  const { user } = useAuthStore();
   const toast = useToast();
-  const navigate = useNavigate();
+  const { setForceHideBottomNavbar } = useUIStore();
 
   // ── state ──────────────────────────────────────────────────────
-  // All hooks must be called at the top, unconditionally.
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
 
-  // ── Derived Data (Safe for null product) ────────────────────────
+  // ── Derived Data ────────────────────────────────────────────────
   const variants = product?.variants ?? [];
-  const attrKeys = getAttributeKeys(variants);
+  // استخدام product.options (من API) إن وُجد لضمان الترتيب الصحيح وجميع القيم
+  const attrKeys = product?.options?.length
+    ? product.options.map((o) => o.name)
+    : getAttributeKeys(variants);
   const hasAttributes = attrKeys.length > 0;
 
-  // Resolve the current active variant
   const activeVariant: ProductVariant | undefined = hasAttributes
     ? findMatchingVariant(variants, selected)
     : selected['__variantId']
       ? variants.find((v) => String(v.id) === selected['__variantId'])
       : variants.find((v) => v.is_main) ?? variants[0];
 
-  // Images for the active variant (fall back to product images)
   const variantImages =
     activeVariant?.images && activeVariant.images.length > 0
       ? activeVariant.images
@@ -78,8 +80,18 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
   const productFallbackImage = product?.main_image ?? product?.images?.[0]?.image;
   const isOwner = !!(product?.seller && user && String(product.seller.id) === String(user.id));
 
-  // ── Effects (Unconditional) ─────────────────────────────────────
+  // ── Effects ─────────────────────────────────────────────────────
   
+  // Sync with bottom navbar
+  useEffect(() => {
+    if (isOpen) {
+      setForceHideBottomNavbar(true);
+    } else {
+      setForceHideBottomNavbar(false);
+    }
+    return () => setForceHideBottomNavbar(false);
+  }, [isOpen, setForceHideBottomNavbar]);
+
   // Reset on open
   useEffect(() => {
     if (!isOpen || !product) return;
@@ -87,8 +99,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     setActiveImageIndex(0);
     setIsAdding(false);
 
-    // Pre-select the main variant's attributes
-    // Need current variants list
     const currentVariants = product.variants ?? [];
     const mainV = currentVariants.find((v) => v.is_main) ?? currentVariants[0];
     if (mainV?.attributes) {
@@ -96,7 +106,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     } else {
       setSelected({});
     }
-  }, [isOpen, product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, product?.id]);
 
   // Reset image index when variant changes
   useEffect(() => {
@@ -129,11 +139,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     setSelected((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // ── Early Return Guard ──────────────────────────────────────────
-  // MUST be after all hooks to comply with React's architecture.
-  if (!product || !isOpen) return null;
-
-  /** Check if a specific attribute value is still available given OTHER selected attrs */
   const isValueAvailable = (key: string, value: string): boolean => {
     const test = { ...selected, [key]: value };
     return variants.some((v) =>
@@ -142,14 +147,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     );
   };
 
-  // ── add to cart ────────────────────────────────────────────────
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.info('سجّل دخولك أولاً');
-      onClose();
-      navigate('/login');
-      return;
-    }
     if (isOwner) {
       toast.info('لا يمكنك إضافة منتجك إلى السلة');
       return;
@@ -169,7 +167,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
 
     setIsAdding(true);
     try {
-      await addItem(activeVariant.id, quantity, product.seller?.id);
+      await addItem(activeVariant.id, quantity, product?.seller?.id, activeVariant);
       toast.success('تمت الإضافة إلى السلة ✓');
       onClose();
     } catch (err: any) {
@@ -179,7 +177,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
     }
   };
 
-  // ── image navigation ───────────────────────────────────────────
   const prevImage = () =>
     setActiveImageIndex((i) => (i === 0 ? variantImages.length - 1 : i - 1));
   const nextImage = () =>
@@ -188,15 +185,13 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
   const currentImageSrc =
     variantImages[activeImageIndex]?.image ?? productFallbackImage ?? DEFAULT_PRODUCT_IMAGE;
 
-  if (!isOpen) return null;
+  if (!product || !isOpen) return null;
 
-  // ── render ─────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Modal panel */}
       <div
         className="
           w-full sm:max-w-2xl max-h-[92dvh] sm:max-h-[88vh]
@@ -208,7 +203,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
         "
         dir="rtl"
       >
-        {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800/60 shrink-0">
           <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 font-arabic line-clamp-1">
             {product.name}
@@ -221,12 +215,9 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
           </button>
         </div>
 
-        {/* ── Scrollable body ── */}
         <div className="overflow-y-auto flex-1">
           <div className="flex flex-col sm:flex-row gap-0 sm:gap-6 p-5">
-            {/* ── Image viewer ── */}
             <div className="sm:w-56 sm:shrink-0 space-y-3">
-              {/* Main image */}
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800">
                 <img
                   key={currentImageSrc}
@@ -251,7 +242,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    {/* Dots */}
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
                       {variantImages.map((_, i) => (
                         <button
@@ -269,7 +259,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 )}
               </div>
 
-              {/* Thumbnails */}
               {variantImages.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                   {variantImages.map((img, i) => (
@@ -296,9 +285,7 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
               )}
             </div>
 
-            {/* ── Options ── */}
             <div className="flex-1 space-y-5 mt-5 sm:mt-0">
-              {/* Price */}
               {activeVariant ? (
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
@@ -321,9 +308,9 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 </p>
               )}
 
-              {/* Attribute selectors */}
               {attrKeys.map((key) => {
-                const values = getAttributeValues(variants, key);
+                const values = product?.options?.find((o) => o.name === key)?.values
+                  ?? getAttributeValues(variants, key);
                 return (
                   <div key={key} className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -367,7 +354,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 );
               })}
 
-              {/* No attributes — show simple variant list */}
               {!hasAttributes && variants.length > 1 && (
                 <div className="space-y-2">
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 font-arabic">
@@ -379,8 +365,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                         key={v.id}
                         disabled={!v.is_active || !v.is_in_stock}
                         onClick={() => {
-                          /* For variants without attributes, we just switch by toggling is_main
-                             We track selection separately via local state */
                           setSelected({ __variantId: String(v.id) });
                         }}
                         className={`
@@ -400,7 +384,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 </div>
               )}
 
-              {/* Stock badge — same logic as ProductDetail.tsx */}
               {activeVariant && (() => {
                 const status = (activeVariant as any).stock_status || (activeVariant.is_in_stock ? 'high' : 'out_of_stock');
                 const config: Record<string, { text: string; classes: string }> = {
@@ -417,7 +400,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
                 );
               })()}
 
-              {/* Quantity selector */}
               {activeVariant?.is_in_stock && (
                 <div className="space-y-2">
                   <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 font-arabic">
@@ -450,7 +432,6 @@ export default function VariantSelectorModal({ product, isOpen, onClose }: Props
           </div>
         </div>
 
-        {/* ── Footer CTA ── */}
         <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800/60 shrink-0">
           {!activeVariant && hasAttributes ? (
             <p className="text-center text-sm font-arabic text-gray-400 dark:text-gray-500 py-2">

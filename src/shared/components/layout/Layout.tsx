@@ -6,11 +6,12 @@ import ToastContainer from '@shared/components/common/Toast';
 import FloatingHelpButton from '@shared/components/common/FloatingHelpButton';
 import ScrollToTop from '@shared/components/common/ScrollToTop';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { hasStore } from '@shared/types';
 
 export default function Layout() {
   const location = useLocation();
-  const { isAuthenticated, profile } = useAuthStore();
-  const isMerchantBar = isAuthenticated && profile?.is_seller && location.pathname.startsWith('/merchant');
+  const { isAuthenticated, user } = useAuthStore();
+  const isMerchantBar = isAuthenticated && hasStore(user) && location.pathname.startsWith('/merchant');
 
   return (
     <div className="min-h-screen bg-page-bg dark:bg-gray-950 font-arabic transition-colors duration-300">
